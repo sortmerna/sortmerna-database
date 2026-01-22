@@ -15,18 +15,18 @@ This repository contains code and workflows to:
 ## Goals
 
 ### Phase 1: Database Construction
-- [ ] Download latest SILVA database
-- [ ] Download RFAM rRNA families
-- [ ] Implement clustering pipeline
+- [x] Download latest SILVA database
+- [x] Download RFAM rRNA families
+- [x] Implement clustering pipeline
 - [ ] Test multiple clustering thresholds
 - [ ] Build SortMeRNA indices for each clustered database
 - [ ] Generate database statistics and metadata
 
 ### Phase 2: Database Validation
 - [ ] Create simulated datasets with known rRNA content
-  - [ ] Illumina short reads (75bp, 150bp, 250bp)
-  - [ ] PacBio HiFi reads (~15kb)
-  - [ ] Oxford Nanopore reads (10-50kb)
+- [ ] Illumina short reads (75bp, 150bp, 250bp)
+- [ ] PacBio HiFi reads (~15kb)
+- [ ] Oxford Nanopore reads (10-50kb)
 - [ ] Validate against real benchmark datasets
 - [ ] Measure sensitivity and specificity per clustering level
 
@@ -66,7 +66,7 @@ This repository contains code and workflows to:
 
 ### Simulated Data
 Generate synthetic reads with known rRNA/non-rRNA composition:
-- **Tools**: ART (Illumina), PBSIM2 (PacBio), NanoSim (Nanopore)
+- **Tools**: ART (Illumina), PBSIM3 (PacBio/Nanopore)
 - **Composition**: 0%, 10%, 25%, 50%, 75%, 90% rRNA content
 - **Organisms**: E. coli, S. cerevisiae, H. sapiens, mixed metatranscriptomic
 - **Error profiles**: Platform-specific error rates
@@ -88,11 +88,22 @@ Generate synthetic reads with known rRNA/non-rRNA composition:
 ## Installation
 
 ### Requirements
-- SortMeRNA (latest version)
-- Clustering tool
-- Python 3.8+
-- R 4.0+
-- Conda or Docker
+
+**Core tools:**
+- [SortMeRNA](https://github.com/sortmerna/sortmerna) v4.3.7 - rRNA filtering (installed separately from GitHub release)
+- [VSEARCH](https://github.com/torognes/vsearch) >= 2.22 - sequence clustering
+- [SeqKit](https://bioinf.shenwei.me/seqkit/) >= 2.5 - sequence statistics
+
+**Languages:**
+- Python >= 3.8
+- R >= 4.0
+
+**Python libraries:**
+- pandas, numpy, matplotlib, seaborn, biopython
+
+**Simulation tools (for benchmarking):**
+- [ART](https://www.niehs.nih.gov/research/resources/software/biostatistics/art) - Illumina read simulation
+- [PBSIM3](https://github.com/yukiteruono/pbsim3) - PacBio and Oxford Nanopore read simulation
 
 ### Quick Start
 
@@ -104,11 +115,9 @@ cd sortmerna-database-benchmark
 # Create conda environment
 conda env create -f environment.yml
 conda activate sortmerna-bench
-
-# Or use Docker
-docker build -t sortmerna-bench .
-docker run -it sortmerna-bench
 ```
+
+**Install SortMeRNA separately:** Download v4.3.7 binaries from https://github.com/sortmerna/sortmerna/releases
 
 ## Usage
 
