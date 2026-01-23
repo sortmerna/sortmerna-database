@@ -69,6 +69,14 @@ This repository contains code and workflows to:
 
 ### Tools Considered
 
+We use [VSEARCH](https://github.com/torognes/vsearch) for sequence clustering. VSEARCH is a high-performance open-source tool for sequence analysis that implements a centroid-based clustering algorithm. It is the same tool used by the SILVA project to generate their non-redundant (NR) databases, ensuring compatibility and reproducibility with established rRNA reference workflows.
+
+Key features:
+- Fast clustering with `--cluster_fast` using identity thresholds
+- Supports both strands for rRNA sequences
+- Memory-efficient for large databases
+- Produces representative centroid sequences
+
 ### Clustering Thresholds to Test
 
 ## Benchmarking Approach
