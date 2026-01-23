@@ -79,6 +79,12 @@ Key features:
 
 ### Clustering Thresholds to Test
 
+- **99%** - Near-identical sequences collapsed
+- **97%** - Species-level clustering (commonly used for 16S)
+- **95%** - Genus-level approximation
+- **90%** - Family-level approximation
+- **85%** - Higher-order taxonomic grouping
+
 ## Benchmarking Approach
 
 ### Simulated Data
