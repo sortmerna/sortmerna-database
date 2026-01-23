@@ -1,0 +1,30 @@
+name: sortmerna-bench
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  # Core tools (sortmerna installed separately from GitHub release)
+  - vsearch>=2.22
+  - seqkit>=2.5
+
+  # Python and libraries
+  - python>=3.8
+  - pandas>=2.0
+  - numpy>=1.24
+  - matplotlib>=3.7
+  - seaborn>=0.12
+  - biopython>=1.81
+
+  # R and libraries (for plotting/analysis)
+  - r-base>=4.0
+  - r-ggplot2
+  - r-tidyverse
+
+  # Simulation tools (for benchmarking phase)
+  - art>=2016.06.05
+  - pbsim3>=3.0.0
+
+  # Utilities
+  - wget
+  - curl
