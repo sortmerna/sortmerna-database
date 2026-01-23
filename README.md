@@ -142,6 +142,10 @@ bash scripts/database_building/download_rfam.sh
 
 ### 2. Build Clustered Databases
 
+```bash
+bash scripts/database_building/cluster_sequences.sh data data/clustered 4
+```
+
 ### 3. Run Benchmarks
 
 ### 4. Compare Databases
