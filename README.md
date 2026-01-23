@@ -12,6 +12,15 @@ This repository contains code and workflows to:
    
 ## Repository Structure
 
+```
+.
+├── scripts/
+│   ├── database_building/
+│   │   ├── download_silva.sh      # Download SILVA SSU/LSU rRNA sequences
+│   │   ├── download_rfam.sh       # Download RFAM 5S/5.8S rRNA sequences
+│   │   ├── cluster_sequences.sh   # Cluster sequences by kingdom at multiple thresholds
+```
+
 ## Goals
 
 ### Phase 1: Database Construction
