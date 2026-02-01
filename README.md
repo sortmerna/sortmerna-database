@@ -79,7 +79,6 @@ Key features:
 
 ### Clustering Thresholds to Test
 
-- **99%** - Near-identical sequences collapsed
 - **97%** - Species-level clustering (commonly used for 16S)
 - **95%** - Genus-level approximation
 - **90%** - Family-level approximation
@@ -157,12 +156,56 @@ bash scripts/database_building/download_rfam.sh
 ### 2. Build Clustered Databases
 
 ```bash
+# Args: input_dir output_dir threads
 bash scripts/database_building/cluster_sequences.sh data data/clustered 4
 ```
 
-### 3. Run Benchmarks
+For each database and clustering threshold, the script outputs four files:
 
-### 4. Compare Databases
+| File | Description |
+|------|-------------|
+| `*_XX.fasta` | Centroid/seed sequences — the clustered rRNA database used by SortMeRNA |
+| `*_XX.uc` | VSEARCH cluster membership file |
+| `*_XX_test_members.fasta` | Non-seed cluster members — used as source sequences for simulating test reads |
+| `*_XX_cluster_mapping.txt` | Tab-delimited mapping of each member sequence ID to its seed sequence ID |
+
+The centroid sequences (`*_XX.fasta`) become the SortMeRNA reference databases. The non-seed members (`*_XX_test_members.fasta`) are sequences that were clustered away at each threshold, providing a natural source of reads for benchmarking — since they are real rRNA sequences not present in the database, they test whether SortMeRNA can still identify similar but non-identical rRNA.
+
+### 3. Download Non-rRNA Test Sequences (Specificity Testing)
+
+To measure the false positive rate (specificity), we need a large set of sequences that are definitively **not** rRNA. SortMeRNA should reject all of these; any that are classified as rRNA are false positives.
+
+```bash
+bash scripts/read_simulation/download_non_rrna.sh -o data/non_rrna --threads 8
+```
+
+The script downloads ~1M non-rRNA sequences from four sources:
+
+| Source | Description | Default count |
+|--------|-------------|---------------|
+| **RefSeq bacterial mRNA** | Protein-coding transcripts from NCBI RefSeq bacteria RNA, filtered to exclude rRNA/tRNA | 500,000 |
+| **Ensembl eukaryotic cDNA** | cDNA from human, mouse, zebrafish, *C. elegans*, and *Arabidopsis* | 300,000 |
+| **Rfam non-rRNA families** | Non-coding RNA from Rfam families: tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs | 150,000 |
+| **Random genomic fragments** | 500–3000 bp fragments from *E. coli*, *B. subtilis*, and *S. cerevisiae* genomes | 50,000 |
+
+**Safety filters** are applied to the combined set to remove any rRNA contamination:
+
+1. **Header keyword filter** — `seqkit grep` removes sequences with rRNA-related terms (ribosomal, rRNA, 16S, 23S, etc.)
+2. **Barrnap rRNA prediction** — runs HMM-based rRNA gene detection for both bacterial (`--kingdom bac`) and eukaryotic (`--kingdom euk`) models, catching unlabeled rRNA especially in genomic fragments
+
+Output files:
+
+| File | Description |
+|------|-------------|
+| `non_rRNA_test_1M.fasta` | Final clean non-rRNA test sequences |
+| `non_rRNA_metadata.txt` | Composition breakdown by source |
+| `non_rRNA_stats.txt` | Sequence length and count statistics |
+
+All sampling uses a fixed random seed (`--seed 42`) for reproducibility.
+
+### 4. Run Benchmarks
+
+### 5. Compare Databases
 
 ```bash
 # Compare all clustering levels

@@ -7,6 +7,7 @@ dependencies:
   # Core tools (sortmerna installed separately from GitHub release)
   - vsearch>=2.22
   - seqkit>=2.5
+  - barrnap>=0.9
 
   # Python and libraries
   - python>=3.8
