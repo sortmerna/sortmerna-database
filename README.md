@@ -91,8 +91,9 @@ Key features:
 ### Simulated Data
 Generate synthetic reads with known rRNA/non-rRNA composition:
 - **Tools**: ART (Illumina), PBSIM3 (PacBio/Nanopore)
+- **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) — real rRNA sequences not present in the clustered database
+- **Non-rRNA source**: `non_rRNA_test_1M.fasta` — bacterial mRNA, eukaryotic cDNA, Rfam ncRNA, and genomic fragments
 - **Composition**: 0%, 10%, 25%, 50%, 75%, 90% rRNA content
-- **Organisms**: E. coli, S. cerevisiae, H. sapiens, mixed metatranscriptomic
 - **Error profiles**: Platform-specific error rates
 
 ### Real Benchmark Datasets
