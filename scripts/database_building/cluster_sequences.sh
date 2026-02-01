@@ -3,7 +3,13 @@
 # cluster_sequences.sh - Cluster rRNA sequences using VSEARCH
 #
 # Clusters SILVA and RFAM sequences at multiple identity thresholds
-# by kingdom, generating a summary table in markdown format
+# by kingdom, generating a summary table in markdown format.
+#
+# For each clustering threshold, outputs:
+#   clustered_XX.fasta              - centroid/seed sequences (the database)
+#   clustered_XX.uc                 - VSEARCH cluster membership
+#   clustered_XX_test_members.fasta - non-seed members (for simulating test reads)
+#   clustered_XX_cluster_mapping.txt - member-to-seed mapping
 
 set -euo pipefail
 
@@ -19,7 +25,7 @@ SILVA_VERSION="138.2"
 RFAM_VERSION="15.1"
 
 # Clustering thresholds to test (as percentages)
-THRESHOLDS=(99 97 95 90 85)
+THRESHOLDS=(97 95 90 85)
 
 echo "============================================"
 echo "Sequence Clustering Script"
@@ -98,6 +104,11 @@ split_by_kingdom() {
 }
 
 # Function to cluster sequences
+# Outputs:
+#   <output>.fasta          - centroid/seed sequences (the clustered database)
+#   <output>.uc             - VSEARCH cluster membership file
+#   <output>_test_members.fasta   - non-seed cluster members (for simulating test reads)
+#   <output>_cluster_mapping.txt  - mapping of member sequence IDs to their seed IDs
 cluster_sequences() {
     local input="$1"
     local threshold="$2"
@@ -108,6 +119,9 @@ cluster_sequences() {
     fi
 
     local identity=$(echo "scale=2; ${threshold}/100" | bc)
+    local uc_file="${output%.fasta}.uc"
+    local test_members="${output%.fasta}_test_members.fasta"
+    local cluster_mapping="${output%.fasta}_cluster_mapping.txt"
 
     if [[ -f "${output}" ]]; then
         echo "  Output exists, skipping: ${output}"
@@ -120,10 +134,34 @@ cluster_sequences() {
         --cluster_fast "${input}" \
         --id "${identity}" \
         --centroids "${output}" \
+        --uc "${uc_file}" \
         --threads "${THREADS}" \
         --strand both \
         --notrunclabels \
         --quiet
+
+    # Extract non-seed member IDs from .uc file (H = hit/member records)
+    # .uc columns: type, cluster#, length, %id, strand, _, _, cigar, query_label, target_label
+    local member_ids="${output%.fasta}_member_ids.tmp"
+    awk -F'\t' '$1 == "H" { print $9 }' "${uc_file}" > "${member_ids}"
+
+    # Create cluster mapping: member_id <tab> seed_id
+    {
+        echo -e "member_id\tseed_id"
+        awk -F'\t' '$1 == "H" { print $9 "\t" $10 }' "${uc_file}"
+    } > "${cluster_mapping}"
+
+    # Extract non-seed member sequences from original input
+    if [[ -s "${member_ids}" ]]; then
+        seqkit grep -f "${member_ids}" "${input}" -o "${test_members}"
+        local member_count=$(seqkit stats -T "${test_members}" | tail -1 | cut -f4)
+        echo "  Non-seed test members: ${member_count} sequences"
+    else
+        echo "  No non-seed members at this threshold"
+        touch "${test_members}"
+    fi
+
+    rm -f "${member_ids}"
 
     return 0
 }
