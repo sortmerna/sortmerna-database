@@ -2,6 +2,8 @@
 
 A comprehensive benchmarking framework for building and evaluating optimized rRNA databases for SortMeRNA across modern sequencing platforms.
 
+**Status**: 🚧 Active Development
+
 ## Overview
 
 This repository contains code and workflows to:
@@ -278,7 +280,7 @@ GPL-3.0
 
 ## Contact
 
-- **Issues**: https://github.com/yourusername/sortmerna-database-benchmark/issues
+- **Issues**: https://github.com/yourusername/sortmerna-database/issues
 - **Email**: jenya.kopylov@gmail.com
 
 ## References
@@ -287,4 +289,3 @@ GPL-3.0
 2. Quast C, Pruesse E, Yilmaz P, Gerken J, Schweer T, Yarza P, Peplies J, Glöckner FO. The SILVA ribosomal RNA gene database project: improved data processing and web-based tools. Nucleic Acids Res. 2013 Jan;41(Database issue):D590-6. doi: 10.1093/nar/gks1219. Epub 2012 Nov 28. PMID: 23193283; PMCID: PMC3531112.
 3. Kalvari I, Nawrocki EP, Ontiveros-Palacios N, Argasinska J, Lamkiewicz K, Marz M, Griffiths-Jones S, Toffano-Nioche C, Gautheret D, Weinberg Z, Rivas E, Eddy SR, Finn RD, Bateman A, Petrov AI. Rfam 14: expanded coverage of metagenomic, viral and microRNA families. Nucleic Acids Res. 2021 Jan 8;49(D1):D192-D200. doi: 10.1093/nar/gkaa1047. PMID: 33211869; PMCID: PMC7779021.
 
-**Status**: 🚧 Active Development
