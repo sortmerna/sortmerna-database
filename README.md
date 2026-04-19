@@ -153,6 +153,7 @@ conda activate sortmerna-bench
 ```bash
 # Path to the cloned sortmerna-database repository
 export SMR_DB_ROOT_DIR=$HOME/sortmerna-database
+export UTILS_DIR=$SMR_DB_ROOT_DIR/scripts/utils
 
 # Working directory — all data will be written here
 export WORK_DIR=$HOME/working

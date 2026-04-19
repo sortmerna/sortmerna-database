@@ -19,6 +19,7 @@ OUTPUT_DIR="${2:-data/clustered}"
 THREADS="${3:-4}"
 SILVA_DIR="${SILVA_DIR:-${INPUT_DIR}/silva}"
 CLUSTERED_DIR="${CLUSTERED_DIR:-${OUTPUT_DIR}}"
+UTILS_DIR="${UTILS_DIR:-${SMR_DB_ROOT_DIR}/scripts/utils}"
 
 SILVA_VERSION="${SILVA_VERSION:-138.2}"
 RFAM_VERSION="${RFAM_VERSION:-15.1}"
@@ -51,9 +52,9 @@ echo "Using VSEARCH version: $(vsearch --version 2>&1 | head -1)"
 mkdir -p "${CLUSTERED_DIR}"
 mkdir -p "${SILVA_DIR}/by_kingdom"
 
-# Array to store results for markdown table
-declare -a RESULTS=()
-ROW_NUM=0
+# TSV file accumulating results for the summary table (written by add_result, read by generate_summary.py)
+RESULTS_TSV="${CLUSTERED_DIR}/clustering_results.tsv"
+rm -f "${RESULTS_TSV}"
 
 # Function to get sequence stats
 get_seq_stats() {
@@ -65,7 +66,7 @@ get_seq_stats() {
   fi
 }
 
-# Function to add result to table
+# Function to add result row to TSV
 add_result() {
   local ref_db="$1"
   local db="$2"
@@ -73,16 +74,9 @@ add_result() {
   local clustering="$4"
   local num_seqs="$5"
   local total_nt="$6"
-
-  ROW_NUM=$((ROW_NUM + 1))
-
-  # Calculate log10(#seq)
-  local log10_seq=""
-  if [[ "${num_seqs}" -gt 0 ]]; then
-    log10_seq=$(echo "scale=2; l(${num_seqs})/l(10)" | bc -l)
-  fi
-
-  RESULTS+=("${ROW_NUM}|${ref_db}|${db}|${kingdom}|${clustering}|${num_seqs}|${total_nt}|${log10_seq}")
+  printf "%s\t%s\t%s\t%s\t%s\t%s\n" \
+    "${ref_db}" "${db}" "${kingdom}" "${clustering}" "${num_seqs}" "${total_nt}" \
+    >> "${RESULTS_TSV}"
 }
 
 # Function to split SILVA file by kingdom
@@ -90,7 +84,9 @@ split_by_kingdom() {
   local input="$1"
   local output_prefix="$2"
 
-  echo "Splitting by kingdom: ${input}"
+  local total
+  total=$(seqkit stats -T "${input}" | tail -1 | cut -f4)
+  echo "Splitting by kingdom: ${input} (${total} sequences)"
 
   # Extract Archaea
   seqkit grep -r --by-name -p " Archaea;" "${input}" -o "${output_prefix}_archaea.fasta" 2>/dev/null || true
@@ -100,6 +96,20 @@ split_by_kingdom() {
 
   # Extract Eukaryota
   seqkit grep -r --by-name -p " Eukaryota;" "${input}" -o "${output_prefix}_eukaryota.fasta" 2>/dev/null || true
+
+  # Verify split is complete
+  local n_archaea n_bacteria n_eukaryota split_sum
+  n_archaea=$(seqkit stats -T "${output_prefix}_archaea.fasta" 2>/dev/null | tail -1 | cut -f4)
+  n_bacteria=$(seqkit stats -T "${output_prefix}_bacteria.fasta" 2>/dev/null | tail -1 | cut -f4)
+  n_eukaryota=$(seqkit stats -T "${output_prefix}_eukaryota.fasta" 2>/dev/null | tail -1 | cut -f4)
+  split_sum=$(( n_archaea + n_bacteria + n_eukaryota ))
+
+  if [[ "${split_sum}" -eq "${total}" ]]; then
+    echo "  Kingdom split OK: archaea=${n_archaea}, bacteria=${n_bacteria}, eukaryota=${n_eukaryota}"
+  else
+    echo "  Warning: kingdom split mismatch — input=${total}, split sum=${split_sum} (archaea=${n_archaea}, bacteria=${n_bacteria}, eukaryota=${n_eukaryota})"
+    echo "  $(( total - split_sum )) sequences not assigned to any kingdom"
+  fi
 }
 
 # Function to cluster sequences
@@ -128,6 +138,7 @@ cluster_sequences() {
   fi
 
   echo "  Clustering at ${threshold}%: $(basename "${output}")"
+  echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${output} --uc ${uc_file} --threads ${THREADS} --strand both --notrunclabels --quiet"
 
   vsearch \
     --cluster_fast "${input}" \
@@ -139,16 +150,11 @@ cluster_sequences() {
     --notrunclabels \
     --quiet
 
-  # Extract non-seed member IDs from .uc file (H = hit/member records)
-  # .uc columns: type, cluster#, length, %id, strand, _, _, cigar, query_label, target_label
+  # Parse .uc file: extract member IDs and cluster mapping in one pass
   local member_ids="${output%.fasta}_member_ids.tmp"
-  awk -F'\t' '$1 == "H" { print $9 }' "${uc_file}" > "${member_ids}"
-
-  # Create cluster mapping: member_id <tab> seed_id
-  {
-    echo -e "member_id\tseed_id"
-    awk -F'\t' '$1 == "H" { print $9 "\t" $10 }' "${uc_file}"
-  } > "${cluster_mapping}"
+  python3 "${UTILS_DIR}/parse_uc.py" "${uc_file}" \
+    --member-ids "${member_ids}" \
+    --mapping "${cluster_mapping}"
 
   # Extract non-seed member sequences from original input
   if [[ -s "${member_ids}" ]]; then
@@ -159,6 +165,10 @@ cluster_sequences() {
     echo "  No non-seed members at this threshold"
     touch "${test_members}"
   fi
+
+  # Verify no seed sequences leaked into test members
+  # (seeds are the database; test members simulate reads aligned to it — overlap = data leakage)
+  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${test_members}" || return 1
 
   rm -f "${member_ids}"
 
@@ -316,18 +326,7 @@ echo "Clustering complete!"
 echo "============================================"
 
 TABLE_FILE="${CLUSTERED_DIR}/clustering_summary.md"
-
-{
-  echo "# Clustering Summary"
-  echo ""
-  echo "| # | Ref DB | DB | kingdom | clustering | #sequences | total size (nt) | log10(#seq) |"
-  echo "|---|--------|-----|---------|------------|------------|-----------------|-------------|"
-
-  for row in "${RESULTS[@]}"; do
-    IFS='|' read -r num ref_db db kingdom clustering num_seqs total_nt log10_seq <<< "${row}"
-    echo "| ${num} | ${ref_db} | ${db} | ${kingdom} | ${clustering} | ${num_seqs} | ${total_nt} | ${log10_seq} |"
-  done
-} > "${TABLE_FILE}"
+python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}"
 
 echo ""
 echo "Summary table written to: ${TABLE_FILE}"
