@@ -134,8 +134,8 @@ Generate synthetic reads with known rRNA/non-rRNA composition:
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/sortmerna-database-benchmark.git
-cd sortmerna-database-benchmark
+git clone https://github.com/yourusername/sortmerna-database.git
+cd sortmerna-database
 
 # Create conda environment
 conda env create -f environment.yml
@@ -146,21 +146,42 @@ conda activate sortmerna-bench
 
 ## Usage
 
+### 0. Set paths & create working directory
+
+```bash
+# Path to the cloned sortmerna-database repository
+export SMR_DB_ROOT_DIR=$HOME/sortmerna-database
+
+# Working directory — all data will be written here
+export WORK_DIR=$HOME/working
+export DATA_DIR=$WORK_DIR/data
+mkdir -p $DATA_DIR && cd $WORK_DIR
+
+# Data directories (adjust if needed)
+export SILVA_DIR=$DATA_DIR/silva
+export RFAM_DIR=$DATA_DIR/rfam
+export CLUSTERED_DIR=$DATA_DIR/clustered
+
+# Database versions (update if using a newer release)
+export SILVA_VERSION=138.2
+export RFAM_VERSION=15.1
+```
+
 ### 1. Download Source Databases
 
 ```bash
 # Download SILVA
-bash scripts/database_building/download_silva.sh
+bash $SMR_DB_ROOT_DIR/scripts/database_building/download_silva.sh $SILVA_DIR
 
 # Download RFAM
-bash scripts/database_building/download_rfam.sh
+bash $SMR_DB_ROOT_DIR/scripts/database_building/download_rfam.sh $RFAM_DIR
 ```
 
 ### 2. Build Clustered Databases
 
 ```bash
 # Args: input_dir output_dir threads
-bash scripts/database_building/cluster_sequences.sh data data/clustered 4
+bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh $WORK_DIR/data $CLUSTERED_DIR 4
 ```
 
 For each database and clustering threshold, the script outputs four files:

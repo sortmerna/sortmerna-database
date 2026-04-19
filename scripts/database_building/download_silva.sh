@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # Configuration
-SILVA_VERSION="138.2"
+SILVA_VERSION="${SILVA_VERSION:-138.2}"
 SILVA_BASE_URL="https://www.arb-silva.de/fileadmin/silva_databases/release_${SILVA_VERSION}/Exports"
 OUTPUT_DIR="${1:-data/silva}"
 
