@@ -20,7 +20,7 @@ import skbio.io
 
 
 def load_ids(fasta_path):
-  return {seq.metadata["id"] for seq in skbio.io.read(fasta_path, format="fasta", constructor=skbio.DNA)}
+  return {seq.metadata["id"] for seq in skbio.io.read(fasta_path, format="fasta", constructor=skbio.Sequence)}
 
 
 def main():
