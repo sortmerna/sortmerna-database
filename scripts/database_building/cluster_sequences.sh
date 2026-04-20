@@ -166,10 +166,6 @@ cluster_sequences() {
     touch "${test_members}"
   fi
 
-  # Verify no seed sequences leaked into test members
-  # (seeds are the database; test members simulate reads aligned to it — overlap = data leakage)
-  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${test_members}" || return 1
-
   rm -f "${member_ids}"
 
   return 0
@@ -189,11 +185,11 @@ if [[ -f "${SILVA_SSU}" ]]; then
   for kingdom in archaea bacteria eukaryota; do
     kingdom_file="${SSU_PREFIX}_${kingdom}.fasta"
     if [[ -f "${kingdom_file}" ]] && [[ -s "${kingdom_file}" ]]; then
-      # Add 100% (unclustered) stats
+      # Add 99% (SILVA NR99 unclustered baseline) stats
       stats=$(get_seq_stats "${kingdom_file}")
       num_seqs=$(echo "${stats}" | cut -f1)
       total_nt=$(echo "${stats}" | cut -f2)
-      add_result "SILVA ${SILVA_VERSION}" "SSU Ref NR 99" "${kingdom}" "100%" "${num_seqs}" "${total_nt}"
+      add_result "SILVA ${SILVA_VERSION}" "SSU Ref NR 99" "${kingdom}" "99%" "${num_seqs}" "${total_nt}"
 
       # Cluster at each threshold
       for threshold in "${THRESHOLDS[@]}"; do
@@ -204,6 +200,7 @@ if [[ -f "${SILVA_SSU}" ]]; then
           total_nt=$(echo "${stats}" | cut -f2)
           add_result "SILVA ${SILVA_VERSION}" "SSU Ref NR 99" "${kingdom}" "${threshold}%" "${num_seqs}" "${total_nt}"
         fi
+        python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
       done
     fi
   done
@@ -225,11 +222,11 @@ if [[ -f "${SILVA_LSU}" ]]; then
   for kingdom in archaea bacteria eukaryota; do
     kingdom_file="${LSU_PREFIX}_${kingdom}.fasta"
     if [[ -f "${kingdom_file}" ]] && [[ -s "${kingdom_file}" ]]; then
-      # Add 100% (unclustered) stats
+      # Add 99% (SILVA NR99 unclustered baseline) stats
       stats=$(get_seq_stats "${kingdom_file}")
       num_seqs=$(echo "${stats}" | cut -f1)
       total_nt=$(echo "${stats}" | cut -f2)
-      add_result "SILVA ${SILVA_VERSION}" "LSU Ref NR 99" "${kingdom}" "100%" "${num_seqs}" "${total_nt}"
+      add_result "SILVA ${SILVA_VERSION}" "LSU Ref NR 99" "${kingdom}" "99%" "${num_seqs}" "${total_nt}"
 
       # Cluster at each threshold
       for threshold in "${THRESHOLDS[@]}"; do
@@ -240,6 +237,7 @@ if [[ -f "${SILVA_LSU}" ]]; then
           total_nt=$(echo "${stats}" | cut -f2)
           add_result "SILVA ${SILVA_VERSION}" "LSU Ref NR 99" "${kingdom}" "${threshold}%" "${num_seqs}" "${total_nt}"
         fi
+        python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
       done
     fi
   done
@@ -280,6 +278,7 @@ if [[ -n "${RFAM_5S_FULL}" && -f "${RFAM_5S_FULL}" ]]; then
       total_nt=$(echo "${stats}" | cut -f2)
       add_result "RFAM ${RFAM_VERSION}" "5S" "root" "${threshold}%" "${num_seqs}" "${total_nt}"
     fi
+    python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
   done
 fi
 
@@ -316,6 +315,7 @@ if [[ -n "${RFAM_5_8S_FULL}" && -f "${RFAM_5_8S_FULL}" ]]; then
       total_nt=$(echo "${stats}" | cut -f2)
       add_result "RFAM ${RFAM_VERSION}" "5.8S" "eukaryota" "${threshold}%" "${num_seqs}" "${total_nt}"
     fi
+    python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
   done
 fi
 
@@ -326,7 +326,7 @@ echo "Clustering complete!"
 echo "============================================"
 
 TABLE_FILE="${CLUSTERED_DIR}/clustering_summary.md"
-python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}"
+python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}"
 
 echo ""
 echo "Summary table written to: ${TABLE_FILE}"
