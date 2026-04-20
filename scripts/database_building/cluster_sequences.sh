@@ -132,23 +132,22 @@ cluster_sequences() {
   local test_members="${output%.fasta}_test_members.fasta"
   local cluster_mapping="${output%.fasta}_cluster_mapping.txt"
 
-  if [[ -f "${output}" ]]; then
-    echo "  Output exists, skipping: ${output}"
-    return 0
+  if [[ -f "${uc_file}" ]]; then
+    echo "  .uc file exists, skipping vsearch: $(basename "${uc_file}")"
+  else
+    echo "  Clustering at ${threshold}%: $(basename "${output}")"
+    echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${output} --uc ${uc_file} --threads ${THREADS} --strand both --notrunclabels --quiet"
+
+    vsearch \
+      --cluster_fast "${input}" \
+      --id "${identity}" \
+      --centroids "${output}" \
+      --uc "${uc_file}" \
+      --threads "${THREADS}" \
+      --strand both \
+      --notrunclabels \
+      --quiet
   fi
-
-  echo "  Clustering at ${threshold}%: $(basename "${output}")"
-  echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${output} --uc ${uc_file} --threads ${THREADS} --strand both --notrunclabels --quiet"
-
-  vsearch \
-    --cluster_fast "${input}" \
-    --id "${identity}" \
-    --centroids "${output}" \
-    --uc "${uc_file}" \
-    --threads "${THREADS}" \
-    --strand both \
-    --notrunclabels \
-    --quiet
 
   # Parse .uc file: extract member IDs and cluster mapping in one pass
   local member_ids="${output%.fasta}_member_ids.tmp"
