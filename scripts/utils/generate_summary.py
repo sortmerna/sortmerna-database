@@ -163,7 +163,7 @@ def generate_html_table(data, thresholds):
 def main():
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("tsv", help="TSV results file written by cluster_sequences.sh")
-  parser.add_argument("--output", required=True, metavar="FILE", help="Output markdown file")
+  parser.add_argument("--output", required=True, metavar="FILE", help="Output HTML file")
   parser.add_argument("--thresholds", nargs="+", required=True, metavar="N",
                       help="Clustering thresholds as integers (e.g. 97 95 90 85)")
   args = parser.parse_args()
@@ -176,10 +176,31 @@ def main():
 
   table = generate_html_table(data, args.thresholds)
 
+  html = (
+    "<!DOCTYPE html>\n"
+    "<html lang=\"en\">\n"
+    "<head>\n"
+    "  <meta charset=\"UTF-8\">\n"
+    "  <title>Clustering Summary</title>\n"
+    "  <style>\n"
+    "    body { font-family: sans-serif; padding: 2em; }\n"
+    "    h1 { margin-bottom: 1em; }\n"
+    "    table { border-collapse: collapse; }\n"
+    "    th, td { border: 1px solid #ccc; padding: 6px 12px; text-align: center; white-space: nowrap; }\n"
+    "    thead th { background: #f0f0f0; }\n"
+    "    tbody tr:nth-child(even) { background: #fafafa; }\n"
+    "    td:first-child { text-align: left; }\n"
+    "  </style>\n"
+    "</head>\n"
+    "<body>\n"
+    "  <h1>Clustering Summary</h1>\n"
+    f"  {table}\n"
+    "</body>\n"
+    "</html>\n"
+  )
+
   with open(args.output, "w") as f:
-    f.write("# Clustering Summary\n\n")
-    f.write(table)
-    f.write("\n")
+    f.write(html)
 
   print(f"Summary table written to: {args.output}")
 

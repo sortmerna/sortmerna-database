@@ -325,7 +325,7 @@ echo "============================================"
 echo "Clustering complete!"
 echo "============================================"
 
-TABLE_FILE="${CLUSTERED_DIR}/clustering_summary.md"
+TABLE_FILE="${CLUSTERED_DIR}/clustering_summary.html"
 python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}"
 
 echo ""
