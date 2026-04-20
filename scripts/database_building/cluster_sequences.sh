@@ -336,7 +336,7 @@ echo "Clustering complete!"
 echo "============================================"
 
 TABLE_FILE="${CLUSTERED_DIR}/clustering_summary.html"
-python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}"
+python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}" --silva-version "${SILVA_VERSION}" --rfam-version "${RFAM_VERSION}"
 
 echo ""
 echo "Summary table written to: ${TABLE_FILE}"

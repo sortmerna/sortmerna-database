@@ -166,6 +166,10 @@ def main():
   parser.add_argument("--output", required=True, metavar="FILE", help="Output HTML file")
   parser.add_argument("--thresholds", nargs="+", required=True, metavar="N",
                       help="Clustering thresholds as integers (e.g. 97 95 90 85)")
+  parser.add_argument("--silva-version", default=None, metavar="VER",
+                      help="SILVA release version (e.g. 138.2)")
+  parser.add_argument("--rfam-version", default=None, metavar="VER",
+                      help="RFAM release version (e.g. 15.1)")
   args = parser.parse_args()
 
   try:
@@ -175,6 +179,17 @@ def main():
     sys.exit(1)
 
   table = generate_html_table(data, args.thresholds)
+
+  db_versions = []
+  if args.silva_version:
+    db_versions.append(f"SILVA release <b>{args.silva_version}</b> (SSURef NR99 and LSURef NR99)")
+  if args.rfam_version:
+    db_versions.append(f"RFAM release <b>{args.rfam_version}</b> (5S / RF00001, 5.8S / RF00002)")
+  versions_html = (
+    "<p><b>Source database versions:</b></p><ul>"
+    + "".join(f"<li>{v}</li>" for v in db_versions)
+    + "</ul>"
+  ) if db_versions else ""
 
   html = (
     "<!DOCTYPE html>\n"
@@ -251,6 +266,7 @@ def main():
     "      <p>Baseline rows (SILVA NR99 / RFAM unclustered) show the full unfiltered sequence counts\n"
     "      against which the clustered databases can be compared.\n"
     "      A dash (—) indicates that no sequences were available for that kingdom/database combination.</p>\n"
+    f"      {versions_html}\n"
     "    </div>\n"
     "    <div class=\"table-wrap\">\n"
     f"      {table}\n"
