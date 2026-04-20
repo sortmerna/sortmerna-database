@@ -13,10 +13,20 @@
 
 set -euo pipefail
 
+# Argument parsing — named flags first, then positional
+FORCE=false
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force) FORCE=true; shift ;;
+    *) POSITIONAL+=("$1"); shift ;;
+  esac
+done
+
 # Configuration
-INPUT_DIR="${1:-data}"
-OUTPUT_DIR="${2:-data/clustered}"
-THREADS="${3:-4}"
+INPUT_DIR="${POSITIONAL[0]:-data}"
+OUTPUT_DIR="${POSITIONAL[1]:-data/clustered}"
+THREADS="${POSITIONAL[2]:-4}"
 SILVA_DIR="${SILVA_DIR:-${INPUT_DIR}/silva}"
 CLUSTERED_DIR="${CLUSTERED_DIR:-${OUTPUT_DIR}}"
 UTILS_DIR="${UTILS_DIR:-${SMR_DB_ROOT_DIR}/scripts/utils}"
@@ -33,6 +43,7 @@ echo "Input directory: ${INPUT_DIR}"
 echo "Output directory: ${OUTPUT_DIR}"
 echo "Threads: ${THREADS}"
 echo "Thresholds: ${THRESHOLDS[*]}"
+echo "Force re-run vsearch: ${FORCE}"
 echo "============================================"
 
 # Check for required tools
@@ -53,7 +64,7 @@ mkdir -p "${CLUSTERED_DIR}"
 mkdir -p "${SILVA_DIR}/by_kingdom"
 
 # TSV file accumulating results for the summary table (written by add_result, read by generate_summary.py)
-RESULTS_TSV="${CLUSTERED_DIR}/clustering_results.tsv"
+RESULTS_TSV="${CLUSTERED_DIR}/clustering_results_2.tsv"
 rm -f "${RESULTS_TSV}"
 
 # Function to get sequence stats
@@ -132,8 +143,8 @@ cluster_sequences() {
   local test_members="${output%.fasta}_test_members.fasta"
   local cluster_mapping="${output%.fasta}_cluster_mapping.txt"
 
-  if [[ -f "${uc_file}" ]]; then
-    echo "  .uc file exists, skipping vsearch: $(basename "${uc_file}")"
+  if [[ -f "${uc_file}" ]] && [[ -s "${output}" ]] && [[ "${FORCE}" != "true" ]]; then
+    echo "  .uc and .fasta exist, skipping vsearch: $(basename "${uc_file}")"
   else
     echo "  Clustering at ${threshold}%: $(basename "${output}")"
     echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${output} --uc ${uc_file} --threads ${THREADS} --strand both --notrunclabels --quiet"

@@ -27,7 +27,7 @@ This repository contains code and workflows to:
 │   ├── utils/
 │   │   ├── check_leakage.py         # Verify no seed sequences appear in test members
 │   │   ├── parse_uc.py              # Parse VSEARCH .uc file into member IDs and cluster mapping
-│   │   ├── generate_summary.py      # Generate markdown clustering summary table from TSV
+│   │   ├── generate_summary.py      # Generate HTML clustering summary table from TSV
 │   │   ├── database_stats.py        # Compute sequence statistics for FASTA databases
 ```
 
@@ -191,6 +191,12 @@ bash $SMR_DB_ROOT_DIR/scripts/database_building/download_rfam.sh $RFAM_DIR
 ```bash
 # Args: input_dir output_dir threads
 bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh $WORK_DIR/data $CLUSTERED_DIR 4
+```
+
+By default, vsearch clustering is **skipped** for any threshold where the `.uc` output file already exists — only the downstream steps (member extraction, leakage check, summary table) are re-run. To force vsearch to re-cluster and overwrite existing `.uc` files, pass `--force`:
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh --force $WORK_DIR/data $CLUSTERED_DIR 4
 ```
 
 For each database and clustering threshold, the script outputs four files:
