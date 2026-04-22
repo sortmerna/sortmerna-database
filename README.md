@@ -2,15 +2,16 @@
 
 A comprehensive benchmarking framework for building and evaluating optimized rRNA databases for SortMeRNA across modern sequencing platforms.
 
-**Status**: 🚧 Active Development
+**Status**: 🚧 Active Development - this repository is undergoing daily changes and is not yet ready for use. Scripts, workflows, and outputs may change without notice. Do not use this repository in production or depend on its outputs until this status is updated to indicate a stable release.
 
 ## Overview
 
 This repository contains code and workflows to:
-1. Build clustered rRNA databases from SILVA and RFAM
-2. Benchmark database performance (accuracy vs. size tradeoffs)
-3. Optimize clustering parameters for different use cases
-4. Validate databases against simulated and real datasets
+1. Download and independently verify rRNA sequences using Infernal covariance models
+2. Build clustered rRNA databases from verified SILVA and RFAM sequences
+3. Benchmark database performance (accuracy vs. size tradeoffs)
+4. Optimize clustering parameters for different use cases
+5. Validate databases against simulated and real datasets
    
 ## Repository Structure
 
@@ -21,12 +22,15 @@ This repository contains code and workflows to:
 │   ├── database_building/
 │   │   ├── download_silva.sh        # Download SILVA SSU/LSU rRNA sequences
 │   │   ├── download_rfam.sh         # Download RFAM 5S/5.8S rRNA sequences
-│   │   ├── cluster_sequences.sh     # Cluster sequences by kingdom at multiple thresholds
+│   │   ├── download_cms.sh          # Download and press Rfam covariance models
+│   │   ├── verify_silva.sh          # Verify SILVA sequences with Infernal cmsearch
+│   │   ├── cluster_sequences.sh     # Cluster verified sequences by domain at multiple thresholds
 │   ├── read_simulation/
 │   │   ├── download_non_rrna.sh     # Download non-rRNA sequences for specificity testing
 │   ├── utils/
 │   │   ├── check_leakage.py         # Verify no seed sequences appear in test members
 │   │   ├── parse_uc.py              # Parse VSEARCH .uc file into member IDs and cluster mapping
+│   │   ├── parse_cmsearch.py        # Filter FASTA by cmsearch tblout hits
 │   │   ├── generate_summary.py      # Generate HTML clustering summary table from TSV
 │   │   ├── database_stats.py        # Compute sequence statistics for FASTA databases
 ```
@@ -36,7 +40,9 @@ This repository contains code and workflows to:
 ### Phase 1: Database Construction
 - [x] Download latest SILVA database
 - [x] Download RFAM rRNA families
-- [x] Implement clustering pipeline
+- [x] Download Rfam covariance models (Infernal)
+- [ ] Independently verify rRNA sequences with Infernal cmsearch (--cut_ga)
+- [ ] Implement clustering pipeline
 - [ ] Test multiple clustering thresholds
 - [ ] Build SortMeRNA indices for each clustered database
 - [ ] Generate database statistics and metadata
@@ -68,6 +74,7 @@ This repository contains code and workflows to:
 - **Content**: SSU (16S/18S) and LSU (23S/28S) rRNA sequences
 - **Taxonomy**: Bacteria, Archaea, Eukarya
 - **Size (raw)**: 510,495 sequences (SSU) and 95,279 sequences (LSU)
+- **File type**: `_trunc` variants - sequences have been truncated so that all nucleotides not aligned to the SILVA reference alignment are removed. This produces clean, alignment-bounded rRNA sequences and avoids including flanking genomic context that would inflate database size and reduce SortMeRNA specificity.
 
 ### RFAM
 - **Version**: Rfam 15.1 (January 2026, 4227 families)
@@ -76,6 +83,18 @@ This repository contains code and workflows to:
 - **Size (raw)**: 712 seed alignment sequences (5S) and 61 seed alignment sequences (5.8S)
 
 ## Clustering Strategy
+
+### Reference Verification
+
+Before clustering, all downloaded rRNA sequences were independently validated as rRNA using Infernal's cmsearch against Rfam covariance models (CMs). Rfam covariance models incorporate rRNA secondary structure, enabling robust identification even in diverged lineages. Rfam's curator-defined gathering thresholds were applied via the `--cut_ga` for option in cmsearch. Models used per domain/gene:
+
+- **SSU**: RF00177 (Bacteria), RF01959 (Archaea), RF01960 (Eukaryota)
+- **LSU**: RF02541 (Bacteria), RF02540 (Archaea), RF02543 (Eukaryota)
+- **5.8S**: RF00002 (Eukaryota)
+- **5S**: RF00001 (all domains)
+- **Organellar**: RF02545 (mitochondrial SSU), RF02546 (mitochondrial LSU)
+
+Chloroplast SSU sequences were validated against the bacterial SSU model (RF00177).
 
 ### Tools Considered
 
@@ -125,6 +144,7 @@ Generate synthetic reads with known rRNA/non-rRNA composition:
 **Core tools:**
 - [SortMeRNA](https://github.com/sortmerna/sortmerna) v4.3.7 - rRNA filtering (installed separately from GitHub release)
 - [VSEARCH](https://github.com/torognes/vsearch) >= 2.22 - sequence clustering
+- [Infernal](http://eddylab.org/infernal/) >= 1.1.4 - covariance model search (cmsearch, cmpress)
 - [SeqKit](https://bioinf.shenwei.me/seqkit/) >= 2.5 - sequence statistics
 
 **Languages:**
@@ -169,10 +189,15 @@ mkdir -p $DATA_DIR && cd $WORK_DIR
 # Data directories (adjust if needed)
 export SILVA_DIR=$DATA_DIR/silva
 export RFAM_DIR=$DATA_DIR/rfam
+export CMS_DIR=$DATA_DIR/cms
+export VERIFIED_DIR=$DATA_DIR/verified
 export CLUSTERED_DIR=$DATA_DIR/clustered
 
-# Database versions (update if using a newer release)
-export SILVA_VERSION=138.2
+# SILVA versions and full download URLs (update to use a different release or file type)
+export SILVA_SSU_VERSION=138.2
+export SILVA_SSU_PATH=https://www.arb-silva.de/fileadmin/silva_databases/release_138.2/Exports/SILVA_138.2_SSURef_NR99_tax_silva_trunc.fasta.gz
+export SILVA_LSU_VERSION=138.2
+export SILVA_LSU_PATH=https://www.arb-silva.de/fileadmin/silva_databases/release_138.2/Exports/SILVA_138.2_LSURef_NR99_tax_silva_trunc.fasta.gz
 export RFAM_VERSION=15.1
 ```
 
@@ -184,7 +209,28 @@ bash $SMR_DB_ROOT_DIR/scripts/database_building/download_silva.sh $SILVA_DIR
 
 # Download RFAM
 bash $SMR_DB_ROOT_DIR/scripts/database_building/download_rfam.sh $RFAM_DIR
+
+# Download and press Rfam covariance models
+bash $SMR_DB_ROOT_DIR/scripts/database_building/download_cms.sh $CMS_DIR
 ```
+
+### 1.5. Verify SILVA Sequences
+
+Before clustering, each SILVA sequence is independently verified as rRNA using Infernal's `cmsearch` against the corresponding Rfam covariance model. Sequences that fail the gathering threshold are written to `flagged_*.fasta` and excluded from downstream steps.
+
+```bash
+# Args: input_dir output_dir threads
+bash $SMR_DB_ROOT_DIR/scripts/database_building/verify_silva.sh $WORK_DIR/data $VERIFIED_DIR 4
+```
+
+Outputs per domain in `$VERIFIED_DIR`:
+
+| File pattern | Description |
+|---|---|
+| `verified_<gene>_<domain>.fasta` | Sequences confirmed as rRNA — input to clustering |
+| `flagged_<gene>_<domain>.fasta` | Sequences with no qualifying Rfam hit — excluded |
+| `cmsearch_log_<gene>_<domain>.tsv` | Best hit coordinates and score for each kept sequence |
+| `<gene>_<domain>_cmsearch.tblout` | Raw cmsearch output (kept for auditing) |
 
 ### 2. Build Clustered Databases
 
@@ -291,7 +337,7 @@ If you use this benchmark in your research, please cite:
 
 ## License
 
-GPL-3.0
+LGPL-3.0
 
 ## Contact
 

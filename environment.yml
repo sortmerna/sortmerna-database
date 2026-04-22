@@ -8,6 +8,7 @@ dependencies:
   - vsearch>=2.22
   - seqkit>=2.5
   - barrnap>=0.9
+  - infernal>=1.1.4
 
   # Python and libraries
   - python>=3.8

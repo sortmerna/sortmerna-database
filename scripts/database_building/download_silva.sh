@@ -2,23 +2,27 @@
 #
 # download_silva.sh - Download SILVA rRNA database
 #
-# Downloads SILVA Release 138.2 Ref NR 99 SSU and LSU sequences
+# Requires SILVA_SSU_VERSION, SILVA_SSU_PATH, SILVA_LSU_VERSION, SILVA_LSU_PATH
+# to be set in the environment (see README step 0).
 # Source: https://www.arb-silva.de/
 
 set -euo pipefail
 
-# Configuration
-SILVA_VERSION="${SILVA_VERSION:-138.2}"
-SILVA_BASE_URL="https://www.arb-silva.de/fileadmin/silva_databases/release_${SILVA_VERSION}/Exports"
+# Configuration — full download URLs must be provided by the caller
+SILVA_SSU_VERSION="${SILVA_SSU_VERSION:?Please set SILVA_SSU_VERSION (e.g. 138.2)}"
+SILVA_SSU_PATH="${SILVA_SSU_PATH:?Please set SILVA_SSU_PATH (full SILVA SSU download URL)}"
+SILVA_LSU_VERSION="${SILVA_LSU_VERSION:?Please set SILVA_LSU_VERSION (e.g. 138.2)}"
+SILVA_LSU_PATH="${SILVA_LSU_PATH:?Please set SILVA_LSU_PATH (full SILVA LSU download URL)}"
 OUTPUT_DIR="${1:-data/silva}"
 
-# SILVA file names
-SSU_FILE="SILVA_${SILVA_VERSION}_SSURef_NR99_tax_silva.fasta.gz"
-LSU_FILE="SILVA_${SILVA_VERSION}_LSURef_NR99_tax_silva.fasta.gz"
+# Derive local filenames from the URLs
+SSU_FILE=$(basename "${SILVA_SSU_PATH}")
+LSU_FILE=$(basename "${SILVA_LSU_PATH}")
 
 echo "============================================"
 echo "SILVA Database Download Script"
-echo "Version: ${SILVA_VERSION}"
+echo "SSU Version: ${SILVA_SSU_VERSION}  (${SSU_FILE})"
+echo "LSU Version: ${SILVA_LSU_VERSION}  (${LSU_FILE})"
 echo "Output directory: ${OUTPUT_DIR}"
 echo "============================================"
 
@@ -27,58 +31,58 @@ mkdir -p "${OUTPUT_DIR}"
 
 # Function to download and verify file
 download_file() {
-    local url="$1"
-    local output="$2"
-    local description="$3"
+  local url="$1"
+  local output="$2"
+  local description="$3"
 
-    echo ""
-    echo "Downloading ${description}..."
-    echo "URL: ${url}"
+  echo ""
+  echo "Downloading ${description}..."
+  echo "URL: ${url}"
 
-    if [[ -f "${output}" ]]; then
-        echo "File already exists: ${output}"
-        echo "Skipping download. Delete file to re-download."
-        return 0
-    fi
+  if [[ -f "${output}" ]]; then
+    echo "File already exists: ${output}"
+    echo "Skipping download. Delete file to re-download."
+    return 0
+  fi
 
-    if command -v wget &> /dev/null; then
-        wget --progress=bar:force -O "${output}" "${url}"
-    elif command -v curl &> /dev/null; then
-        curl -L --progress-bar -o "${output}" "${url}"
-    else
-        echo "Error: Neither wget nor curl found. Please install one of them."
-        exit 1
-    fi
+  if command -v wget &> /dev/null; then
+    wget --progress=bar:force -O "${output}" "${url}"
+  elif command -v curl &> /dev/null; then
+    curl -L --progress-bar -o "${output}" "${url}"
+  else
+    echo "Error: Neither wget nor curl found. Please install one of them."
+    exit 1
+  fi
 
-    echo "Downloaded: ${output}"
+  echo "Downloaded: ${output}"
 }
 
 # Download SSU (16S/18S) sequences
 download_file \
-    "${SILVA_BASE_URL}/${SSU_FILE}" \
-    "${OUTPUT_DIR}/${SSU_FILE}" \
-    "SSU (16S/18S) rRNA sequences"
+  "${SILVA_SSU_PATH}" \
+  "${OUTPUT_DIR}/${SSU_FILE}" \
+  "SSU (16S/18S) rRNA sequences"
 
 # Download LSU (23S/28S) sequences
 download_file \
-    "${SILVA_BASE_URL}/${LSU_FILE}" \
-    "${OUTPUT_DIR}/${LSU_FILE}" \
-    "LSU (23S/28S) rRNA sequences"
+  "${SILVA_LSU_PATH}" \
+  "${OUTPUT_DIR}/${LSU_FILE}" \
+  "LSU (23S/28S) rRNA sequences"
 
 # Decompress files
 echo ""
 echo "Decompressing files..."
 
 for gz_file in "${OUTPUT_DIR}"/*.fasta.gz; do
-    if [[ -f "${gz_file}" ]]; then
-        fasta_file="${gz_file%.gz}"
-        if [[ ! -f "${fasta_file}" ]]; then
-            echo "Decompressing: ${gz_file}"
-            gunzip -k "${gz_file}"
-        else
-            echo "Already decompressed: ${fasta_file}"
-        fi
+  if [[ -f "${gz_file}" ]]; then
+    fasta_file="${gz_file%.gz}"
+    if [[ ! -f "${fasta_file}" ]]; then
+      echo "Decompressing: ${gz_file}"
+      gunzip -k "${gz_file}"
+    else
+      echo "Already decompressed: ${fasta_file}"
     fi
+  fi
 done
 
 # Print summary
@@ -95,10 +99,10 @@ echo ""
 # Count sequences
 echo "Sequence counts:"
 for fasta in "${OUTPUT_DIR}"/*.fasta; do
-    if [[ -f "${fasta}" ]]; then
-        count=$(seqkit stats -T "${fasta}" | tail -1 | cut -f4)
-        echo "  $(basename "${fasta}"): ${count} sequences"
-    fi
+  if [[ -f "${fasta}" ]]; then
+    count=$(seqkit stats -T "${fasta}" | tail -1 | cut -f4)
+    echo "  $(basename "${fasta}"): ${count} sequences"
+  fi
 done
 
 echo ""
