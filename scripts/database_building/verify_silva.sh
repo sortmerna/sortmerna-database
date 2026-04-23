@@ -24,6 +24,7 @@
 
 set -euo pipefail
 
+# store all input arguments as an array for easier passing to Python scripts
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -74,7 +75,7 @@ rm -f "${STATS_TSV}"
 convert_u_to_t() {
   local input="$1" output="$2"
   if [[ ! -f "${output}" ]]; then
-  echo "  Converting U→T: $(basename "${output}")"
+  echo "  Converting U -> T: $(basename "${output}")"
   seqkit seq --rna2dna "${input}" -o "${output}"
   else
   echo "  Already converted: $(basename "${output}")"
@@ -112,7 +113,7 @@ run_cmsearch() {
   local cm="$1" fasta="$2" tblout="$3"
   if [[ ! -f "${tblout}" ]]; then
   echo "  cmsearch: $(basename "${fasta}") vs $(basename "${cm}")"
-  cmsearch --cpu "${THREADS}" --tblout "${tblout}" --cut_ga --noali \
+  cmsearch --hmmonly --cpu "${THREADS}" --tblout "${tblout}" --cut_ga --noali \
     "${cm}" "${fasta}" > /dev/null
   else
   echo "  tblout exists, skipping: $(basename "${tblout}")"
@@ -167,11 +168,11 @@ if [[ -f "${SSU_DOM}_eukaryota.fasta" ]]; then
   split_euk_organellar "${SSU_DOM}_eukaryota.fasta" "${EUK_SSU_PREFIX}"
 fi
 
-verify_domain "ssu" "bacteria" "${SSU_DOM}_bacteria.fasta"        "${CMS_DIR}/RF00177.cm"
-verify_domain "ssu" "archaea"  "${SSU_DOM}_archaea.fasta"         "${CMS_DIR}/RF01959.cm"
+verify_domain "ssu" "bacteria" "${SSU_DOM}_bacteria.fasta" "${CMS_DIR}/RF00177.cm"
+verify_domain "ssu" "archaea"  "${SSU_DOM}_archaea.fasta" "${CMS_DIR}/RF01959.cm"
 verify_domain "ssu" "eukaryota_nuclear" "${EUK_SSU_PREFIX}_nuclear.fasta" "${CMS_DIR}/RF01960.cm"
-verify_domain "ssu" "eukaryota_mito"    "${EUK_SSU_PREFIX}_mito.fasta"    "${CMS_DIR}/RF02545.cm"
-verify_domain "ssu" "eukaryota_chloro"  "${EUK_SSU_PREFIX}_chloro.fasta"  "${CMS_DIR}/RF00177.cm"
+verify_domain "ssu" "eukaryota_mito" "${EUK_SSU_PREFIX}_mito.fasta" "${CMS_DIR}/RF02545.cm"
+verify_domain "ssu" "eukaryota_chloro" "${EUK_SSU_PREFIX}_chloro.fasta" "${CMS_DIR}/RF00177.cm"
 
 # ── LSU ──────────────────────────────────────────────────────────────────────
 

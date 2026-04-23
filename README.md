@@ -98,7 +98,7 @@ Chloroplast SSU sequences were validated against the bacterial SSU model (RF0017
 
 ### Tools Considered
 
-We use [VSEARCH](https://github.com/torognes/vsearch) for sequence clustering. VSEARCH is a high-performance open-source tool for sequence analysis that implements a centroid-based clustering algorithm. It is the same tool used by the SILVA project to generate their non-redundant (NR) databases, ensuring compatibility and reproducibility with established rRNA reference workflows.
+[VSEARCH](https://github.com/torognes/vsearch) was used for sequence clustering. VSEARCH is a high-performance open-source tool for sequence analysis that implements a centroid-based clustering algorithm. It is the same tool used by the SILVA project to generate their non-redundant (NR) databases, ensuring compatibility and reproducibility with established rRNA reference workflows.
 
 Key features:
 - Fast clustering with `--cluster_fast` using identity thresholds
@@ -174,7 +174,7 @@ conda activate sortmerna-bench
 
 ## Usage
 
-### 0. Set paths & create working directory
+### 1. Set paths & create working directory
 
 ```bash
 # Path to the cloned sortmerna-database repository
@@ -201,7 +201,7 @@ export SILVA_LSU_PATH=https://www.arb-silva.de/fileadmin/silva_databases/release
 export RFAM_VERSION=15.1
 ```
 
-### 1. Download Source Databases
+### 2. Download Source Databases
 
 ```bash
 # Download SILVA
@@ -214,7 +214,7 @@ bash $SMR_DB_ROOT_DIR/scripts/database_building/download_rfam.sh $RFAM_DIR
 bash $SMR_DB_ROOT_DIR/scripts/database_building/download_cms.sh $CMS_DIR
 ```
 
-### 1.5. Verify SILVA Sequences
+### 3. Verify SILVA Sequences
 
 Before clustering, each SILVA sequence is independently verified as rRNA using Infernal's `cmsearch` against the corresponding Rfam covariance model. Sequences that fail the gathering threshold are written to `flagged_*.fasta` and excluded from downstream steps.
 
@@ -232,7 +232,7 @@ Outputs per domain in `$VERIFIED_DIR`:
 | `cmsearch_log_<gene>_<domain>.tsv` | Best hit coordinates and score for each kept sequence |
 | `<gene>_<domain>_cmsearch.tblout` | Raw cmsearch output (kept for auditing) |
 
-### 2. Build Clustered Databases
+### 4. Build Clustered Databases
 
 ```bash
 # Args: input_dir output_dir threads
@@ -258,7 +258,7 @@ The centroid sequences (`*_XX.fasta`) become the SortMeRNA reference databases. 
 
 > **Clustering summary** (SILVA 138.2 / RFAM 15.1): <a href="https://sortmerna.github.io/sortmerna-database/results/clustering_summary_silva_138.2_rfam_15.1.html" target="_blank">clustering_summary_silva_138.2_rfam_15.1.html</a>
 
-### 3. Download Non-rRNA Test Sequences (Specificity Testing)
+### 5. Download Non-rRNA Test Sequences (Specificity Testing)
 
 To measure the false positive rate (specificity), we need a large set of sequences that are definitively **not** rRNA. SortMeRNA should reject all of these; any that are classified as rRNA are false positives.
 
@@ -290,9 +290,9 @@ Output files:
 
 All sampling uses a fixed random seed (`--seed 42`) for reproducibility.
 
-### 4. Run Benchmarks
+### 6. Run Benchmarks
 
-### 5. Compare Databases
+### 7. Compare Databases
 
 ```bash
 # Compare all clustering levels
