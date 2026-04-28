@@ -13,28 +13,6 @@ This repository contains code and workflows to:
 4. Optimize clustering parameters for different use cases
 5. Validate databases against simulated and real datasets
    
-## Repository Structure
-
-```
-.
-├── environment.yml
-├── scripts/
-│   ├── database_building/
-│   │   ├── download_silva.sh        # Download SILVA SSU/LSU rRNA sequences
-│   │   ├── download_rfam.sh         # Download RFAM 5S/5.8S rRNA sequences
-│   │   ├── download_cms.sh          # Download and press Rfam covariance models
-│   │   ├── verify_silva.sh          # Verify SILVA sequences with Infernal cmsearch
-│   │   ├── cluster_sequences.sh     # Cluster verified sequences by domain at multiple thresholds
-│   ├── read_simulation/
-│   │   ├── download_non_rrna.sh     # Download non-rRNA sequences for specificity testing
-│   ├── utils/
-│   │   ├── check_leakage.py         # Verify no seed sequences appear in test members
-│   │   ├── parse_uc.py              # Parse VSEARCH .uc file into member IDs and cluster mapping
-│   │   ├── parse_cmsearch.py        # Filter FASTA by cmsearch tblout hits
-│   │   ├── generate_summary.py      # Generate HTML clustering summary table from TSV
-│   │   ├── database_stats.py        # Compute sequence statistics for FASTA databases
-```
-
 ## Goals
 
 ### Phase 1: Database Construction
