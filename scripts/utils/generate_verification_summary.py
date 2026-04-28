@@ -122,7 +122,7 @@ def render_histogram_svg(rows_with_dist):
   return '\n'.join(parts)
 
 
-def render_html(rows, silva_ssu_version, silva_lsu_version, output_fp, log_dir):
+def render_html(rows, version, output_fp, log_dir, title="SILVA Verification Summary"):
   total_input   = sum(r['n_input']   for r in rows)
   total_kept    = sum(r['n_kept']    for r in rows)
   total_flagged = sum(r['n_flagged'] for r in rows)
@@ -191,7 +191,7 @@ def render_html(rows, silva_ssu_version, silva_lsu_version, output_fp, log_dir):
 <p class="meta">
   Sequences were trimmed to [seq_from,&nbsp;seq_to] before output.
   seq_from&nbsp;=&nbsp;1 means no 5&#x2032; trimming was needed.
-  Hover over a bar segment to see exact counts.
+  Hover over a bar segment to see exact counts (may take a moment to load).
 </p>
 {svg}
 """
@@ -200,7 +200,7 @@ def render_html(rows, silva_ssu_version, silva_lsu_version, output_fp, log_dir):
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SILVA Verification Summary</title>
+<title>{title}</title>
 <style>
   body {{ font-family: system-ui, sans-serif; margin: 2em; color: #333; }}
   h2   {{ margin-bottom: 0.25em; }}
@@ -214,10 +214,9 @@ def render_html(rows, silva_ssu_version, silva_lsu_version, output_fp, log_dir):
 </style>
 </head>
 <body>
-<h2>SILVA Verification Summary</h2>
+<h2>{title}</h2>
 <p class="meta">
-  SSU version: {silva_ssu_version} &nbsp;|&nbsp;
-  LSU version: {silva_lsu_version} &nbsp;|&nbsp;
+  Version: {version} &nbsp;|&nbsp;
   Tool: Infernal cmsearch --hmmonly --cut_ga
 </p>
 <table>
@@ -257,8 +256,8 @@ def main():
   ap = argparse.ArgumentParser(description=__doc__)
   ap.add_argument('stats_tsv',               help='Stats TSV produced by parse_cmsearch.py --stats')
   ap.add_argument('--output',  required=True, help='Output HTML file')
-  ap.add_argument('--silva-ssu-version', default='', dest='ssu_version')
-  ap.add_argument('--silva-lsu-version', default='', dest='lsu_version')
+  ap.add_argument('--version', default='', help='Database version string shown in the HTML header')
+  ap.add_argument('--title', default='SILVA Verification Summary', help='HTML page title and heading')
   args = ap.parse_args()
 
   rows = load_stats(args.stats_tsv)
@@ -267,7 +266,7 @@ def main():
     sys.exit(1)
 
   log_dir = Path(args.stats_tsv).parent
-  render_html(rows, args.ssu_version, args.lsu_version, args.output, log_dir)
+  render_html(rows, args.version, args.output, log_dir, args.title)
 
 
 if __name__ == '__main__':

@@ -203,8 +203,8 @@ HTML_SUMMARY="${OUTPUT_DIR}/verification_summary.html"
 python3 "${UTILS_DIR}/generate_verification_summary.py" \
   "${STATS_TSV}" \
   --output "${HTML_SUMMARY}" \
-  --silva-ssu-version "${SILVA_SSU_VERSION}" \
-  --silva-lsu-version "${SILVA_LSU_VERSION}"
+  --title "SILVA Verification Summary" \
+  --version "SILVA SSU ${SILVA_SSU_VERSION} / LSU ${SILVA_LSU_VERSION}"
 
 echo ""
 echo "Verified sequences: ${OUTPUT_DIR}/verified_*.fasta"
