@@ -86,7 +86,7 @@ This repository contains code and workflows to:
 
 ### Reference Verification
 
-Before clustering, all downloaded rRNA sequences were independently validated as rRNA using Infernal's `cmsearch --hmmonly` against profile HMMs derived from Rfam covariance models. The `--hmmonly` mode skips the full CM (secondary-structure-aware) stages and uses only the profile HMM, which is sufficient for identifying rRNA. Rfam's curator-defined gathering thresholds were applied via `--cut_ga`. Models used per domain/gene:
+Before clustering, all downloaded rRNA sequences were independently validated as rRNA using Infernal's `cmsearch --hmmonly` against profile HMMs derived from Rfam covariance models. The `--hmmonly` mode skipped the full CM (secondary-structure-aware) stages and used only the profile HMM, which was sufficient for identifying rRNA. Rfam's curator-defined gathering thresholds were applied via `--cut_ga`. Models used per domain/gene:
 
 - **SSU**: RF00177 (Bacteria), RF01959 (Archaea), RF01960 (Eukaryota)
 - **LSU**: RF02541 (Bacteria), RF02540 (Archaea), RF02543 (Eukaryota)
@@ -96,7 +96,7 @@ Before clustering, all downloaded rRNA sequences were independently validated as
 
 Chloroplast SSU sequences were validated against the bacterial SSU model (RF00177).
 
-Each verified sequence is trimmed to the exact hit coordinates `[seq_from, seq_to]` reported by cmsearch. This is critical for SortMeRNA: the tool builds a k-mer index over every reference sequence, so any non-rRNA nucleotides present in a reference — flanking genomic DNA, phage genome sequence, or assembly context that SILVA's own truncation missed — are indexed alongside the rRNA and can produce false-positive matches against reads from those contaminant sources. Trimming to the cmsearch alignment window guarantees that only sequence the profile HMM recognises as rRNA enters the index.
+Each verified sequence was trimmed to the exact hit coordinates `[seq_from, seq_to]` reported by cmsearch. This was critical for SortMeRNA: the tool builds a k-mer index over every reference sequence, so any non-rRNA nucleotides present in a reference - flanking genomic DNA, phage genome sequence, or assembly context that SILVA's own truncation missed - would have been indexed alongside the rRNA and could have produced false-positive matches against reads from those contaminant sources. Trimming to the cmsearch alignment window ensured that only sequence the profile HMM recognised as rRNA entered the index.
 
 ### Tools Considered
 
@@ -120,8 +120,8 @@ Key features:
 ### Simulated Data
 Generate synthetic reads with known rRNA/non-rRNA composition:
 - **Tools**: ART (Illumina), PBSIM3 (PacBio/Nanopore)
-- **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) — real rRNA sequences not present in the clustered database
-- **Non-rRNA source**: `non_rRNA_test_1M.fasta` — bacterial mRNA, eukaryotic cDNA, Rfam ncRNA, and genomic fragments
+- **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database
+- **Non-rRNA source**: `non_rRNA_test_1M.fasta` - bacterial mRNA, eukaryotic cDNA, Rfam ncRNA, and genomic fragments
 - **Composition**: 0%, 10%, 25%, 50%, 75%, 90% rRNA content
 - **Error profiles**: Platform-specific error rates
 
@@ -183,7 +183,7 @@ conda activate sortmerna-bench
 export SMR_DB_ROOT_DIR=$HOME/sortmerna-database
 export UTILS_DIR=$SMR_DB_ROOT_DIR/scripts/utils
 
-# Working directory — all data will be written here
+# Working directory - all data will be written here
 export WORK_DIR=$HOME/working
 export DATA_DIR=$WORK_DIR/data
 mkdir -p $DATA_DIR && cd $WORK_DIR
@@ -229,8 +229,8 @@ Outputs per domain in `$VERIFIED_DIR`:
 
 | File pattern | Description |
 |---|---|
-| `verified_<gene>_<domain>.fasta` | Sequences confirmed as rRNA — input to clustering |
-| `flagged_<gene>_<domain>.fasta` | Sequences with no qualifying Rfam hit — excluded |
+| `verified_<gene>_<domain>.fasta` | Sequences confirmed as rRNA - input to clustering |
+| `flagged_<gene>_<domain>.fasta` | Sequences with no qualifying Rfam hit - excluded |
 | `cmsearch_log_<gene>_<domain>.tsv` | Best hit coordinates and score for each kept sequence |
 | `<gene>_<domain>_cmsearch.tblout` | Raw cmsearch output (kept for auditing) |
 
@@ -241,7 +241,7 @@ Outputs per domain in `$VERIFIED_DIR`:
 bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh $WORK_DIR/data $CLUSTERED_DIR 4
 ```
 
-By default, vsearch clustering is **skipped** for any threshold where the `.uc` output file already exists — only the downstream steps (member extraction, leakage check, summary table) are re-run. To force vsearch to re-cluster and overwrite existing `.uc` files, pass `--force`:
+By default, vsearch clustering is **skipped** for any threshold where the `.uc` output file already exists - only the downstream steps (member extraction, leakage check, summary table) are re-run. To force vsearch to re-cluster and overwrite existing `.uc` files, pass `--force`:
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh --force $WORK_DIR/data $CLUSTERED_DIR 4
@@ -251,12 +251,12 @@ For each database and clustering threshold, the script outputs four files:
 
 | File | Description |
 |------|-------------|
-| `*_XX.fasta` | Centroid/seed sequences — the clustered rRNA database used by SortMeRNA |
+| `*_XX.fasta` | Centroid/seed sequences - the clustered rRNA database used by SortMeRNA |
 | `*_XX.uc` | VSEARCH cluster membership file |
-| `*_XX_test_members.fasta` | Non-seed cluster members — used as source sequences for simulating test reads |
+| `*_XX_test_members.fasta` | Non-seed cluster members - used as source sequences for simulating test reads |
 | `*_XX_cluster_mapping.txt` | Tab-delimited mapping of each member sequence ID to its seed sequence ID |
 
-The centroid sequences (`*_XX.fasta`) become the SortMeRNA reference databases. The non-seed members (`*_XX_test_members.fasta`) are sequences that were clustered away at each threshold, providing a natural source of reads for benchmarking — since they are real rRNA sequences not present in the database, they test whether SortMeRNA can still identify similar but non-identical rRNA.
+The centroid sequences (`*_XX.fasta`) become the SortMeRNA reference databases. The non-seed members (`*_XX_test_members.fasta`) are sequences that were clustered away at each threshold, providing a natural source of reads for benchmarking - since they are real rRNA sequences not present in the database, they test whether SortMeRNA can still identify similar but non-identical rRNA.
 
 > **Clustering summary** (SILVA 138.2 / RFAM 15.1): <a href="https://sortmerna.github.io/sortmerna-database/results/clustering_summary_silva_138.2_rfam_15.1.html" target="_blank">clustering_summary_silva_138.2_rfam_15.1.html</a>
 
@@ -279,8 +279,8 @@ The script downloads ~1M non-rRNA sequences from four sources:
 
 **Safety filters** are applied to the combined set to remove any rRNA contamination:
 
-1. **Header keyword filter** — `seqkit grep` removes sequences with rRNA-related terms (ribosomal, rRNA, 16S, 23S, etc.)
-2. **Barrnap rRNA prediction** — runs HMM-based rRNA gene detection for both bacterial (`--kingdom bac`) and eukaryotic (`--kingdom euk`) models, catching unlabeled rRNA especially in genomic fragments
+1. **Header keyword filter** - `seqkit grep` removes sequences with rRNA-related terms (ribosomal, rRNA, 16S, 23S, etc.)
+2. **Barrnap rRNA prediction** - runs HMM-based rRNA gene detection for both bacterial (`--kingdom bac`) and eukaryotic (`--kingdom euk`) models, catching unlabeled rRNA especially in genomic fragments
 
 Output files:
 
