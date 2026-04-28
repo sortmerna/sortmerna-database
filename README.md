@@ -193,6 +193,7 @@ export SILVA_DIR=$DATA_DIR/silva
 export RFAM_DIR=$DATA_DIR/rfam
 export CMS_DIR=$DATA_DIR/cms
 export VERIFIED_DIR=$DATA_DIR/verified
+export VERIFIED_RFAM_DIR=$DATA_DIR/verified_rfam
 export CLUSTERED_DIR=$DATA_DIR/clustered
 
 # SILVA versions and full download URLs (update to use a different release or file type)
@@ -216,23 +217,25 @@ bash $SMR_DB_ROOT_DIR/scripts/database_building/download_rfam.sh $RFAM_DIR
 bash $SMR_DB_ROOT_DIR/scripts/database_building/download_cms.sh $CMS_DIR
 ```
 
-### 3. Verify SILVA Sequences
+### 3. Verify Sequences
 
-Before clustering, each SILVA sequence is independently verified as rRNA using Infernal's `cmsearch --hmmonly` against the profile HMM derived from the corresponding Rfam covariance model. Sequences that fail the gathering threshold (`--cut_ga`) are written to `flagged_*.fasta` and excluded from downstream steps.
+Each sequence was independently verified as rRNA using Infernal's `cmsearch --hmmonly` against the profile HMM derived from the corresponding Rfam covariance model. Sequences that failed the gathering threshold (`--cut_ga`) were written to `flagged_*.fasta` and excluded from downstream steps. Each kept sequence was also trimmed to the cmsearch hit coordinates `[seq_from, seq_to]` to remove any flanking non-rRNA content.
 
 ```bash
 # Args: input_dir output_dir threads
 bash $SMR_DB_ROOT_DIR/scripts/database_building/verify_silva.sh $WORK_DIR/data $VERIFIED_DIR 4
+bash $SMR_DB_ROOT_DIR/scripts/database_building/verify_rfam.sh $WORK_DIR/data $VERIFIED_RFAM_DIR 4
 ```
 
-Outputs per domain in `$VERIFIED_DIR`:
+Outputs per domain/type in each verified directory:
 
 | File pattern | Description |
 |---|---|
 | `verified_<gene>_<domain>.fasta` | Sequences confirmed as rRNA - input to clustering |
-| `flagged_<gene>_<domain>.fasta` | Sequences with no qualifying Rfam hit - excluded |
+| `flagged_<gene>_<domain>.fasta` | Sequences with no qualifying hit - excluded |
 | `cmsearch_log_<gene>_<domain>.tsv` | Best hit coordinates and score for each kept sequence |
 | `<gene>_<domain>_cmsearch.tblout` | Raw cmsearch output (kept for auditing) |
+| `verification_summary.html` | Interactive summary with flagged counts and offset histogram |
 
 ### 4. Build Clustered Databases
 
