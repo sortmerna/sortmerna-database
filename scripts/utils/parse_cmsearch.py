@@ -34,6 +34,11 @@ def parse_tblout(tblout_fp):
   return hits
 
 
+def trim_to_hit(seq, seq_from, seq_to):
+  """Return sequence trimmed to cmsearch hit coordinates (1-based, inclusive)."""
+  return seq[seq_from - 1:seq_to]
+
+
 def read_fasta(fp):
   """Yield (full_header, sequence) for each record."""
   header, seqlines = None, []
@@ -77,7 +82,7 @@ def main():
       seq_id = header.split()[0]
       if seq_id in hits:
         score, evalue, sf, st, strand = hits[seq_id]
-        clean_f.write(f">{header}\n{seq[sf - 1:st]}\n")
+        clean_f.write(f">{header}\n{trim_to_hit(seq, sf, st)}\n")
         log_f.write(f"{seq_id}\t{score}\t{evalue}\t{sf}\t{st}\t{strand}\n")
         kept += 1
       else:
