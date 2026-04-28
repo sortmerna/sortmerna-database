@@ -219,7 +219,9 @@ bash $SMR_DB_ROOT_DIR/scripts/database_building/download_cms.sh $CMS_DIR
 
 ### 3. Verify Sequences
 
-Each sequence was independently verified as rRNA using Infernal's `cmsearch --hmmonly` against the profile HMM derived from the corresponding Rfam covariance model. Sequences that failed the gathering threshold (`--cut_ga`) were written to `flagged_*.fasta` and excluded from downstream steps. Each kept sequence was also trimmed to the cmsearch hit coordinates `[seq_from, seq_to]` to remove any flanking non-rRNA content.
+Each sequence was independently verified as rRNA using Infernal's `cmsearch` with `--cut_ga`. Each kept sequence was also trimmed to the hit coordinates `[seq_from, seq_to]` to remove any flanking non-rRNA content. Sequences that failed the gathering threshold were written to `flagged_*.fasta` and excluded from downstream steps.
+
+SILVA SSU/LSU sequences were screened using `--hmmonly` for faster profile-HMM-based validation, which is generally sufficient for long ribosomal RNAs where sequence conservation alone provides strong discrimination. Full covariance-model searches were used for Rfam-derived 5S and 5.8S sequences because these shorter RNAs benefit more from secondary-structure information, and Rfam gathering thresholds were originally calibrated using full CM scoring.
 
 ```bash
 # Args: input_dir output_dir threads

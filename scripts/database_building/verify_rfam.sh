@@ -70,8 +70,8 @@ run_cmsearch() {
   local cm="$1" fasta="$2" tblout="$3"
   if [[ ! -f "${tblout}" ]]; then
     echo "  cmsearch: $(basename "${fasta}") vs $(basename "${cm}")"
-    echo "  cmd: cmsearch --hmmonly --cpu ${THREADS} --tblout $(basename "${tblout}") --cut_ga --noali $(basename "${cm}") $(basename "${fasta}")"
-    cmsearch --hmmonly --cpu "${THREADS}" --tblout "${tblout}" --cut_ga --noali \
+    echo "  cmd: cmsearch --cpu ${THREADS} --tblout $(basename "${tblout}") --cut_ga --noali $(basename "${cm}") $(basename "${fasta}")"
+    cmsearch --cpu "${THREADS}" --tblout "${tblout}" --cut_ga --noali \
       "${cm}" "${fasta}" > /dev/null
   else
     echo "  tblout exists, skipping: $(basename "${tblout}")"
@@ -154,7 +154,8 @@ python3 "${UTILS_DIR}/generate_verification_summary.py" \
   "${STATS_TSV}" \
   --output "${HTML_SUMMARY}" \
   --title "RFAM Verification Summary" \
-  --version "Rfam ${RFAM_VERSION}"
+  --version "Rfam ${RFAM_VERSION}" \
+  --tool "cmsearch --cut_ga"
 
 echo ""
 echo "Verified sequences: ${OUTPUT_DIR}/verified_*.fasta"

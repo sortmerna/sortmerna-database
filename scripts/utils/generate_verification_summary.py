@@ -122,7 +122,7 @@ def render_histogram_svg(rows_with_dist):
   return '\n'.join(parts)
 
 
-def render_html(rows, version, output_fp, log_dir, title="SILVA Verification Summary"):
+def render_html(rows, version, output_fp, log_dir, title="SILVA Verification Summary", tool="cmsearch --hmmonly --cut_ga"):
   total_input   = sum(r['n_input']   for r in rows)
   total_kept    = sum(r['n_kept']    for r in rows)
   total_flagged = sum(r['n_flagged'] for r in rows)
@@ -217,7 +217,7 @@ def render_html(rows, version, output_fp, log_dir, title="SILVA Verification Sum
 <h2>{title}</h2>
 <p class="meta">
   Version: {version} &nbsp;|&nbsp;
-  Tool: Infernal cmsearch --hmmonly --cut_ga
+  Tool: Infernal {tool}
 </p>
 <table>
 <thead>
@@ -258,6 +258,7 @@ def main():
   ap.add_argument('--output',  required=True, help='Output HTML file')
   ap.add_argument('--version', default='', help='Database version string shown in the HTML header')
   ap.add_argument('--title', default='SILVA Verification Summary', help='HTML page title and heading')
+  ap.add_argument('--tool', default='cmsearch --hmmonly --cut_ga', help='Tool invocation shown in the HTML header')
   args = ap.parse_args()
 
   rows = load_stats(args.stats_tsv)
@@ -266,7 +267,7 @@ def main():
     sys.exit(1)
 
   log_dir = Path(args.stats_tsv).parent
-  render_html(rows, args.version, args.output, log_dir, args.title)
+  render_html(rows, args.version, args.output, log_dir, args.title, args.tool)
 
 
 if __name__ == '__main__':
