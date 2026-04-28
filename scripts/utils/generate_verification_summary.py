@@ -187,11 +187,12 @@ def render_html(rows, version, output_fp, log_dir, title="SILVA Verification Sum
   if rows_with_dist:
     svg = render_histogram_svg(rows_with_dist)
     hist_section = f"""
-<h3 style="margin-top:2em">5&#x2032; Alignment Offset Distribution (seq_from)</h3>
+<h3 style="margin-top:2em">5&#x2032; Alignment Offset Distribution (seq_from) — Kept sequences only</h3>
 <p class="meta">
+  For each kept sequence, seq_from is the start position of the best cmsearch hit.
   Sequences were trimmed to [seq_from,&nbsp;seq_to] before output.
   seq_from&nbsp;=&nbsp;1 means no 5&#x2032; trimming was needed.
-  Hover over a bar segment to see exact counts (may take a moment to load).
+  Hover over a bar segment to see exact counts.
 </p>
 {svg}
 """
