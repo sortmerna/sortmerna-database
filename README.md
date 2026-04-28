@@ -86,7 +86,7 @@ This repository contains code and workflows to:
 
 ### Reference Verification
 
-Before clustering, all downloaded rRNA sequences were independently validated as rRNA using Infernal's cmsearch against Rfam covariance models (CMs). Rfam covariance models incorporate rRNA secondary structure, enabling robust identification even in diverged lineages. Rfam's curator-defined gathering thresholds were applied via the `--cut_ga` for option in cmsearch. Models used per domain/gene:
+Before clustering, all downloaded rRNA sequences were independently validated as rRNA using Infernal's `cmsearch --hmmonly` against profile HMMs derived from Rfam covariance models. The `--hmmonly` mode skips the full CM (secondary-structure-aware) stages and uses only the profile HMM, which is sufficient for identifying rRNA. Rfam's curator-defined gathering thresholds were applied via `--cut_ga`. Models used per domain/gene:
 
 - **SSU**: RF00177 (Bacteria), RF01959 (Archaea), RF01960 (Eukaryota)
 - **LSU**: RF02541 (Bacteria), RF02540 (Archaea), RF02543 (Eukaryota)
@@ -95,6 +95,8 @@ Before clustering, all downloaded rRNA sequences were independently validated as
 - **Organellar**: RF02545 (mitochondrial SSU), RF02546 (mitochondrial LSU)
 
 Chloroplast SSU sequences were validated against the bacterial SSU model (RF00177).
+
+Each verified sequence is trimmed to the exact hit coordinates `[seq_from, seq_to]` reported by cmsearch. This is critical for SortMeRNA: the tool builds a k-mer index over every reference sequence, so any non-rRNA nucleotides present in a reference — flanking genomic DNA, phage genome sequence, or assembly context that SILVA's own truncation missed — are indexed alongside the rRNA and can produce false-positive matches against reads from those contaminant sources. Trimming to the cmsearch alignment window guarantees that only sequence the profile HMM recognises as rRNA enters the index.
 
 ### Tools Considered
 
@@ -216,7 +218,7 @@ bash $SMR_DB_ROOT_DIR/scripts/database_building/download_cms.sh $CMS_DIR
 
 ### 3. Verify SILVA Sequences
 
-Before clustering, each SILVA sequence is independently verified as rRNA using Infernal's `cmsearch` against the corresponding Rfam covariance model. Sequences that fail the gathering threshold are written to `flagged_*.fasta` and excluded from downstream steps.
+Before clustering, each SILVA sequence is independently verified as rRNA using Infernal's `cmsearch --hmmonly` against the profile HMM derived from the corresponding Rfam covariance model. Sequences that fail the gathering threshold (`--cut_ga`) are written to `flagged_*.fasta` and excluded from downstream steps.
 
 ```bash
 # Args: input_dir output_dir threads

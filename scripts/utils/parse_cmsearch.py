@@ -3,7 +3,8 @@
 parse_cmsearch.py - Filter FASTA sequences based on cmsearch --tblout results.
 
 Sequences with at least one above-threshold hit (inc == '!') are written to
-the clean output. Sequences with no qualifying hit go to the flagged output.
+the clean output, trimmed to the hit coordinates [seq_from, seq_to].
+Sequences with no qualifying hit go to the flagged output.
 A TSV log records the best hit details for every kept sequence.
 """
 
@@ -21,13 +22,13 @@ def parse_tblout(tblout_fp):
       fields = line.split()
       if len(fields) < 17:
         continue
-      seq_id  = fields[0]
+      seq_id = fields[0]
       seq_from = int(fields[7])
-      seq_to   = int(fields[8])
-      strand   = fields[9]
-      score    = float(fields[14])
-      evalue   = fields[15]
-      inc      = fields[16]
+      seq_to = int(fields[8])
+      strand = fields[9]
+      score = float(fields[14])
+      evalue = fields[15]
+      inc = fields[16]
       if inc == '!' and (seq_id not in hits or score > hits[seq_id][0]):
         hits[seq_id] = (score, evalue, seq_from, seq_to, strand)
   return hits
@@ -66,17 +67,17 @@ def main():
   print(f"  Sequences with qualifying hit (inc='!'): {len(hits)}")
 
   kept = flagged = 0
-  with open(args.clean,   'w') as clean_f, \
+  with open(args.clean, 'w') as clean_f, \
      open(args.flagged, 'w') as flag_f,  \
-     open(args.log,     'w') as log_f:
+     open(args.log, 'w') as log_f:
 
     log_f.write("seq_id\tscore\tevalue\tseq_from\tseq_to\tstrand\n")
 
     for header, seq in read_fasta(args.fasta):
       seq_id = header.split()[0]
       if seq_id in hits:
-        clean_f.write(f">{header}\n{seq}\n")
         score, evalue, sf, st, strand = hits[seq_id]
+        clean_f.write(f">{header}\n{seq[sf - 1:st]}\n")
         log_f.write(f"{seq_id}\t{score}\t{evalue}\t{sf}\t{st}\t{strand}\n")
         kept += 1
       else:

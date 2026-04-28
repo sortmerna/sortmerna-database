@@ -113,6 +113,7 @@ run_cmsearch() {
   local cm="$1" fasta="$2" tblout="$3"
   if [[ ! -f "${tblout}" ]]; then
   echo "  cmsearch: $(basename "${fasta}") vs $(basename "${cm}")"
+  echo "  cmd: cmsearch --hmmonly --cpu ${THREADS} --tblout $(basename "${tblout}") --cut_ga --noali $(basename "${cm}") $(basename "${fasta}")"
   cmsearch --hmmonly --cpu "${THREADS}" --tblout "${tblout}" --cut_ga --noali \
     "${cm}" "${fasta}" > /dev/null
   else
