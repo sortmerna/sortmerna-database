@@ -219,9 +219,9 @@ Outputs per domain/type in each verified directory:
 
 **Verification Summary**
 
-- SILVA 138.2: <a href="https://sortmerna.github.io/sortmerna-database/results/working/data/verified/verification_summary.html" target="_blank">verification_summary.html</a>
+- SILVA 138.2: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified/verification_summary.html" target="_blank">verification_summary.html</a>
 
-- Rfam: <a href="https://sortmerna.github.io/sortmerna-database/results/working/data/verified_rfam/verification_summary.html" target="_blank">verification_summary.html</a>
+- Rfam: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified_rfam/verification_summary.html" target="_blank">verification_summary.html</a>
 
 ### 4. Build Clustered Databases
 
