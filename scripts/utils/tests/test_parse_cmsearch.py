@@ -126,6 +126,7 @@ class TestReadFasta:
     assert records[0][0] == "seq1"
     assert str(records[0][1]) == "ACGTACGTACGT"
 
+  @pytest.mark.filterwarnings("ignore::skbio.io.registry.FormatIdentificationWarning")
   def test_empty_file(self, tmp_path):
     f = tmp_path / "empty.fasta"
     f.write_text("")

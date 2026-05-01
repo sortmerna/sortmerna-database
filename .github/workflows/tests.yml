@@ -18,7 +18,12 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install pytest scikit-bio
+        run: pip install pytest pytest-cov scikit-bio
 
       - name: Run tests
-        run: pytest scripts/utils/tests/ -v
+        run: pytest scripts/utils/tests/ -v --cov=scripts --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml

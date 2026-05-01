@@ -1,5 +1,8 @@
 # SortMeRNA Database Benchmark
 
+[![CI](https://github.com/sortmerna/sortmerna-database/actions/workflows/tests.yml/badge.svg)](https://github.com/sortmerna/sortmerna-database/actions/workflows/tests.yml)
+[![Coverage](https://codecov.io/gh/sortmerna/sortmerna-database/branch/main/graph/badge.svg)](https://codecov.io/gh/sortmerna/sortmerna-database)
+
 A comprehensive benchmarking framework for building and evaluating optimized rRNA databases for SortMeRNA across modern sequencing platforms.
 
 **Status**: 🚧 Active Development - this repository is undergoing daily changes and is not yet ready for use. Scripts, workflows, and outputs may change without notice. Do not use this repository in production or depend on its outputs until this status is updated to indicate a stable release.
