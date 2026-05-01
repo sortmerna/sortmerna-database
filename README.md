@@ -19,8 +19,8 @@ This repository contains code and workflows to:
 - [x] Download latest SILVA database
 - [x] Download RFAM rRNA families
 - [x] Download Rfam covariance models (Infernal)
-- [ ] Independently verify rRNA sequences with Infernal cmsearch (--cut_ga)
-- [ ] Implement clustering pipeline
+- [x] Independently verify rRNA sequences with Infernal cmsearch (--cut_ga)
+- [x] Implement clustering pipeline
 - [ ] Test multiple clustering thresholds
 - [ ] Build SortMeRNA indices for each clustered database
 - [ ] Generate database statistics and metadata
@@ -217,7 +217,11 @@ Outputs per domain/type in each verified directory:
 | `<gene>_<domain>_cmsearch.tblout` | Raw cmsearch output (kept for auditing) |
 | `verification_summary.html` | Interactive summary with flagged counts and offset histogram |
 
-> **Verification summary** (SILVA 138.2): <a href="https://sortmerna.github.io/sortmerna-database/results/verification_summary_silva.html" target="_blank">verification_summary_silva.html</a>
+**Verification Summary**
+
+- SILVA 138.2: <a href="https://sortmerna.github.io/sortmerna-database/results/verification_summary_silva.html" target="_blank">verification_summary_silva.html</a>
+
+- RFAM: <a href="https://sortmerna.github.io/sortmerna-database/results/verification_summary_rfam.html" target="_blank">verification_summary_rfam.html</a>
 
 ### 4. Build Clustered Databases
 
