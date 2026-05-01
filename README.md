@@ -8,7 +8,7 @@ A comprehensive benchmarking framework for building and evaluating optimized rRN
 
 This repository contains code and workflows to:
 1. Download and independently verify rRNA sequences using Infernal covariance models
-2. Build clustered rRNA databases from verified SILVA and RFAM sequences
+2. Build clustered rRNA databases from verified SILVA and Rfam sequences
 3. Benchmark database performance (accuracy vs. size tradeoffs)
 4. Optimize clustering parameters for different use cases
 5. Validate databases against simulated and real datasets
@@ -17,7 +17,7 @@ This repository contains code and workflows to:
 
 ### Phase 1: Database Construction
 - [x] Download latest SILVA database
-- [x] Download RFAM rRNA families
+- [x] Download Rfam rRNA families
 - [x] Download Rfam covariance models (Infernal)
 - [x] Independently verify rRNA sequences with Infernal cmsearch (--cut_ga)
 - [x] Implement clustering pipeline
@@ -54,7 +54,7 @@ This repository contains code and workflows to:
 - **Size (raw)**: 510,495 sequences (SSU) and 95,279 sequences (LSU)
 - **File type**: `_trunc` variants - sequences have been truncated so that all nucleotides not aligned to the SILVA reference alignment are removed. This produces clean, alignment-bounded rRNA sequences and avoids including flanking genomic context that would inflate database size and reduce SortMeRNA specificity.
 
-### RFAM
+### Rfam
 - **Version**: Rfam 15.1 (January 2026, 4227 families)
 - **URL**: https://rfam.org/
 - **Families**: RF00001 (5S), RF00002 (5.8S)
@@ -188,7 +188,7 @@ export RFAM_VERSION=15.1
 # Download SILVA
 bash $SMR_DB_ROOT_DIR/scripts/database_building/download_silva.sh $SILVA_DIR
 
-# Download RFAM
+# Download Rfam
 bash $SMR_DB_ROOT_DIR/scripts/database_building/download_rfam.sh $RFAM_DIR
 
 # Download and press Rfam covariance models
@@ -221,7 +221,7 @@ Outputs per domain/type in each verified directory:
 
 - SILVA 138.2: <a href="https://sortmerna.github.io/sortmerna-database/results/verification_summary_silva.html" target="_blank">verification_summary_silva.html</a>
 
-- RFAM: <a href="https://sortmerna.github.io/sortmerna-database/results/verification_summary_rfam.html" target="_blank">verification_summary_rfam.html</a>
+- Rfam: <a href="https://sortmerna.github.io/sortmerna-database/results/verification_summary_rfam.html" target="_blank">verification_summary_rfam.html</a>
 
 ### 4. Build Clustered Databases
 
