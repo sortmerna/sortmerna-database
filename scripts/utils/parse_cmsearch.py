@@ -9,7 +9,7 @@ A TSV log records the best hit details for every kept sequence.
 """
 
 import argparse
-import sys
+from skbio import DNA, read
 
 
 def parse_tblout(tblout_fp):
@@ -41,19 +41,12 @@ def trim_to_hit(seq, seq_from, seq_to):
 
 def read_fasta(fp):
   """Yield (full_header, sequence) for each record."""
-  header, seqlines = None, []
-  with open(fp) as f:
-    for line in f:
-      line = line.rstrip('\n')
-      if line.startswith('>'):
-        if header is not None:
-          yield header, ''.join(seqlines)
-        header = line[1:]
-        seqlines = []
-      else:
-        seqlines.append(line)
-  if header is not None:
-    yield header, ''.join(seqlines)
+  for seq in read(fp, format='fasta', constructor=DNA):
+    header = seq.metadata['id']
+    description = seq.metadata.get('description')
+    if description:
+      header = f"{header} {description}"
+    yield header, seq
 
 
 def main():

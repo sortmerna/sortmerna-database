@@ -1,9 +1,13 @@
 import pytest
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from parse_cmsearch import trim_to_hit, parse_tblout, read_fasta
+
+TEST_DIR = Path(__file__).parent / "data"
+SCRIPT   = Path(__file__).parent.parent / "parse_cmsearch.py"
 
 
 # ── trim_to_hit ───────────────────────────────────────────────────────────────
@@ -101,21 +105,26 @@ class TestReadFasta:
     f = tmp_path / "seqs.fasta"
     f.write_text(">seq1 some description\nACGT\n")
     records = list(read_fasta(str(f)))
-    assert records == [("seq1 some description", "ACGT")]
+    assert records[0][0] == "seq1 some description"
+    assert str(records[0][1]) == "ACGT"
 
   def test_multiple_sequences(self, tmp_path):
     f = tmp_path / "seqs.fasta"
     f.write_text(">seq1\nACGT\n>seq2\nTTTT\n")
     records = list(read_fasta(str(f)))
     assert len(records) == 2
-    assert records[0] == ("seq1", "ACGT")
-    assert records[1] == ("seq2", "TTTT")
+    assert records[0][0] == "seq1"
+    assert str(records[0][1]) == "ACGT"
+    assert records[1][0] == "seq2"
+    assert str(records[1][1]) == "TTTT"
 
   def test_multiline_sequence(self, tmp_path):
     f = tmp_path / "seqs.fasta"
     f.write_text(">seq1\nACGT\nACGT\nACGT\n")
     records = list(read_fasta(str(f)))
-    assert records == [("seq1", "ACGTACGTACGT")]
+    assert len(records) == 1
+    assert records[0][0] == "seq1"
+    assert str(records[0][1]) == "ACGTACGTACGT"
 
   def test_empty_file(self, tmp_path):
     f = tmp_path / "empty.fasta"
@@ -127,3 +136,42 @@ class TestReadFasta:
     f.write_text(">seq1\nACGT\n")
     records = list(read_fasta(str(f)))
     assert records[0][0] == "seq1"
+    assert str(records[0][1]) == "ACGT"
+
+
+# ── end-to-end integration test ───────────────────────────────────────────────
+
+class TestEndToEnd:
+  """Run parse_cmsearch.py on the test tblout + FASTA subset and verify outputs."""
+
+  def test_verified_fasta_and_log_match_expected(self, tmp_path):
+    tblout_fp      = TEST_DIR / "cmsearch_log_ssu_bacteria_test.tblout"
+    fasta_fp       = TEST_DIR / "silva_ssu_dom_bacteria_test.fasta"
+    expected_tsv   = TEST_DIR / "cmsearch_log_ssu_bacteria_test.tsv"
+    expected_fasta = TEST_DIR / "verified_ssu_bacteria_test.fasta"
+
+    out_fasta   = tmp_path / "verified_ssu_bacteria_test_local.fasta"
+    out_flagged = tmp_path / "flagged_local.fasta"
+    out_log     = tmp_path / "log_local.tsv"
+
+    result = subprocess.run(
+      [
+        sys.executable, str(SCRIPT),
+        "--tblout",  str(tblout_fp),
+        "--fasta",   str(fasta_fp),
+        "--clean",   str(out_fasta),
+        "--flagged", str(out_flagged),
+        "--log",     str(out_log),
+      ],
+      capture_output=True,
+      text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+    # Log TSV: exact text match (order follows input FASTA order)
+    assert out_log.read_text() == expected_tsv.read_text()
+
+    # Verified FASTA: content match (header + sequence), ignoring line-wrapping differences
+    out_records = [(hdr, str(seq)) for hdr, seq in read_fasta(str(out_fasta))]
+    exp_records = [(hdr, str(seq)) for hdr, seq in read_fasta(str(expected_fasta))]
+    assert out_records == exp_records
