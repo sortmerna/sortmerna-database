@@ -160,7 +160,7 @@ convert_u_to_t "${SILVA_SSU}" "${SSU_DNA}"
 SSU_DOM="${OUTPUT_DIR}/silva_ssu_dom"
 split_by_domain "${SSU_DNA}" "${SSU_DOM}"
 
-# Split eukaryota into nuclear / mito / chloro
+# Split eukaryota into nuclear / mito
 EUK_SSU_PREFIX="${OUTPUT_DIR}/silva_ssu_euk"
 if [[ -f "${SSU_DOM}_eukaryota.fasta" ]]; then
   split_euk_organellar "${SSU_DOM}_eukaryota.fasta" "${EUK_SSU_PREFIX}"
