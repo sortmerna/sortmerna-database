@@ -51,9 +51,11 @@ class TestParseTblout:
     f.write_text(TBLOUT_HEADER + make_tblout_line("seq1", 1, 500, 900.0, "0"))
     hits = parse_tblout(str(f))
     assert "seq1" in hits
-    assert hits["seq1"] == (900.0, "0", 1, 500, "+")
+    assert hits["seq1"] == (900.0, "0", 1, 500, "+", 1, 1, 500)
 
-  def test_best_hit_kept_for_duplicate_seq_id(self, tmp_path):
+  def test_multi_hit_merged_span_and_best_coords_stored(self, tmp_path):
+    # Two hits: best has score 990.5 at [347,1576]; second at [1,180]
+    # merged span = [1, 1576]; best coords = [347, 1576]
     f = tmp_path / "hits.tblout"
     f.write_text(
       TBLOUT_HEADER +
@@ -62,8 +64,13 @@ class TestParseTblout:
     )
     hits = parse_tblout(str(f))
     assert len(hits) == 1
-    assert hits["seq1"][0] == 990.5
-    assert hits["seq1"][2] == 347
+    score, evalue, merged_from, merged_to, strand, n_hits, best_sf, best_st = hits["seq1"]
+    assert score      == 990.5
+    assert n_hits     == 2
+    assert merged_from == 1      # min(347, 1)
+    assert merged_to   == 1576   # max(1576, 180)
+    assert best_sf     == 347    # best hit's own sf
+    assert best_st     == 1576   # best hit's own st
 
   def test_non_inclusion_hit_ignored(self, tmp_path):
     f = tmp_path / "hits.tblout"
@@ -95,7 +102,7 @@ class TestParseTblout:
     )
     hits = parse_tblout(str(f))
     assert set(hits.keys()) == {"seq1", "seq2"}
-    assert hits["seq2"][2] == 540
+    assert hits["seq2"][2] == 540   # single hit — merged_from == sf
 
 
 # ── read_fasta ────────────────────────────────────────────────────────────────
@@ -140,7 +147,35 @@ class TestReadFasta:
     assert str(records[0][1]) == "ACGT"
 
 
-# ── end-to-end integration test ───────────────────────────────────────────────
+# ── helpers for end-to-end tests ─────────────────────────────────────────────
+
+def run_script(tmp_path, fasta_text, tblout_text):
+  fasta   = tmp_path / "in.fasta"
+  tblout  = tmp_path / "in.tblout"
+  clean   = tmp_path / "clean.fasta"
+  flagged = tmp_path / "flagged.fasta"
+  log     = tmp_path / "log.tsv"
+  fasta.write_text(fasta_text)
+  tblout.write_text(tblout_text)
+  result = subprocess.run(
+    [sys.executable, str(SCRIPT),
+     "--tblout",  str(tblout),
+     "--fasta",   str(fasta),
+     "--clean",   str(clean),
+     "--flagged", str(flagged),
+     "--log",     str(log)],
+    capture_output=True, text=True,
+  )
+  assert result.returncode == 0, result.stderr
+  return clean, flagged, log
+
+def tsv_rows(path):
+  """Return TSV as list of stripped row-lists, skipping the header."""
+  lines = path.read_text().splitlines()
+  return [line.rstrip('\t').split('\t') for line in lines[1:] if line.strip()]
+
+
+# ── end-to-end integration tests ─────────────────────────────────────────────
 
 class TestEndToEnd:
   """Run parse_cmsearch.py on the test tblout + FASTA subset and verify outputs."""
@@ -169,10 +204,57 @@ class TestEndToEnd:
     )
     assert result.returncode == 0, result.stderr
 
-    # Log TSV: exact text match (order follows input FASTA order)
-    assert out_log.read_text() == expected_tsv.read_text()
+    # Log TSV: compare rows ignoring trailing whitespace on note column
+    assert tsv_rows(out_log) == tsv_rows(expected_tsv)
 
     # Verified FASTA: content match (header + sequence), ignoring line-wrapping differences
     out_records = [(hdr, str(seq)) for hdr, seq in read_fasta(str(out_fasta))]
     exp_records = [(hdr, str(seq)) for hdr, seq in read_fasta(str(expected_fasta))]
     assert out_records == exp_records
+
+  def test_multi_hit_high_coverage_trims_to_merged_span(self, tmp_path):
+    # seq1: 1000 bp; hits at [1,600] (best, score 900) and [550,900]
+    # merged span [1,900], coverage = 900/1000 = 0.9 >= COVERAGE_THRESHOLD
+    seq = "A" * 1000
+    fasta_text  = f">seq1\n{seq}\n"
+    tblout_text = (
+      TBLOUT_HEADER +
+      make_tblout_line("seq1", 1,   600, 900.0, "0") +
+      make_tblout_line("seq1", 550, 900, 800.0, "1e-200")
+    )
+    clean, _, log = run_script(tmp_path, fasta_text, tblout_text)
+
+    rows = tsv_rows(log)
+    assert len(rows) == 1
+    _, _, _, sf, st, _, n_hits, note = rows[0]
+    assert sf     == "1"
+    assert st     == "900"
+    assert n_hits == "2"
+    assert note   == "merged_2_hits"
+
+    out_records = [(hdr, str(seq)) for hdr, seq in read_fasta(str(clean))]
+    assert out_records[0][1] == "A" * 900
+
+  def test_multi_hit_low_coverage_falls_back_to_best_hit(self, tmp_path):
+    # seq1: 1000 bp; best hit at [100,450] (score 900), second at [700,800]
+    # merged span [100,800], coverage = 701/1000 = 0.701 < COVERAGE_THRESHOLD
+    seq = "A" * 1000
+    fasta_text  = f">seq1\n{seq}\n"
+    tblout_text = (
+      TBLOUT_HEADER +
+      make_tblout_line("seq1", 100, 450, 900.0, "0") +
+      make_tblout_line("seq1", 700, 800, 800.0, "1e-200")
+    )
+    clean, _, log = run_script(tmp_path, fasta_text, tblout_text)
+
+    rows = tsv_rows(log)
+    assert len(rows) == 1
+    _, _, _, sf, st, _, n_hits, note = rows[0]
+    assert sf     == "100"   # best hit sf, not merged_from
+    assert st     == "450"   # best hit st, not merged_to
+    assert n_hits == "2"
+    assert "low_coverage" in note
+    assert "REVIEW"        in note
+
+    out_records = [(hdr, str(seq)) for hdr, seq in read_fasta(str(clean))]
+    assert out_records[0][1] == "A" * 351  # positions 100-450 inclusive
