@@ -139,8 +139,8 @@ RF58S_SEED_DNA="${OUTPUT_DIR}/rfam_58s_seed_dna.fasta"
 convert_u_to_t "${RFAM_DIR}/RF00002_5_8S_rRNA_full.fa" "${RF58S_FULL_DNA}"
 convert_u_to_t "${RFAM_DIR}/RF00002_5_8S_rRNA_seed.fa" "${RF58S_SEED_DNA}"
 
-verify_family "58s" "full" "${RF58S_FULL_DNA}" "${CMS_DIR}/RF00002.cm"
-verify_family "58s" "seed" "${RF58S_SEED_DNA}" "${CMS_DIR}/RF00002.cm"
+verify_family "5.8s" "full" "${RF58S_FULL_DNA}" "${CMS_DIR}/RF00002.cm"
+verify_family "5.8s" "seed" "${RF58S_SEED_DNA}" "${CMS_DIR}/RF00002.cm"
 
 # ── summary ───────────────────────────────────────────────────────────────────
 

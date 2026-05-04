@@ -14,7 +14,6 @@
 #   SSU archaea:            RF01959
 #   SSU eukaryota nuclear:  RF01960
 #   SSU eukaryota mito:     RF02545
-#   SSU eukaryota chloro:   RF00177  (plastids are bacterial-derived)
 #   LSU bacteria:           RF02541
 #   LSU archaea:            RF02540
 #   LSU eukaryota:          RF02543
@@ -94,19 +93,17 @@ split_by_domain() {
 
 split_euk_organellar() {
   local euk_fasta="$1" prefix="$2"
-  seqkit grep -r --by-name -p "Mitochondria" "${euk_fasta}" -o "${prefix}_mito.fasta"  2>/dev/null || true
-  seqkit grep -r --by-name -p "Chloroplast"  "${euk_fasta}" -o "${prefix}_chloro.fasta" 2>/dev/null || true
+  seqkit grep -r --by-name -p "Mitochondria" "${euk_fasta}" -o "${prefix}_mito.fasta" 2>/dev/null || true
 
-  local organellar_ids="${prefix}_organellar_ids.tmp"
-  cat "${prefix}_mito.fasta" "${prefix}_chloro.fasta" \
-  | seqkit seq --name --only-id > "${organellar_ids}" 2>/dev/null || true
+  local mito_ids="${prefix}_mito_ids.tmp"
+  seqkit seq --name --only-id "${prefix}_mito.fasta" > "${mito_ids}" 2>/dev/null || true
 
-  if [[ -s "${organellar_ids}" ]]; then
-  seqkit grep -v -f "${organellar_ids}" "${euk_fasta}" -o "${prefix}_nuclear.fasta"
+  if [[ -s "${mito_ids}" ]]; then
+    seqkit grep -v -f "${mito_ids}" "${euk_fasta}" -o "${prefix}_nuclear.fasta"
   else
-  cp "${euk_fasta}" "${prefix}_nuclear.fasta"
+    cp "${euk_fasta}" "${prefix}_nuclear.fasta"
   fi
-  rm -f "${organellar_ids}"
+  rm -f "${mito_ids}"
 }
 
 run_cmsearch() {
@@ -173,7 +170,6 @@ verify_domain "ssu" "bacteria" "${SSU_DOM}_bacteria.fasta" "${CMS_DIR}/RF00177.c
 verify_domain "ssu" "archaea"  "${SSU_DOM}_archaea.fasta" "${CMS_DIR}/RF01959.cm"
 verify_domain "ssu" "eukaryota_nuclear" "${EUK_SSU_PREFIX}_nuclear.fasta" "${CMS_DIR}/RF01960.cm"
 verify_domain "ssu" "eukaryota_mito" "${EUK_SSU_PREFIX}_mito.fasta" "${CMS_DIR}/RF02545.cm"
-verify_domain "ssu" "eukaryota_chloro" "${EUK_SSU_PREFIX}_chloro.fasta" "${CMS_DIR}/RF00177.cm"
 
 # ── LSU ──────────────────────────────────────────────────────────────────────
 

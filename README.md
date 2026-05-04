@@ -75,8 +75,6 @@ Before clustering, all downloaded rRNA sequences were independently validated as
 - **5S**: RF00001 (all domains)
 - **Organellar**: RF02545 (mitochondrial SSU), RF02546 (mitochondrial LSU)
 
-Chloroplast SSU sequences were validated against the bacterial SSU model (RF00177).
-
 Each verified sequence was trimmed to the exact hit coordinates `[seq_from, seq_to]` reported by cmsearch. This was critical for SortMeRNA: the tool builds a k-mer index over every reference sequence, so any non-rRNA nucleotides present in a reference - flanking genomic DNA, phage genome sequence, or assembly context that SILVA's own truncation missed - would have been indexed alongside the rRNA and could have produced false-positive matches against reads from those contaminant sources. Trimming to the cmsearch alignment window ensured that only sequence the profile HMM recognised as rRNA entered the index.
 
 ### Tools Considered
