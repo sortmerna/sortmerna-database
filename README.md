@@ -67,7 +67,7 @@ This repository contains code and workflows to:
 
 ### Reference Verification
 
-Before clustering, all downloaded rRNA sequences were independently validated as rRNA using Infernal's `cmsearch --hmmonly` against profile HMMs derived from Rfam covariance models. The `--hmmonly` mode skipped the full CM (secondary-structure-aware) stages and used only the profile HMM, which was sufficient for identifying rRNA. Rfam's curator-defined gathering thresholds were applied via `--cut_ga`. Models used per domain/gene:
+Before clustering, all sequences were independently verified as rRNA using Infernal `cmsearch --cut_ga` against Rfam covariance models (see step 3 for details). Models used per gene/domain:
 
 - **SSU**: RF00177 (Bacteria), RF01959 (Archaea), RF01960 (Eukaryota)
 - **LSU**: RF02541 (Bacteria), RF02540 (Archaea), RF02543 (Eukaryota)
@@ -75,7 +75,7 @@ Before clustering, all downloaded rRNA sequences were independently validated as
 - **5S**: RF00001 (all domains)
 - **Organellar**: RF02545 (mitochondrial SSU), RF02546 (mitochondrial LSU)
 
-Each verified sequence was trimmed to the exact hit coordinates `[seq_from, seq_to]` reported by cmsearch. This was critical for SortMeRNA: the tool builds a k-mer index over every reference sequence, so any non-rRNA nucleotides present in a reference - flanking genomic DNA, phage genome sequence, or assembly context that SILVA's own truncation missed - would have been indexed alongside the rRNA and could have produced false-positive matches against reads from those contaminant sources. Trimming to the cmsearch alignment window ensured that only sequence the profile HMM recognised as rRNA entered the index.
+Trimming to the cmsearch hit coordinates was critical for SortMeRNA: the tool builds a k-mer index over every reference sequence, so any non-rRNA nucleotides in a reference - flanking genomic DNA, assembly context, or sequence that SILVA's own truncation missed - would be indexed alongside the rRNA and could produce false-positive matches against non-rRNA reads.
 
 ### Tools Considered
 
