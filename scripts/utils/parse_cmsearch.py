@@ -90,7 +90,12 @@ def main():
   hits = parse_tblout(args.tblout)
   print(f"  Sequences with qualifying hit (inc='!'): {len(hits)}")
 
-  kept = flagged = 0
+  # cmsearch_kept   = sequences with >= 1 '!' hit (before length filter)
+  # cmsearch_dropped = sequences with no '!' hit
+  # trimming_passed  = sequences written to clean (passed both cmsearch and length filter)
+  cmsearch_kept = len(hits)
+  cmsearch_dropped = trimming_passed = 0
+
   with open(args.clean, 'w') as clean_f, \
      open(args.flagged, 'w') as flag_f,  \
      open(args.log, 'w') as log_f:
@@ -119,22 +124,23 @@ def main():
         if len(trimmed) < MIN_TRIM_FRACTION * seq_len:
             note = (note + '_' if note else '') + 'too_short'
             flag_f.write(f">{header}\n{trimmed}\n")
-            flagged += 1
         else:
             clean_f.write(f">{header}\n{trimmed}\n")
-            kept += 1
+            trimming_passed += 1
         log_f.write(f"{seq_id}\t{score}\t{evalue}\t{sf}\t{st}\t{strand}\t{n_hits}\t{note}\n")
       else:
         flag_f.write(f">{header}\n{seq}\n")
-        flagged += 1
+        cmsearch_dropped += 1
 
-  total = kept + flagged
-  pct = f"{flagged / total * 100:.1f}" if total else "0.0"
-  print(f"  Kept: {kept}  Flagged: {flagged} ({pct}% flagged)")
+  total = cmsearch_kept + cmsearch_dropped
+  too_short = cmsearch_kept - trimming_passed
+  print(f"  cmsearch kept: {cmsearch_kept}  cmsearch dropped: {cmsearch_dropped}  "
+        f"trimming passed: {trimming_passed}  too short: {too_short}")
 
   if args.stats:
     with open(args.stats, 'a') as sf:
-      sf.write(f"{args.gene}\t{args.domain}\t{total}\t{kept}\t{flagged}\n")
+      sf.write(f"{args.gene}\t{args.domain}\t{total}\t"
+               f"{cmsearch_kept}\t{cmsearch_dropped}\t{trimming_passed}\n")
 
 
 if __name__ == '__main__':
