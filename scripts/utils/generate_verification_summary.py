@@ -87,7 +87,7 @@ def load_seq_from_dist(log_dir, gene, domain):
 
 
 def pct(n, total):
-  return f"{n / total * 100:.1f}%" if total else "—"
+  return f"{n / total * 100:.3f}%" if total else "—"
 
 
 def render_histogram_svg(rows_with_dist):
