@@ -25,8 +25,10 @@ MODEL_MAP = {
   ('LSU', 'eukaryota_nuclear'): 'RF02543',
   ('LSU', 'eukaryota_mito'):    'RF02546',
   ('LSU', 'eukaryota_chloro'):  'RF02543',
-  ('5S',  'all'):               'RF00001',
-  ('5.8S', 'eukaryota'):        'RF00002',
+  ('5S',   'full'):             'RF00001',
+  ('5S',   'seed'):             'RF00001',
+  ('5.8S', 'full'):             'RF00002',
+  ('5.8S', 'seed'):             'RF00002',
 }
 
 BIN_LABELS = ['= 1', '2–5', '6–10', '11–50', '51–200', '201–500', '> 500']
