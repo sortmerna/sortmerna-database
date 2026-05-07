@@ -30,18 +30,18 @@ def main():
   args = parser.parse_args()
 
   try:
-  seed_ids = load_ids(args.seeds)
-  member_ids = load_ids(args.test_members)
+    seed_ids   = load_ids(args.seeds)
+    member_ids = load_ids(args.test_members)
   except OSError as e:
-  print(f"  ERROR: {e}", file=sys.stderr)
-  sys.exit(1)
+    print(f"  ERROR: {e}", file=sys.stderr)
+    sys.exit(1)
 
   leaked = seed_ids & member_ids
   if leaked:
-  print(f"  ERROR: {len(leaked)} seed sequence(s) found in test members — data leakage detected")
-  for seq_id in sorted(leaked):
-    print(f"    {seq_id}")
-  sys.exit(1)
+    print(f"  ERROR: {len(leaked)} seed sequence(s) found in test members — data leakage detected")
+    for seq_id in sorted(leaked):
+      print(f"    {seq_id}")
+    sys.exit(1)
 
   print(f"  Leakage check OK: 0 of {len(member_ids)} test members are seeds")
 
