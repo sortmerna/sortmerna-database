@@ -13,7 +13,8 @@ A TSV log records the best hit details for every kept sequence.
 import argparse
 from skbio import DNA, read
 
-COVERAGE_THRESHOLD = 0.85  # merged hits must cover this fraction of sequence length
+COVERAGE_THRESHOLD  = 0.85  # merged hits must cover this fraction of sequence length
+MIN_TRIM_FRACTION   = 0.50  # trimmed sequence must be >= this fraction of original sequence length
 
 def parse_tblout(tblout_fp):
   """
@@ -114,9 +115,15 @@ def main():
             note = f'best_of_{n_hits}_hits_low_coverage'
             note += '_REVIEW'
 
-        clean_f.write(f">{header}\n{trim_to_hit(seq, sf, st)}\n")
+        trimmed = trim_to_hit(seq, sf, st)
+        if len(trimmed) < MIN_TRIM_FRACTION * seq_len:
+            note = (note + '_' if note else '') + 'too_short'
+            flag_f.write(f">{header}\n{trimmed}\n")
+            flagged += 1
+        else:
+            clean_f.write(f">{header}\n{trimmed}\n")
+            kept += 1
         log_f.write(f"{seq_id}\t{score}\t{evalue}\t{sf}\t{st}\t{strand}\t{n_hits}\t{note}\n")
-        kept += 1
       else:
         flag_f.write(f">{header}\n{seq}\n")
         flagged += 1

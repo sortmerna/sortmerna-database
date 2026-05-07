@@ -72,6 +72,28 @@ class TestParseTblout:
     assert best_sf     == 347    # best hit's own sf
     assert best_st     == 1576   # best hit's own st
 
+  def test_four_hits_contiguous_merged(self, tmp_path):
+    # Mirrors LT962479.1823315.1826214: 4 nearly-contiguous hits tiling the LSU model
+    # best hit: score 838.0 at [589, 1802]; others at [210,570], [1803,2236], [2240,2795]
+    # merged span [210, 2795]; best coords [589, 1802]
+    f = tmp_path / "hits.tblout"
+    f.write_text(
+      TBLOUT_HEADER +
+      make_tblout_line("seq1",  589, 1802, 838.0, "2.3e-251") +
+      make_tblout_line("seq1", 2240, 2795, 517.5,   "1e-154") +
+      make_tblout_line("seq1", 1803, 2236, 409.9, "2.8e-122") +
+      make_tblout_line("seq1",  210,  570, 238.3,  "1.5e-70")
+    )
+    hits = parse_tblout(str(f))
+    assert len(hits) == 1
+    score, evalue, merged_from, merged_to, strand, n_hits, best_sf, best_st = hits["seq1"]
+    assert score       == 838.0
+    assert n_hits      == 4
+    assert merged_from == 210    # min across all hits
+    assert merged_to   == 2795   # max across all hits
+    assert best_sf     == 589    # best hit's own coords
+    assert best_st     == 1802
+
   def test_non_inclusion_hit_ignored(self, tmp_path):
     f = tmp_path / "hits.tblout"
     f.write_text(TBLOUT_HEADER + make_tblout_line("seq1", 1, 500, 30.0, "0.5", inc="?"))
@@ -235,26 +257,103 @@ class TestEndToEnd:
     out_records = [(hdr, str(seq)) for hdr, seq in read_fasta(str(clean))]
     assert out_records[0][1] == "A" * 900
 
-  def test_multi_hit_low_coverage_falls_back_to_best_hit(self, tmp_path):
-    # seq1: 1000 bp; best hit at [100,450] (score 900), second at [700,800]
-    # merged span [100,800], coverage = 701/1000 = 0.701 < COVERAGE_THRESHOLD
-    seq = "A" * 1000
+  def test_four_hits_high_coverage_merges_to_full_span(self, tmp_path):
+    # seq1: 2900 bp; 4 nearly-contiguous hits tiling the sequence
+    # merged span [210, 2795], coverage = 2586/2900 ≈ 0.892 >= 0.85
+    seq = "A" * 2900
     fasta_text  = f">seq1\n{seq}\n"
     tblout_text = (
       TBLOUT_HEADER +
-      make_tblout_line("seq1", 100, 450, 900.0, "0") +
-      make_tblout_line("seq1", 700, 800, 800.0, "1e-200")
+      make_tblout_line("seq1",  589, 1802, 838.0, "2.3e-251") +
+      make_tblout_line("seq1", 2240, 2795, 517.5,   "1e-154") +
+      make_tblout_line("seq1", 1803, 2236, 409.9, "2.8e-122") +
+      make_tblout_line("seq1",  210,  570, 238.3,  "1.5e-70")
     )
     clean, _, log = run_script(tmp_path, fasta_text, tblout_text)
 
     rows = tsv_rows(log)
     assert len(rows) == 1
     _, _, _, sf, st, _, n_hits, note = rows[0]
-    assert sf     == "100"   # best hit sf, not merged_from
-    assert st     == "450"   # best hit st, not merged_to
+    assert sf     == "210"
+    assert st     == "2795"
+    assert n_hits == "4"
+    assert note   == "merged_4_hits"
+
+    out_records = [(hdr, str(seq)) for hdr, seq in read_fasta(str(clean))]
+    assert out_records[0][1] == "A" * (2795 - 210 + 1)
+
+  @pytest.mark.filterwarnings("ignore::skbio.io.registry.FormatIdentificationWarning")
+  def test_trimmed_too_short_goes_to_flagged(self, tmp_path):
+    # seq1: 1000 bp; single hit at [1, 400] → trimmed = 400 bp = 40% of 1000 < 50% → flagged
+    seq = "A" * 1000
+    fasta_text  = f">seq1\n{seq}\n"
+    tblout_text = TBLOUT_HEADER + make_tblout_line("seq1", 1, 400, 900.0, "0")
+    clean, flagged, log = run_script(tmp_path, fasta_text, tblout_text)
+
+    assert list(read_fasta(str(clean))) == []
+    flagged_records = list(read_fasta(str(flagged)))
+    assert len(flagged_records) == 1
+    assert str(flagged_records[0][1]) == "A" * 400
+
+    rows = tsv_rows(log)
+    assert rows[0][-1] == "too_short"
+
+  @pytest.mark.filterwarnings("ignore::skbio.io.registry.FormatIdentificationWarning")
+  def test_trimmed_at_threshold_goes_to_clean(self, tmp_path):
+    # seq1: 1000 bp; single hit at [1, 500] → trimmed = 500 bp = exactly 50% → clean
+    seq = "A" * 1000
+    fasta_text  = f">seq1\n{seq}\n"
+    tblout_text = TBLOUT_HEADER + make_tblout_line("seq1", 1, 500, 900.0, "0")
+    clean, flagged, log = run_script(tmp_path, fasta_text, tblout_text)
+
+    clean_records = list(read_fasta(str(clean)))
+    assert len(clean_records) == 1
+    assert str(clean_records[0][1]) == "A" * 500
+    assert list(read_fasta(str(flagged))) == []
+    assert "too_short" not in tsv_rows(log)[0][-1]
+
+  @pytest.mark.filterwarnings("ignore::skbio.io.registry.FormatIdentificationWarning")
+  def test_low_coverage_and_too_short_note_combined(self, tmp_path):
+    # seq1: 1000 bp; best hit at [100, 350] (score 900), second at [700, 800]
+    # low coverage fallback → trimmed = 251 bp = 25.1% of 1000 < 50% → flagged
+    # note should contain both low_coverage_REVIEW and too_short
+    seq = "A" * 1000
+    fasta_text  = f">seq1\n{seq}\n"
+    tblout_text = (
+      TBLOUT_HEADER +
+      make_tblout_line("seq1", 100, 350, 900.0, "0") +
+      make_tblout_line("seq1", 700, 800, 800.0, "1e-200")
+    )
+    clean, flagged, log = run_script(tmp_path, fasta_text, tblout_text)
+
+    assert list(read_fasta(str(clean))) == []
+    assert len(list(read_fasta(str(flagged)))) == 1
+    rows = tsv_rows(log)
+    note = rows[0][-1]
+    assert "low_coverage" in note
+    assert "too_short"    in note
+
+  def test_multi_hit_low_coverage_falls_back_to_best_hit(self, tmp_path):
+    # seq1: 1000 bp; best hit at [1,600] (score 900), second at [800,840]
+    # merged span [1,840], coverage = 840/1000 = 0.84 < COVERAGE_THRESHOLD (0.85)
+    # falls back to best hit [1,600] = 600 bp = 60% of 1000 >= MIN_TRIM_FRACTION → clean
+    seq = "A" * 1000
+    fasta_text  = f">seq1\n{seq}\n"
+    tblout_text = (
+      TBLOUT_HEADER +
+      make_tblout_line("seq1",   1, 600, 900.0, "0") +
+      make_tblout_line("seq1", 800, 840, 800.0, "1e-200")
+    )
+    clean, _, log = run_script(tmp_path, fasta_text, tblout_text)
+
+    rows = tsv_rows(log)
+    assert len(rows) == 1
+    _, _, _, sf, st, _, n_hits, note = rows[0]
+    assert sf     == "1"     # best hit sf, not merged_from
+    assert st     == "600"   # best hit st, not merged_to
     assert n_hits == "2"
     assert "low_coverage" in note
     assert "REVIEW"        in note
 
     out_records = [(hdr, str(seq)) for hdr, seq in read_fasta(str(clean))]
-    assert out_records[0][1] == "A" * 351  # positions 100-450 inclusive
+    assert out_records[0][1] == "A" * 600  # positions 1-600 inclusive
