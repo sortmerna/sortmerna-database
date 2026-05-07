@@ -207,8 +207,12 @@ All sequences were independently verified as rRNA using Infernal's `cmsearch --c
 **LSU Eukaryota is most affected.** In practice, multi-hit and short-fragment cases are disproportionately observed in LSU eukaryotic sequences (RF02543, model length ~3400 bp). Among the ~16,000 LSU eukaryota sequences verified from SILVA 138.2, approximately 1.7% were flagged for low-coverage multi-hit patterns requiring manual review.
 
 ```bash
-# Args: input_dir output_dir threads
+# Verify SILVA SSU and LSU sequences (bacteria, archaea, eukaryota) using --hmmonly --cut_ga
 bash $SMR_DB_ROOT_DIR/scripts/database_building/verify_silva.sh $WORK_DIR/data $VERIFIED_DIR 4
+```
+
+```bash
+# Verify Rfam 5S and 5.8S seed sequences using full CM search with --cut_ga
 bash $SMR_DB_ROOT_DIR/scripts/database_building/verify_rfam.sh $WORK_DIR/data $VERIFIED_RFAM_DIR 4
 ```
 
@@ -231,7 +235,7 @@ Outputs per domain/type in each verified directory:
 ### 4. Build Clustered Databases
 
 ```bash
-# Args: input_dir output_dir threads
+# Cluster verified SILVA and Rfam sequences at multiple identity thresholds (97%, 95%, 90%, 85%)
 bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh $WORK_DIR/data $CLUSTERED_DIR 4
 ```
 
