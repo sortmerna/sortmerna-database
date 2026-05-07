@@ -75,7 +75,7 @@ Before clustering, all sequences were independently verified as rRNA using Infer
 - **5S**: RF00001 (all domains)
 - **Organellar**: RF02545 (mitochondrial SSU), RF02546 (mitochondrial LSU)
 
-Trimming to the cmsearch hit coordinates was critical for SortMeRNA: the tool builds a k-mer index over every reference sequence, so any non-rRNA nucleotides in a reference - flanking genomic DNA, assembly context, or sequence that SILVA's own truncation missed - would be indexed alongside the rRNA and could produce false-positive matches against non-rRNA reads.
+Trimming to the cmsearch hit coordinates was strategic for SortMeRNA: the tool builds a k-mer index over every reference sequence, so any non-rRNA nucleotides in a reference - flanking genomic DNA, assembly context, or sequence that SILVA's own truncation missed - would be indexed alongside the rRNA and could produce false-positive matches against non-rRNA reads.
 
 ### Tools Considered
 

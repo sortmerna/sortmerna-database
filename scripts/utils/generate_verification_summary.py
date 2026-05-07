@@ -191,7 +191,8 @@ def render_html(rows, version, output_fp, log_dir, title="SILVA Verification Sum
       f'<td style="text-align:right">{r["n_input"]:,}</td>'
       f'<td style="text-align:right;color:#27ae60;font-weight:600">{r["n_cmsearch_kept"]:,}</td>'
       + dropped_cell(r['n_cmsearch_dropped'], r['n_input']) +
-      f'<td style="text-align:right;color:#1971c2;font-weight:600">{r["n_trimming_passed"]:,}</td>'
+      f'<td style="text-align:right;color:#1971c2;font-weight:600">'
+      f'{r["n_trimming_passed"]:,} ({pct(r["n_trimming_passed"], r["n_input"])})</td>'
       f'</tr>\n'
     )
 
@@ -263,13 +264,13 @@ def render_html(rows, version, output_fp, log_dir, title="SILVA Verification Sum
   <td style="text-align:right">{total_input:,}</td>
   <td style="text-align:right;color:#27ae60">{total_cmsearch_kept:,}</td>
   <td style="text-align:right;color:{totals_colour}">{total_cmsearch_dropped:,} ({dropped_pct:.1f}%)</td>
-  <td style="text-align:right;color:#1971c2">{total_trimming_passed:,}</td>
+  <td style="text-align:right;color:#1971c2">{total_trimming_passed:,} ({total_trimming_passed / total_input * 100:.1f}%)</td>
   </tr>
 </tfoot>
 </table>
 <p style="font-size:0.85em;color:#666;margin-top:1em">
-  <b>cmsearch dropped</b>: no above-threshold hit (inc&nbsp;&#x2260;&nbsp;'!') — excluded from clustering.<br>
-  <b>trimming passed</b>: passed cmsearch <em>and</em> trimmed length &ge; 50% of input sequence length — written to verified_*.fasta.
+  <b>cmsearch dropped</b>: no above-threshold hit (inc&nbsp;&#x2260;&nbsp;'!') - excluded from clustering.<br>
+  <b>trimming passed</b>: passed cmsearch <em>and</em> trimmed length &ge; 50% of input sequence length - written to verified_*.fasta.
 </p>
 {hist_section}
 </body>
