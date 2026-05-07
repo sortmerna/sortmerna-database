@@ -28,6 +28,7 @@ INPUT_DIR="${POSITIONAL[0]:-data}"
 OUTPUT_DIR="${POSITIONAL[1]:-data/clustered}"
 THREADS="${POSITIONAL[2]:-4}"
 VERIFIED_DIR="${VERIFIED_DIR:-${INPUT_DIR}/verified}"
+VERIFIED_RFAM_DIR="${VERIFIED_RFAM_DIR:-${INPUT_DIR}/verified_rfam}"
 CLUSTERED_DIR="${CLUSTERED_DIR:-${OUTPUT_DIR}}"
 UTILS_DIR="${UTILS_DIR:-${SMR_DB_ROOT_DIR}/scripts/utils}"
 
@@ -115,7 +116,7 @@ cluster_sequences() {
   else
   local log_file="${output%.fasta}.log"
   echo "  Clustering at ${threshold}%: $(basename "${output}")"
-  echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${output} --uc ${uc_file} --log ${log_file} --threads ${THREADS} --strand both --notrunclabels --sizeorder --sizeout --quiet"
+  echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${output} --uc ${uc_file} --log ${log_file} --threads ${THREADS} --strand both --notrunclabels --sizeout --quiet"
 
   vsearch \
     --cluster_fast "${input}" \
@@ -126,7 +127,6 @@ cluster_sequences() {
     --threads "${THREADS}" \
     --strand both \
     --notrunclabels \
-    --sizeorder \
     --sizeout \
     --quiet
   fi
@@ -212,8 +212,8 @@ echo "============================================"
 echo "Processing RFAM 5S sequences"
 echo "============================================"
 
-RFAM_5S_FULL=$(find "${INPUT_DIR}" -name "*RF00001*full*.fa" -type f 2>/dev/null | head -1)
-RFAM_5S_SEED=$(find "${INPUT_DIR}" -name "*RF00001*seed*.fa" -type f 2>/dev/null | head -1)
+RFAM_5S_FULL="${VERIFIED_RFAM_DIR}/verified_5s_full.fasta"
+RFAM_5S_SEED="${VERIFIED_RFAM_DIR}/verified_5s_seed.fasta"
 
 # 5S seed sequences
 if [[ -n "${RFAM_5S_SEED}" && -f "${RFAM_5S_SEED}" ]]; then
@@ -249,8 +249,8 @@ echo "============================================"
 echo "Processing RFAM 5.8S sequences"
 echo "============================================"
 
-RFAM_5_8S_FULL=$(find "${INPUT_DIR}" -name "*RF00002*full*.fa" -type f 2>/dev/null | head -1)
-RFAM_5_8S_SEED=$(find "${INPUT_DIR}" -name "*RF00002*seed*.fa" -type f 2>/dev/null | head -1)
+RFAM_5_8S_FULL="${VERIFIED_RFAM_DIR}/verified_5.8s_full.fasta"
+RFAM_5_8S_SEED="${VERIFIED_RFAM_DIR}/verified_5.8s_seed.fasta"
 
 # 5.8S seed sequences
 if [[ -n "${RFAM_5_8S_SEED}" && -f "${RFAM_5_8S_SEED}" ]]; then
