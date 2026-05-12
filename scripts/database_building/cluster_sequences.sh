@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-# Argument parsing — named flags first, then positional
+# Argument parsing - named flags first, then positional
 FORCE=false
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
@@ -287,7 +287,7 @@ echo "Clustering complete!"
 echo "============================================"
 
 TABLE_FILE="${CLUSTERED_DIR}/clustering_summary.html"
-python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}" --silva-ssu-version "${SILVA_SSU_VERSION}" --silva-lsu-version "${SILVA_LSU_VERSION}" --rfam-version "${RFAM_VERSION}"
+python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}" --silva-version "${SILVA_SSU_VERSION}" --rfam-version "${RFAM_VERSION}"
 
 echo ""
 echo "Summary table written to: ${TABLE_FILE}"

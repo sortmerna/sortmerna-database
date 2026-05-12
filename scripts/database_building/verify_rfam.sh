@@ -5,10 +5,10 @@
 # Verifies 5S (RF00001) and 5.8S (RF00002) sequences (full and seed sets)
 # against their corresponding Rfam covariance models using --hmmonly --cut_ga,
 # and outputs:
-#   verified_<gene>_<type>.fasta  — sequences with an above-threshold hit
-#   flagged_<gene>_<type>.fasta   — sequences with no qualifying hit
-#   cmsearch_log_<gene>_<type>.tsv — hit coordinates and scores for kept sequences
-#   <gene>_<type>_cmsearch.tblout — raw cmsearch output (kept for auditing)
+#   verified_<gene>_<type>.fasta  - sequences with an above-threshold hit
+#   flagged_<gene>_<type>.fasta   - sequences with no qualifying hit
+#   cmsearch_log_<gene>_<type>.tsv - hit coordinates and scores for kept sequences
+#   <gene>_<type>_cmsearch.tblout - raw cmsearch output (kept for auditing)
 #
 # Requires: Infernal (cmsearch), seqkit, Python 3
 # Usage: bash verify_rfam.sh [input_dir [output_dir [threads]]]

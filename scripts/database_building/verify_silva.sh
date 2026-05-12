@@ -4,10 +4,10 @@
 #
 # Splits SILVA SSU and LSU by domain, verifies each domain against the
 # corresponding Rfam covariance model using --cut_ga, and outputs:
-#   verified_<gene>_<domain>.fasta  — sequences with an above-threshold hit
-#   flagged_<gene>_<domain>.fasta   — sequences with no qualifying hit (dropped by default)
-#   cmsearch_log_<gene>_<domain>.tsv — hit coordinates and scores for kept sequences
-#   <gene>_<domain>_cmsearch.tblout — raw cmsearch output (kept for auditing)
+#   verified_<gene>_<domain>.fasta  - sequences with an above-threshold hit
+#   flagged_<gene>_<domain>.fasta   - sequences with no qualifying hit (dropped by default)
+#   cmsearch_log_<gene>_<domain>.tsv - hit coordinates and scores for kept sequences
+#   <gene>_<domain>_cmsearch.tblout - raw cmsearch output (kept for auditing)
 #
 # CMs used:
 #   SSU bacteria:           RF00177

@@ -204,7 +204,7 @@ All sequences were independently verified as rRNA using Infernal's `cmsearch --c
 
 **Minimum trimmed length.** After trimming, sequences shorter than **50%** of the original SILVA sequence length are routed to `flagged_*.fasta` rather than `clean`. This catches cases where only a small fragment of the rRNA was recovered after trimming - for example, a sequence where cmsearch aligned only to a short terminal region while the bulk of the sequence had no rRNA match. Such fragments are too partial to serve as reliable SortMeRNA reference sequences and could reduce specificity by matching non-rRNA reads that happen to resemble that short region. The note column in the TSV log records `too_short` for these cases.
 
-**LSU Eukaryota is most affected.** In practice, multi-hit and short-fragment cases are disproportionately observed in LSU eukaryotic sequences (RF02543, model length ~3400 bp). Among the ~16,000 LSU eukaryota sequences verified from SILVA 138.2, approximately 1.7% were flagged for low-coverage multi-hit patterns requiring manual review.
+**LSU Eukaryota is most affected.** Multi-hit and short-fragment cases were disproportionately observed in LSU eukaryotic sequences (RF02543, model length ~3400 bp). Among the ~16,000 LSU eukaryota sequences verified from SILVA 138.2, approximately 1.7% were flagged for low-coverage multi-hit patterns requiring manual review.
 
 ```bash
 # Verify SILVA SSU and LSU sequences (bacteria, archaea, eukaryota) using --hmmonly --cut_ga
@@ -239,7 +239,7 @@ Outputs per domain/type in each verified directory:
 bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh $WORK_DIR/data $CLUSTERED_DIR 4
 ```
 
-By default, vsearch clustering is **skipped** for any threshold where the `.uc` output file already exists - only the downstream steps (member extraction, leakage check, summary table) are re-run. To force vsearch to re-cluster and overwrite existing `.uc` files, pass `--force`:
+By default, vsearch clustering is skipped for any threshold where the `.uc` output file already exists - only the downstream steps (member extraction, leakage check, summary table) are re-run. To force vsearch to re-cluster and overwrite existing `.uc` files, pass `--force`:
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh --force $WORK_DIR/data $CLUSTERED_DIR 4
@@ -259,7 +259,7 @@ The centroid sequences (`*_XX.fasta`) become the SortMeRNA reference databases. 
 
 ### 5. Download Non-rRNA Test Sequences (Specificity Testing)
 
-To measure the false positive rate (specificity), we need a large set of sequences that are definitively **not** rRNA. SortMeRNA should reject all of these; any that are classified as rRNA are false positives.
+To measure the false positive rate (specificity), we need a large set of sequences that are not rRNA. SortMeRNA should reject all of these; any that are classified as rRNA are false positives.
 
 ```bash
 bash scripts/read_simulation/download_non_rrna.sh -o data/non_rrna --threads 8

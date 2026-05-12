@@ -124,7 +124,7 @@ class TestParseTblout:
     )
     hits = parse_tblout(str(f))
     assert set(hits.keys()) == {"seq1", "seq2"}
-    assert hits["seq2"][2] == 540   # single hit — merged_from == sf
+    assert hits["seq2"][2] == 540   # single hit - merged_from == sf
 
 
 # ── read_fasta ────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-# Configuration — full download URLs must be provided by the caller
+# Configuration - full download URLs must be provided by the caller
 SILVA_SSU_VERSION="${SILVA_SSU_VERSION:?Please set SILVA_SSU_VERSION (e.g. 138.2)}"
 SILVA_SSU_PATH="${SILVA_SSU_PATH:?Please set SILVA_SSU_PATH (full SILVA SSU download URL)}"
 SILVA_LSU_VERSION="${SILVA_LSU_VERSION:?Please set SILVA_LSU_VERSION (e.g. 138.2)}"

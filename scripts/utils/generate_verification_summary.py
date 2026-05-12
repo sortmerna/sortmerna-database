@@ -64,7 +64,7 @@ def load_stats(tsv_fp):
         'n_cmsearch_kept':   int(n_cmsearch_kept),
         'n_cmsearch_dropped': int(n_cmsearch_dropped),
         'n_trimming_passed': int(n_trimming_passed),
-        'rfam_model':        MODEL_MAP.get((gene_upper, domain), '—'),
+        'rfam_model':        MODEL_MAP.get((gene_upper, domain), '-'),
       })
   return rows
 
@@ -89,7 +89,7 @@ def load_seq_from_dist(log_dir, gene, domain):
 
 
 def pct(n, total):
-  return f"{n / total * 100:.3f}%" if total else "—"
+  return f"{n / total * 100:.3f}%" if total else "-"
 
 
 def render_histogram_svg(rows_with_dist):
@@ -110,7 +110,7 @@ def render_histogram_svg(rows_with_dist):
     f'style="font-family:system-ui,sans-serif;font-size:12px">'
   ]
 
-  # Legend — evenly spaced across bar_w
+  # Legend - evenly spaced across bar_w
   item_w = bar_w // len(BIN_LABELS)
   for i, (label, color) in enumerate(zip(BIN_LABELS, BIN_COLORS)):
     rx = label_w + i * item_w
@@ -295,7 +295,7 @@ def main():
 
   rows = load_stats(args.stats_tsv)
   if not rows:
-    print("No stats rows found — nothing to summarise.", file=sys.stderr)
+    print("No stats rows found - nothing to summarise.", file=sys.stderr)
     sys.exit(1)
 
   log_dir = Path(args.stats_tsv).parent

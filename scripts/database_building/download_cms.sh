@@ -42,7 +42,7 @@ for rfam_id in "${!CMS[@]}"; do
   if [[ -f "${cm_file}" ]]; then
   echo "Already downloaded: ${cm_file} (${description})"
   else
-  echo "Downloading ${rfam_id} — ${description}..."
+  echo "Downloading ${rfam_id} - ${description}..."
   url="https://rfam.org/family/${rfam_id}/cm"
   if command -v wget &>/dev/null; then
     wget -q -O "${cm_file}" "${url}"

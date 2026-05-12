@@ -8,8 +8,8 @@ Usage:
   python3 check_leakage.py <seeds.fasta> <test_members.fasta>
 
 Exit codes:
-  0 — no leakage
-  1 — leakage detected (or input file error)
+  0 - no leakage
+  1 - leakage detected (or input file error)
 """
 
 import argparse
@@ -38,7 +38,7 @@ def main():
 
   leaked = seed_ids & member_ids
   if leaked:
-    print(f"  ERROR: {len(leaked)} seed sequence(s) found in test members — data leakage detected")
+    print(f"  ERROR: {len(leaked)} seed sequence(s) found in test members - data leakage detected")
     for seq_id in sorted(leaked):
       print(f"    {seq_id}")
     sys.exit(1)

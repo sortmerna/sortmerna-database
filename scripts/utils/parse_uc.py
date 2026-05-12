@@ -22,8 +22,8 @@ Usage:
   python3 parse_uc.py <file.uc> --member-ids <ids.txt> --mapping <mapping.txt>
 
 Exit codes:
-  0 — success
-  1 — input file error
+  0 - success
+  1 - input file error
 """
 
 import argparse
