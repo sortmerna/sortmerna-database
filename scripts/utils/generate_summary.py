@@ -36,7 +36,7 @@ COLUMNS = [
 
 # Labels for known clustering keys
 THRESHOLD_LABELS = {
-  "verified": "original (unclustered)",
+  "verified": "original (trimmed, filtered)",
   "97%":      "SMR v4.7 sensitive db",
   "95%":      "SMR v4.7 default db",
   "90%":      "SMR v4.7 fast db",
@@ -186,7 +186,7 @@ def generate_html_table(data, thresholds):
   rows.append(f'  <tr>{"".join(cells)}</tr>')
 
   # Original (pre-clustering) row
-  orig_cells = ['<td><b>original (unclustered)</b></td>']
+  orig_cells = ['<td><b>original (trimmed, filtered)</b></td>']
   has_orig = False
   for ref_db_prefix, db_key, kingdom, _ in active_cols:
     _, num_seqs = get_original_count(data, ref_db_prefix, db_key, kingdom)
@@ -207,8 +207,7 @@ def generate_html_table(data, thresholds):
     )
     if not has_data:
       continue
-    label = THRESHOLD_LABELS.get(threshold, threshold)
-    cells = [f'<td><b>{label}</b></td>']
+    cells = [f'<td><b>{threshold}</b></td>']
     for ref_db_prefix, db_key, kingdom, _ in active_cols:
       _, num_seqs = find_value(data, ref_db_prefix, db_key, kingdom, threshold)
       cells.append(f'<td>{num_seqs:,}</td>' if num_seqs is not None else '<td>-</td>')
