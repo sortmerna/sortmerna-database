@@ -60,17 +60,6 @@ TABLE2_COLS = [
 # Each inner list has one entry per TABLE2_COLS column:
 #   (ref_db_prefix, db_key, kingdom, threshold) or None = not applicable ('-')
 TABLE2_CONFIGS = [
-  ("original", [
-    ("SILVA", "SSU Ref NR 99", "archaea",           "verified"),
-    ("SILVA", "SSU Ref NR 99", "bacteria",          "verified"),
-    ("SILVA", "SSU Ref NR 99", "eukaryota_nuclear", "verified"),
-    ("SILVA", "SSU Ref NR 99", "eukaryota_mito",    "verified"),
-    ("SILVA", "LSU Ref NR 99", "archaea",           "verified"),
-    ("SILVA", "LSU Ref NR 99", "bacteria",          "verified"),
-    ("SILVA", "LSU Ref NR 99", "eukaryota",         "verified"),
-    None,
-    None,
-  ]),
   ("SMR v4.7 sensitive db", [
     ("SILVA", "SSU Ref NR 99", "archaea",           "97%"),
     ("SILVA", "SSU Ref NR 99", "bacteria",          "97%"),
@@ -230,15 +219,31 @@ def generate_html_table(data, thresholds):
 
 def generate_config_table(data):
   """Table 2: recommended per-domain thresholds and counts for each database configuration."""
+
+  # Drop columns where every config row has no data
+  active_indices = []
+  for i, _ in enumerate(TABLE2_COLS):
+    has_data = any(
+      col_specs[i] is not None and
+      find_value(data, col_specs[i][0], col_specs[i][1], col_specs[i][2], col_specs[i][3])[1] is not None
+      for _, col_specs in TABLE2_CONFIGS
+    )
+    if has_data:
+      active_indices.append(i)
+
+  active_cols2  = [TABLE2_COLS[i]   for i in active_indices]
+  active_specs  = [[col_specs[i] for i in active_indices] for _, col_specs in TABLE2_CONFIGS]
+  config_labels = [label for label, _ in TABLE2_CONFIGS]
+
   rows = []
 
   # Single header row
   cells = ['<th>Configuration</th>']
-  for _, _, _, label in TABLE2_COLS:
+  for _, _, _, label in active_cols2:
     cells.append(f'<th>{label}</th>')
   rows.append(f'  <tr>{"".join(cells)}</tr>')
 
-  for config_label, col_specs in TABLE2_CONFIGS:
+  for config_label, col_specs in zip(config_labels, active_specs):
     cells = [f'<td><b>{config_label}</b></td>']
     for spec in col_specs:
       if spec is None:
