@@ -29,14 +29,15 @@ from collections import defaultdict
 # Ordered column definitions: (ref_db_prefix, db_key, kingdom, header_label)
 # ref_db_prefix is matched with startswith() to handle version strings
 COLUMNS = [
-  ("SILVA", "SSU Ref NR 99", "archaea",   "Archaea"),
-  ("SILVA", "SSU Ref NR 99", "bacteria",  "Bacteria"),
-  ("SILVA", "SSU Ref NR 99", "eukaryota", "Eukaryota"),
-  ("SILVA", "LSU Ref NR 99", "archaea",   "Archaea"),
-  ("SILVA", "LSU Ref NR 99", "bacteria",  "Bacteria"),
-  ("SILVA", "LSU Ref NR 99", "eukaryota", "Eukaryota"),
-  ("RFAM",  "5S",            "root",      "5S"),
-  ("RFAM",  "5.8S",          "eukaryota", "5.8S"),
+  ("SILVA", "SSU Ref NR 99", "archaea",           "Archaea"),
+  ("SILVA", "SSU Ref NR 99", "bacteria",          "Bacteria"),
+  ("SILVA", "SSU Ref NR 99", "eukaryota_nuclear", "Eukaryota nuclear"),
+  ("SILVA", "SSU Ref NR 99", "eukaryota_mito",    "Eukaryota mito"),
+  ("SILVA", "LSU Ref NR 99", "archaea",           "Archaea"),
+  ("SILVA", "LSU Ref NR 99", "bacteria",          "Bacteria"),
+  ("SILVA", "LSU Ref NR 99", "eukaryota",         "Eukaryota"),
+  ("RFAM",  "5S",            "root",              "5S"),
+  ("RFAM",  "5.8S",          "eukaryota",         "5.8S"),
 ]
 
 # Labels for known thresholds; any unlisted threshold falls back to its value

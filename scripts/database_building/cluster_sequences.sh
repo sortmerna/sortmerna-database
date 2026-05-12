@@ -158,7 +158,7 @@ echo "============================================"
 echo "Processing SILVA SSU sequences"
 echo "============================================"
 
-for domain in bacteria archaea eukaryota_nuclear eukaryota_mito eukaryota_chloro; do
+for domain in bacteria archaea eukaryota_nuclear eukaryota_mito; do
   kingdom_file="${VERIFIED_DIR}/verified_ssu_${domain}.fasta"
   if [[ ! -f "${kingdom_file}" ]] || [[ ! -s "${kingdom_file}" ]]; then continue; fi
 
@@ -291,8 +291,5 @@ python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FI
 
 echo ""
 echo "Summary table written to: ${TABLE_FILE}"
-echo ""
-cat "${TABLE_FILE}"
-
 echo ""
 echo "Next step: Run build_sortmerna_index.sh to build SortMeRNA indices"
