@@ -158,7 +158,7 @@ echo "============================================"
 echo "Processing SILVA SSU sequences"
 echo "============================================"
 
-for domain in bacteria archaea eukaryota_nuclear eukaryota_mito; do
+for domain in bacteria archaea eukaryota; do
   kingdom_file="${VERIFIED_DIR}/verified_ssu_${domain}.fasta"
   if [[ ! -f "${kingdom_file}" ]] || [[ ! -s "${kingdom_file}" ]]; then continue; fi
 

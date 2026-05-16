@@ -91,19 +91,15 @@ split_by_domain() {
   seqkit grep -r --by-name -p " Eukaryota;" "${input}" -o "${prefix}_eukaryota.fasta" 2>/dev/null || true
 }
 
-split_euk_organellar() {
-  local euk_fasta="$1" prefix="$2"
-  seqkit grep -r --by-name -p "Mitochondria" "${euk_fasta}" -o "${prefix}_mito.fasta" 2>/dev/null || true
-
-  local mito_ids="${prefix}_mito_ids.tmp"
-  seqkit seq --name --only-id "${prefix}_mito.fasta" > "${mito_ids}" 2>/dev/null || true
-
-  if [[ -s "${mito_ids}" ]]; then
-    seqkit grep -v -f "${mito_ids}" "${euk_fasta}" -o "${prefix}_nuclear.fasta"
-  else
-    cp "${euk_fasta}" "${prefix}_nuclear.fasta"
+check_no_mitochondria() {
+  local fasta="$1"
+  if [[ ! -f "${fasta}" ]] || [[ ! -s "${fasta}" ]]; then return; fi
+  local n
+  n=$(grep -c "Mitochondria" "${fasta}" 2>/dev/null || true)
+  if [[ "${n}" -gt 0 ]]; then
+    echo "  WARNING: ${n} sequence(s) with 'Mitochondria' found in $(basename "${fasta}")."
+    echo "  Consider splitting eukaryota into nuclear and mitochondrial subsets."
   fi
-  rm -f "${mito_ids}"
 }
 
 run_cmsearch() {
@@ -160,16 +156,11 @@ convert_u_to_t "${SILVA_SSU}" "${SSU_DNA}"
 SSU_DOM="${OUTPUT_DIR}/silva_ssu_dom"
 split_by_domain "${SSU_DNA}" "${SSU_DOM}"
 
-# Split eukaryota into nuclear / mito
-EUK_SSU_PREFIX="${OUTPUT_DIR}/silva_ssu_euk"
-if [[ -f "${SSU_DOM}_eukaryota.fasta" ]]; then
-  split_euk_organellar "${SSU_DOM}_eukaryota.fasta" "${EUK_SSU_PREFIX}"
-fi
+check_no_mitochondria "${SSU_DOM}_eukaryota.fasta"
 
-verify_domain "ssu" "bacteria" "${SSU_DOM}_bacteria.fasta" "${CMS_DIR}/RF00177.cm"
-verify_domain "ssu" "archaea"  "${SSU_DOM}_archaea.fasta" "${CMS_DIR}/RF01959.cm"
-verify_domain "ssu" "eukaryota_nuclear" "${EUK_SSU_PREFIX}_nuclear.fasta" "${CMS_DIR}/RF01960.cm"
-verify_domain "ssu" "eukaryota_mito" "${EUK_SSU_PREFIX}_mito.fasta" "${CMS_DIR}/RF02545.cm"
+verify_domain "ssu" "bacteria"  "${SSU_DOM}_bacteria.fasta"  "${CMS_DIR}/RF00177.cm"
+verify_domain "ssu" "archaea"   "${SSU_DOM}_archaea.fasta"   "${CMS_DIR}/RF01959.cm"
+verify_domain "ssu" "eukaryota" "${SSU_DOM}_eukaryota.fasta" "${CMS_DIR}/RF01960.cm"
 
 # ── LSU ──────────────────────────────────────────────────────────────────────
 

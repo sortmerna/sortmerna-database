@@ -23,15 +23,14 @@ import sys
 # Ordered column definitions for Table 1: (ref_db_prefix, db_key, kingdom, header_label)
 # ref_db_prefix is matched with startswith() to handle version strings
 COLUMNS = [
-  ("SILVA", "SSU Ref NR 99", "archaea",           "Archaea"),
-  ("SILVA", "SSU Ref NR 99", "bacteria",          "Bacteria"),
-  ("SILVA", "SSU Ref NR 99", "eukaryota_nuclear", "Eukaryota nuclear"),
-  ("SILVA", "SSU Ref NR 99", "eukaryota_mito",    "Eukaryota mito"),
-  ("SILVA", "LSU Ref NR 99", "archaea",           "Archaea"),
-  ("SILVA", "LSU Ref NR 99", "bacteria",          "Bacteria"),
-  ("SILVA", "LSU Ref NR 99", "eukaryota",         "Eukaryota"),
-  ("RFAM",  "5S",            "root",              "5S"),
-  ("RFAM",  "5.8S",          "eukaryota",         "5.8S"),
+  ("SILVA", "SSU Ref NR 99", "archaea",   "Archaea"),
+  ("SILVA", "SSU Ref NR 99", "bacteria",  "Bacteria"),
+  ("SILVA", "SSU Ref NR 99", "eukaryota", "Eukaryota"),
+  ("SILVA", "LSU Ref NR 99", "archaea",   "Archaea"),
+  ("SILVA", "LSU Ref NR 99", "bacteria",  "Bacteria"),
+  ("SILVA", "LSU Ref NR 99", "eukaryota", "Eukaryota"),
+  ("RFAM",  "5S",            "root",      "5S"),
+  ("RFAM",  "5.8S",          "eukaryota", "5.8S"),
 ]
 
 # Labels for known clustering keys
@@ -45,15 +44,14 @@ THRESHOLD_LABELS = {
 
 # Table 2: flat column list (no source-db grouping)
 TABLE2_COLS = [
-  ("SILVA", "SSU Ref NR 99", "archaea",           "Archaea SSU"),
-  ("SILVA", "SSU Ref NR 99", "bacteria",          "Bacteria SSU"),
-  ("SILVA", "SSU Ref NR 99", "eukaryota_nuclear", "Eukaryota nuclear SSU"),
-  ("SILVA", "SSU Ref NR 99", "eukaryota_mito",    "Eukaryota mito SSU"),
-  ("SILVA", "LSU Ref NR 99", "archaea",           "Archaea LSU"),
-  ("SILVA", "LSU Ref NR 99", "bacteria",          "Bacteria LSU"),
-  ("SILVA", "LSU Ref NR 99", "eukaryota",         "Eukaryota LSU"),
-  ("RFAM",  "5S",            "root",              "5S"),
-  ("RFAM",  "5.8S",          "eukaryota",         "5.8S"),
+  ("SILVA", "SSU Ref NR 99", "archaea",   "Archaea SSU"),
+  ("SILVA", "SSU Ref NR 99", "bacteria",  "Bacteria SSU"),
+  ("SILVA", "SSU Ref NR 99", "eukaryota", "Eukaryota SSU"),
+  ("SILVA", "LSU Ref NR 99", "archaea",   "Archaea LSU"),
+  ("SILVA", "LSU Ref NR 99", "bacteria",  "Bacteria LSU"),
+  ("SILVA", "LSU Ref NR 99", "eukaryota", "Eukaryota LSU"),
+  ("RFAM",  "5S",            "root",      "5S"),
+  ("RFAM",  "5.8S",          "eukaryota", "5.8S"),
 ]
 
 # Table 2: per-configuration, per-column lookup spec.
@@ -61,37 +59,34 @@ TABLE2_COLS = [
 #   (ref_db_prefix, db_key, kingdom, threshold) or None = not applicable ('-')
 TABLE2_CONFIGS = [
   ("SMR v4.7 sensitive db", [
-    ("SILVA", "SSU Ref NR 99", "archaea",           "97%"),
-    ("SILVA", "SSU Ref NR 99", "bacteria",          "97%"),
-    ("SILVA", "SSU Ref NR 99", "eukaryota_nuclear", "97%"),
-    ("SILVA", "SSU Ref NR 99", "eukaryota_mito",    "97%"),
-    ("SILVA", "LSU Ref NR 99", "archaea",           "97%"),
-    ("SILVA", "LSU Ref NR 99", "bacteria",          "97%"),
-    ("SILVA", "LSU Ref NR 99", "eukaryota",         "97%"),
-    ("RFAM",  "5S",            "root",              "97%"),
-    ("RFAM",  "5.8S",          "eukaryota",         "97%"),
+    ("SILVA", "SSU Ref NR 99", "archaea",   "97%"),
+    ("SILVA", "SSU Ref NR 99", "bacteria",  "97%"),
+    ("SILVA", "SSU Ref NR 99", "eukaryota", "97%"),
+    ("SILVA", "LSU Ref NR 99", "archaea",   "97%"),
+    ("SILVA", "LSU Ref NR 99", "bacteria",  "97%"),
+    ("SILVA", "LSU Ref NR 99", "eukaryota", "97%"),
+    ("RFAM",  "5S",            "root",      "97%"),
+    ("RFAM",  "5.8S",          "eukaryota", "97%"),
   ]),
   ("SMR v4.7 default db", [
-    ("SILVA", "SSU Ref NR 99", "archaea",           "95%"),
-    ("SILVA", "SSU Ref NR 99", "bacteria",          "90%"),
-    ("SILVA", "SSU Ref NR 99", "eukaryota_nuclear", "95%"),
-    ("SILVA", "SSU Ref NR 99", "eukaryota_mito",    "95%"),
-    ("SILVA", "LSU Ref NR 99", "archaea",           "95%"),
-    ("SILVA", "LSU Ref NR 99", "bacteria",          "95%"),
-    ("SILVA", "LSU Ref NR 99", "eukaryota",         "95%"),
-    ("RFAM",  "5S seed",       "root",              "100%"),
-    ("RFAM",  "5.8S seed",     "eukaryota",         "100%"),
+    ("SILVA", "SSU Ref NR 99", "archaea",   "95%"),
+    ("SILVA", "SSU Ref NR 99", "bacteria",  "90%"),
+    ("SILVA", "SSU Ref NR 99", "eukaryota", "95%"),
+    ("SILVA", "LSU Ref NR 99", "archaea",   "95%"),
+    ("SILVA", "LSU Ref NR 99", "bacteria",  "95%"),
+    ("SILVA", "LSU Ref NR 99", "eukaryota", "95%"),
+    ("RFAM",  "5S seed",       "root",      "100%"),
+    ("RFAM",  "5.8S seed",     "eukaryota", "100%"),
   ]),
   ("SMR v4.7 fast db", [
-    ("SILVA", "SSU Ref NR 99", "archaea",           "90%"),
-    ("SILVA", "SSU Ref NR 99", "bacteria",          "85%"),
-    ("SILVA", "SSU Ref NR 99", "eukaryota_nuclear", "90%"),
-    ("SILVA", "SSU Ref NR 99", "eukaryota_mito",    "90%"),
-    ("SILVA", "LSU Ref NR 99", "archaea",           "90%"),
-    ("SILVA", "LSU Ref NR 99", "bacteria",          "90%"),
-    ("SILVA", "LSU Ref NR 99", "eukaryota",         "90%"),
-    ("RFAM",  "5S seed",       "root",              "100%"),
-    ("RFAM",  "5.8S seed",     "eukaryota",         "100%"),
+    ("SILVA", "SSU Ref NR 99", "archaea",   "90%"),
+    ("SILVA", "SSU Ref NR 99", "bacteria",  "85%"),
+    ("SILVA", "SSU Ref NR 99", "eukaryota", "90%"),
+    ("SILVA", "LSU Ref NR 99", "archaea",   "90%"),
+    ("SILVA", "LSU Ref NR 99", "bacteria",  "90%"),
+    ("SILVA", "LSU Ref NR 99", "eukaryota", "90%"),
+    ("RFAM",  "5S seed",       "root",      "100%"),
+    ("RFAM",  "5.8S seed",     "eukaryota", "100%"),
   ]),
 ]
 
