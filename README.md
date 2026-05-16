@@ -26,15 +26,13 @@ This repository contains code and workflows to:
 - [x] Implement clustering pipeline
 - [x] Test multiple clustering thresholds
 - [ ] Build SortMeRNA indices for each clustered database
-- [ ] Generate database statistics and metadata
+- [x] Generate database statistics and metadata
 
 ### Phase 2: Database Validation
-- [ ] Create simulated datasets with known rRNA content
-- [ ] Illumina short reads (75bp, 150bp, 250bp)
-- [ ] PacBio HiFi reads (~15kb)
-- [ ] Oxford Nanopore reads (10-50kb)
-- [ ] Validate against real benchmark datasets
-- [ ] Measure sensitivity and specificity per clustering level
+- [ ] Simulate Illumina rRNA reads (75bp, 150bp, 250bp) per rRNA family using ART
+- [ ] Download non-rRNA sequences for specificity testing
+- [ ] Validate sensitivity using real PacBio amplicon data (Karst et al. 2021)
+- [ ] Measure sensitivity and specificity per database configuration and read type
 
 ### Phase 3: Performance Benchmarking
 - [ ] Runtime analysis across database sizes
@@ -95,18 +93,30 @@ Key features:
 
 ## Benchmarking Approach
 
-### Simulated Data
-Generate synthetic reads with known rRNA/non-rRNA composition:
-- **Tools**: ART (Illumina), PBSIM3 (PacBio/Nanopore)
-- **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database
+### Simulated Data (Illumina)
+Generate synthetic Illumina reads with known rRNA/non-rRNA composition:
+- **Tool**: ART
+- **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database, simulated separately per rRNA type (Bacteria SSU, Archaea SSU, Eukaryota SSU, Bacteria LSU, Archaea LSU, Eukaryota LSU, 5S, 5.8S) to enable per-type sensitivity measurement
 - **Non-rRNA source**: `non_rRNA_test_1M.fasta` - bacterial mRNA, eukaryotic cDNA, Rfam ncRNA, and genomic fragments
-- **Composition**: 0%, 10%, 25%, 50%, 75%, 90% rRNA content
-- **Error profiles**: Platform-specific error rates
+- **Error profiles**: Illumina-specific error rates
 
-### Real Benchmark Datasets
-- Public RNA-seq datasets with validated rRNA content
-- Spike-in experiments
-- Metatranscriptomic samples with known composition
+### Real Benchmark Datasets (PacBio)
+Sensitivity test using real PacBio long-read amplicon data:
+- **Source**: Karst et al. (2021, *Nature Methods*) — 253,089 high-quality, 
+  full-length bacterial rRNA operon sequences (~4,500 bp, 16S+ITS+23S) from 70 
+  AGP human fecal samples, generated using PacBio Sequel II UMI amplicon 
+  sequencing
+- **Rationale**: Every read is a guaranteed true positive by virtue of PCR 
+  amplification with 27F/2490R primers. Tests SortMeRNA's ability to handle ~4,500 bp long reads.
+- **Non-rRNA source**: PBSIM3 simulated reads from `non_rRNA_test_1M.fasta` 
+  (bacterial mRNA, eukaryotic cDNA, Rfam ncRNA, genomic fragments)
+- **Experiments**:
+  - **Sensitivity**: Run all 253,089 operon sequences through SortMeRNA; 
+    expected classification rate = 100% per database configuration
+  - **Specificity**: Run PBSIM3-simulated non-rRNA reads through SortMeRNA; 
+    measure false positive rate per database configuration
+  - **Runtime/scaling**: Mix real rRNA + simulated non-rRNA reads at 0%, 10%, 
+    25%, 50%, 75%, 90% rRNA composition
 
 ### Performance Metrics
 - **Sensitivity**: True positives / (True positives + False negatives)
