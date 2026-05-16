@@ -255,6 +255,7 @@ For each database and clustering threshold, the script outputs four files:
 
 The centroid sequences (`*_XX.fasta`) become the SortMeRNA reference databases. The non-seed members (`*_XX_test_members.fasta`) are sequences that were clustered away at each threshold, providing a natural source of reads for benchmarking - since they are real rRNA sequences not present in the database, they test whether SortMeRNA can still identify similar but non-identical rRNA.
 
+- Summary of total sequences per clustering threshold and SortMeRNA reference databases: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/clustered/clustering_summary.html" target="_blank">clustering_summary.html</a>
 
 ### 5. Download Non-rRNA Test Sequences (Specificity Testing)
 
