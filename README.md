@@ -76,7 +76,7 @@ Trimming to the cmsearch hit coordinates was strategic for SortMeRNA: the tool b
 
 ### Tools Considered
 
-[VSEARCH](https://github.com/torognes/vsearch) was used for sequence clustering. VSEARCH is a high-performance open-source tool for sequence analysis that implements a centroid-based clustering algorithm. It is the same tool used by the SILVA project to generate their non-redundant (NR) databases, ensuring compatibility and reproducibility with established rRNA reference workflows.
+[VSEARCH](https://github.com/torognes/vsearch) was used for sequence clustering. VSEARCH is a high-performance open-source tool for sequence analysis that implements a centroid-based clustering algorithm. It is the same tool used by the SILVA project to generate their non-redundant (NR) databases ([SILVA 138.2 release notes](https://www.arb-silva.de/documentation/release-1382)), ensuring compatibility and reproducibility with established rRNA reference workflows.
 
 Key features:
 - Fast clustering with `--cluster_fast` using identity thresholds
@@ -102,7 +102,7 @@ Generate synthetic Illumina reads with known rRNA/non-rRNA composition:
 
 ### Real Benchmark Datasets (PacBio)
 Sensitivity test using real PacBio long-read amplicon data:
-- **Source**: Karst et al. (2021, *Nature Methods*) — 253,089 high-quality, 
+- **Source**: Karst et al. (2021, *Nature Methods*) - 253,089 high-quality, 
   full-length bacterial rRNA operon sequences (~4,500 bp, 16S+ITS+23S) from 70 
   AGP human fecal samples, generated using PacBio Sequel II UMI amplicon 
   sequencing
