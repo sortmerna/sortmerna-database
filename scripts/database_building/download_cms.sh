@@ -19,8 +19,6 @@ declare -A CMS=(
   [RF02543]="Eukaryotic LSU (28S)"
   [RF00001]="5S rRNA"
   [RF00002]="5.8S rRNA"
-  [RF02545]="Mitochondrial SSU"
-  [RF02546]="Mitochondrial LSU"
 )
 
 echo "============================================"

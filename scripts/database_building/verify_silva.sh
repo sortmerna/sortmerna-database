@@ -10,13 +10,12 @@
 #   <gene>_<domain>_cmsearch.tblout - raw cmsearch output (kept for auditing)
 #
 # CMs used:
-#   SSU bacteria:           RF00177
-#   SSU archaea:            RF01959
-#   SSU eukaryota nuclear:  RF01960
-#   SSU eukaryota mito:     RF02545
-#   LSU bacteria:           RF02541
-#   LSU archaea:            RF02540
-#   LSU eukaryota:          RF02543
+#   SSU bacteria:   RF00177
+#   SSU archaea:    RF01959
+#   SSU eukaryota:  RF01960
+#   LSU bacteria:   RF02541
+#   LSU archaea:    RF02540
+#   LSU eukaryota:  RF02543
 #
 # Requires: Infernal (cmsearch), seqkit, Python 3
 # Usage: bash verify_silva.sh [input_dir [output_dir [threads]]]
