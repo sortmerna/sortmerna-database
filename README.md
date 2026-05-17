@@ -228,7 +228,9 @@ export T2T_BASE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/009/914/755/${T2T_A
 export RFAM_NON_RRNA_FTP=https://ftp.ebi.ac.uk/pub/databases/Rfam/$RFAM_VERSION/fasta_files
 
 # SortMeRNA binary
-export PATH=/home/ubuntu/sortmerna-5.0.0-Linux/bin:$PATH
+export SMR_VERSION=5.0.0
+export PATH=/home/ubuntu/sortmerna-${SMR_VERSION}-Linux/bin:$PATH
+
 ```
 
 ### 2. Download Source Databases

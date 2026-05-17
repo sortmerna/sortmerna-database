@@ -5,9 +5,9 @@
 # Concatenates per-domain clustered FASTA files into three database configurations
 # and builds a SortMeRNA index for each:
 #
-#   smr_v4.7_sensitive_db - all SILVA at 97%, RFAM full at 97%
-#   smr_v4.7_default_db   - SILVA at 95% (bacteria SSU at 90%), RFAM seed
-#   smr_v4.7_fast_db      - SILVA at 90% (bacteria SSU at 85%), RFAM seed
+#   smr_v<SMR_VERSION>_sensitive_db - all SILVA at 97%, RFAM full at 97%
+#   smr_v<SMR_VERSION>_default_db   - SILVA at 95% (bacteria SSU at 90%), RFAM seed
+#   smr_v<SMR_VERSION>_fast_db      - SILVA at 90% (bacteria SSU at 85%), RFAM seed
 
 set -euo pipefail
 
@@ -46,7 +46,12 @@ if ! command -v seqkit &>/dev/null; then
   exit 1
 fi
 
-SMR_VERSION=$(sortmerna --version 2>&1 | grep "^SortMeRNA version" | awk '{print $3}')
+SMR_VERSION="${SMR_VERSION:?Please set SMR_VERSION in your environment (see README Set paths section)}"
+ACTUAL_VERSION=$(sortmerna --version 2>&1 | grep "^SortMeRNA version" | awk '{print $3}')
+if [[ "${SMR_VERSION}" != "${ACTUAL_VERSION}" ]]; then
+  echo "Error: SMR_VERSION=${SMR_VERSION} does not match installed sortmerna ${ACTUAL_VERSION}"
+  exit 1
+fi
 echo "Using SortMeRNA version: ${SMR_VERSION}"
 SMR_PREFIX="smr_v${SMR_VERSION}"
 
