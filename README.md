@@ -25,7 +25,7 @@ This repository contains code and workflows to:
 - [x] Independently verify rRNA sequences with Infernal cmsearch (--cut_ga)
 - [x] Implement clustering pipeline
 - [x] Test multiple clustering thresholds
-- [ ] Build SortMeRNA indices for each clustered database
+- [x] Build SortMeRNA indices for each clustered database
 - [x] Generate database statistics and metadata
 
 ### Phase 2: Validation and Benchmarking
@@ -419,8 +419,7 @@ LGPL-3.0
 
 ## Contact
 
-- **Issues**: https://github.com/yourusername/sortmerna-database/issues
-- **Email**: jenya.kopylov@gmail.com
+- **Issues**: https://github.com/sortmerna/sortmerna-database/issues
 
 ## References
 
