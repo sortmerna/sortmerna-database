@@ -28,19 +28,14 @@ This repository contains code and workflows to:
 - [ ] Build SortMeRNA indices for each clustered database
 - [x] Generate database statistics and metadata
 
-### Phase 2: Database Validation
-- [ ] Simulate Illumina rRNA reads (75bp, 150bp, 250bp) per rRNA family using ART
+### Phase 2: Validation and Benchmarking
+- [ ] Simulate Illumina 150bp rRNA reads per rRNA family using ART (Experiment 1: sensitivity per type and database configuration)
 - [ ] Download non-rRNA sequences for specificity testing
+- [ ] Run scalability experiment across read volumes measuring runtime, memory, and sensitivity (Experiment 2: 10K, 100K, 1M, 10M reads)
 - [ ] Validate sensitivity using real PacBio amplicon data (Karst et al. 2021)
-- [ ] Measure sensitivity and specificity per database configuration and read type
+- [ ] Measure index building time per database configuration
 
-### Phase 3: Performance Benchmarking
-- [ ] Runtime analysis across database sizes
-- [ ] Memory footprint measurements
-- [ ] Index building time vs. search time
-- [ ] Scalability testing (1M, 10M, 50M, 100M reads)
-
-### Phase 4: Comparison & Recommendations
+### Phase 3: Comparison & Recommendations
 - [ ] Identify optimal clustering threshold
 - [ ] Generate platform-specific recommendations
 - [ ] Document database build protocols
@@ -95,10 +90,37 @@ Key features:
 
 ### Simulated Data (Illumina)
 Generate synthetic Illumina reads with known rRNA/non-rRNA composition:
-- **Tool**: ART
-- **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database, simulated separately per rRNA type (Bacteria SSU, Archaea SSU, Eukaryota SSU, Bacteria LSU, Archaea LSU, Eukaryota LSU, 5S, 5.8S) to enable per-type sensitivity measurement
+- **Tool**: ART (150bp paired-end, Illumina-specific error profiles)
+- **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database
 - **Non-rRNA source**: `non_rRNA_test_1M.fasta` - bacterial mRNA, eukaryotic cDNA, Rfam ncRNA, and genomic fragments
-- **Error profiles**: Illumina-specific error rates
+
+#### Important note on SortMeRNA as a filter, not a classifier
+
+SortMeRNA is an rRNA **filter** - it answers "is this read rRNA?" not "which type of rRNA is this?". A read simulated from a bacterial SSU sequence may be detected via a k-mer match and Smith-Waterman extension against an archaeal SSU reference, and this is expected behavior given how conserved rRNA sequences are across domains. Per-type sensitivity is therefore not a meaningful metric. All rRNA types are pooled into a single reads file per Set, and sensitivity is measured as a single aggregate: detected / total.
+
+#### Experiment 1: Sensitivity across database configurations
+
+**Goal:** Does SortMeRNA correctly identify rRNA reads as divergence increases between the read set and the database?
+
+- **Design:** Diagonal 3x3 - each read set tested against its matched database configuration only (same divergence level for reads and database)
+- **Read sets:**
+  - Set 1: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 97% non-seed members -> tested against SMR sensitive db (97%)
+  - Set 2: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 90-95% non-seed members -> tested against SMR default db (90-95%)
+  - Set 3: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 85-90% non-seed members -> tested against SMR fast db (85-90%)
+- **Rationale for 100,000 reads per Set:** Round number that is easy to interpret (1 missed read = 0.001% sensitivity drop), aligns naturally with the first data point of the scalability experiment, and is fast to run
+- **Metric:** Sensitivity = detected / total (aggregate across all rRNA types)
+
+#### Experiment 2: Scalability
+
+**Goal:** How do runtime and memory scale with read volume, and does sensitivity remain stable at large scale?
+
+- **Design:** Fixed configuration (Set 2 non-seeds -> SMR default db) - the most representative real-world deployment scenario - across increasing read volumes
+- **Read volumes:** 10,000 -> 100,000 -> 1,000,000 -> 10,000,000 reads
+- **Rationale for default db:** The configuration most users would deploy in practice; runtime numbers are directly interpretable for real-world use
+- **Metrics:**
+  - Wall-clock runtime at each scale point
+  - Peak RAM usage at each scale point
+  - Sensitivity at each scale point - should remain flat since SortMeRNA processes reads independently; any degradation at 10M reads would indicate memory pressure or a bug worth flagging
 
 ### Real Benchmark Datasets (PacBio)
 Sensitivity test using real PacBio long-read amplicon data:
