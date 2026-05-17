@@ -154,7 +154,7 @@ Sensitivity test using real PacBio long-read amplicon data:
 ### Requirements
 
 **Core tools:**
-- [SortMeRNA](https://github.com/sortmerna/sortmerna) v4.3.7 - rRNA filtering (installed separately from GitHub release)
+- [SortMeRNA](https://github.com/sortmerna/sortmerna) v5.0.0 - rRNA filtering (installed separately from GitHub release)
 - [VSEARCH](https://github.com/torognes/vsearch) >= 2.22 - sequence clustering
 - [Infernal](http://eddylab.org/infernal/) >= 1.1.4 - covariance model search (cmsearch, cmpress)
 - [SeqKit](https://bioinf.shenwei.me/seqkit/) >= 2.5 - sequence statistics
@@ -174,7 +174,7 @@ Sensitivity test using real PacBio long-read amplicon data:
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/sortmerna-database.git
+git clone https://github.com/sortmerna/sortmerna-database.git
 cd sortmerna-database
 
 # Create conda environment
@@ -182,7 +182,7 @@ conda env create -f environment.yml
 conda activate sortmerna-bench
 ```
 
-**Install SortMeRNA separately:** Download v4.3.7 binaries from https://github.com/sortmerna/sortmerna/releases
+**Install SortMeRNA separately:** Download v5.0.0 binaries from https://github.com/sortmerna/sortmerna/releases
 
 ## Usage
 
@@ -206,6 +206,7 @@ export VERIFIED_DIR=$DATA_DIR/verified
 export VERIFIED_RFAM_DIR=$DATA_DIR/verified_rfam
 export CLUSTERED_DIR=$DATA_DIR/clustered
 export INDEX_DIR=$DATA_DIR/index
+export NON_RRNA_DIR=$DATA_DIR/non_rrna
 
 # SILVA versions and full download URLs (update to use a different release or file type)
 export SILVA_SSU_VERSION=138.2
@@ -213,6 +214,18 @@ export SILVA_SSU_PATH=https://www.arb-silva.de/fileadmin/silva_databases/release
 export SILVA_LSU_VERSION=138.2
 export SILVA_LSU_PATH=https://www.arb-silva.de/fileadmin/silva_databases/release_138.2/Exports/SILVA_138.2_LSURef_NR99_tax_silva_trunc.fasta.gz
 export RFAM_VERSION=15.1
+
+# Human T2T genome - used as non-rRNA specificity test source
+# T2T_VERSION: human-readable version used for output filenames
+# T2T_NAME:    NCBI assembly name used in FTP filenames (${T2T_ACCESSION}_${T2T_NAME}_genomic.fna.gz)
+# T2T_BASE:    full FTP directory URL (derived from accession + name)
+export T2T_ACCESSION=GCA_009914755.4
+export T2T_NAME=CHM13_T2T_v2.0
+export T2T_VERSION=chm13v2.0
+export T2T_BASE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/009/914/755/${T2T_ACCESSION}_${T2T_NAME}
+
+# Rfam non-rRNA families FTP (tied to RFAM_VERSION; change to CURRENT to always pull the latest)
+export RFAM_NON_RRNA_FTP=https://ftp.ebi.ac.uk/pub/databases/Rfam/$RFAM_VERSION/fasta_files
 
 # SortMeRNA binary
 export PATH=/home/ubuntu/sortmerna-5.0.0-Linux/bin:$PATH
@@ -325,37 +338,35 @@ For each configuration the script produces:
 
 **Index building is done once.** The index only needs to be built once per database configuration. When you later run SortMeRNA alignment with the same `--ref` and `--idx-dir` paths, SortMeRNA finds the existing index and skips rebuilding - even across separate invocations or tmux sessions. Use `--force` to explicitly trigger a rebuild.
 
-### 6. Download Non-rRNA Test Sequences (Specificity Testing)
+### 6. Non-rRNA Test Set (`non_rRNA_test_1M.fasta`)
 
-To measure the false positive rate (specificity), we need a large set of sequences that are not rRNA. SortMeRNA should reject all of these; any that are classified as rRNA are false positives.
+~1M non-rRNA sequences from two sources that together test both straightforward
+and challenging specificity cases:
+
+| Source | Description | Count |
+|--------|-------------|-------|
+| **Human T2T genome (CHM13v2.0)** | Simulated 150bp PE reads, rRNA loci masked prior to simulation | 850,000 |
+| **Rfam non-rRNA families** | tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs - chosen because they share structural features with rRNA and are the most likely source of false positives | 150,000 |
 
 ```bash
-bash scripts/read_simulation/download_non_rrna.sh -o data/non_rrna --threads 8
+bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR 4
 ```
 
-The script downloads ~1M non-rRNA sequences from four sources:
+**Preparation:**
+1. Mask rRNA loci in CHM13v2.0 using known T2T annotations
+2. Simulate 850,000 150bp PE reads with ART
+3. Sample 150,000 Rfam non-rRNA sequences
+4. Apply header keyword filter to remove any rRNA-related sequences
 
-| Source | Description | Default count |
-|--------|-------------|---------------|
-| **RefSeq bacterial mRNA** | Protein-coding transcripts from NCBI RefSeq bacteria RNA, filtered to exclude rRNA/tRNA | 500,000 |
-| **Ensembl eukaryotic cDNA** | cDNA from human, mouse, zebrafish, *C. elegans*, and *Arabidopsis* | 300,000 |
-| **Rfam non-rRNA families** | Non-coding RNA from Rfam families: tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs | 150,000 |
-| **Random genomic fragments** | 500–3000 bp fragments from *E. coli*, *B. subtilis*, and *S. cerevisiae* genomes | 50,000 |
+All sampling uses a fixed random seed (`--seed 42`) for reproducibility.
 
-**Safety filters** are applied to the combined set to remove any rRNA contamination:
-
-1. **Header keyword filter** - `seqkit grep` removes sequences with rRNA-related terms (ribosomal, rRNA, 16S, 23S, etc.)
-2. **Barrnap rRNA prediction** - runs HMM-based rRNA gene detection for both bacterial (`--kingdom bac`) and eukaryotic (`--kingdom euk`) models, catching unlabeled rRNA especially in genomic fragments
-
-Output files:
+**Output files:**
 
 | File | Description |
 |------|-------------|
 | `non_rRNA_test_1M.fasta` | Final clean non-rRNA test sequences |
 | `non_rRNA_metadata.txt` | Composition breakdown by source |
 | `non_rRNA_stats.txt` | Sequence length and count statistics |
-
-All sampling uses a fixed random seed (`--seed 42`) for reproducibility.
 
 ### 7. Run Benchmarks
 
