@@ -100,7 +100,23 @@ build_config() {
     --ref "${combined}" \
     --idx-dir "${db_dir}/idx" \
     --index 1 \
-    --threads "${THREADS}"
+    --threads "${THREADS}" &
+  local smr_pid=$!
+
+  # Poll the sortmerna process every 5 seconds to track peak CPU% and peak RSS (resident
+  # set size in MB - the portion of RAM the process actually holds). The loop exits once
+  # the process terminates; wait then captures its exit code so set -e still triggers on failure.
+  local peak_cpu=0
+  local peak_rss_mb=0
+  while kill -0 "${smr_pid}" 2>/dev/null; do
+    local cpu rss
+    read -r cpu rss < <(ps -p "${smr_pid}" -o %cpu,rss --no-headers 2>/dev/null || echo "0 0")
+    peak_cpu=$(awk -v a="${cpu}" -v b="${peak_cpu}" 'BEGIN{print (a+0>b+0)?a:b}')
+    local rss_mb=$(( (rss + 0) / 1024 ))
+    (( rss_mb > peak_rss_mb )) && peak_rss_mb=${rss_mb}
+    sleep 5
+  done
+  wait "${smr_pid}" || { echo "  ERROR: sortmerna failed"; return 1; }
 
   local duration=$(( $(date +%s) - start ))
   local index_size
@@ -112,12 +128,14 @@ combined_fasta:  ${combined}
 total_sequences: ${total}
 build_time_sec:  ${duration}
 index_size:      ${index_size}
+peak_cpu_pct:    ${peak_cpu}
+peak_rss_mb:     ${peak_rss_mb}
 threads:         ${THREADS}
 build_date:      $(date -Iseconds)
 sortmerna:       ${SMR_VERSION}
 EOF
 
-  echo "  Done in ${duration}s - index size: ${index_size}"
+  echo "  Done in ${duration}s - index size: ${index_size} - peak CPU: ${peak_cpu}% - peak RSS: ${peak_rss_mb} MB"
   echo "  Index: ${db_dir}/idx"
 }
 
@@ -160,14 +178,16 @@ echo "All indices built in: ${OUTPUT_DIR}"
 echo "============================================"
 echo ""
 echo "Summary:"
-printf "  %-30s  %10s  %10s  %s\n" "Configuration" "Sequences" "Build time" "Index size"
+printf "  %-30s  %10s  %10s  %10s  %10s  %s\n" "Configuration" "Sequences" "Build time" "Peak CPU%" "Peak RSS MB" "Index size"
 for name in "${SMR_PREFIX}_sensitive_db" "${SMR_PREFIX}_default_db" "${SMR_PREFIX}_fast_db"; do
   stats="${OUTPUT_DIR}/${name}/index.stats"
   if [[ -f "${stats}" ]]; then
     seqs=$(grep "total_sequences" "${stats}" | awk '{print $2}')
     secs=$(grep "build_time_sec"  "${stats}" | awk '{print $2}')
     size=$(grep "index_size"      "${stats}" | awk '{print $2}')
-    printf "  %-30s  %10s  %9ss  %s\n" "${name}" "${seqs}" "${secs}" "${size}"
+    cpu=$(grep  "peak_cpu_pct"    "${stats}" | awk '{print $2}')
+    rss=$(grep  "peak_rss_mb"     "${stats}" | awk '{print $2}')
+    printf "  %-30s  %10s  %9ss  %10s  %11s  %s\n" "${name}" "${seqs}" "${secs}" "${cpu}" "${rss}" "${size}"
   fi
 done
 echo ""
