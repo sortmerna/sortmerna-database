@@ -190,5 +190,71 @@ for name in "${SMR_PREFIX}_sensitive_db" "${SMR_PREFIX}_default_db" "${SMR_PREFI
     printf "  %-30s  %10s  %9ss  %10s  %11s  %s\n" "${name}" "${seqs}" "${secs}" "${cpu}" "${rss}" "${size}"
   fi
 done
+
+# Create index_build_summary.html as a copy of clustering_summary.html with a new
+# "SortMeRNA Index Build Summary" section injected after "Recommended Database Configurations".
+CLUSTER_HTML="${CLUSTERED_DIR}/clustering_summary.html"
+INDEX_HTML="${OUTPUT_DIR}/index_build_summary.html"
+echo ""
+echo "Writing index build summary: ${INDEX_HTML}"
+
+rows=""
+for name in "${SMR_PREFIX}_sensitive_db" "${SMR_PREFIX}_default_db" "${SMR_PREFIX}_fast_db"; do
+  stats="${OUTPUT_DIR}/${name}/index.stats"
+  [[ -f "${stats}" ]] || continue
+  s_seqs=$(grep "total_sequences" "${stats}" | awk '{print $2}')
+  s_secs=$(grep "build_time_sec"  "${stats}" | awk '{print $2}')
+  s_size=$(grep "index_size"      "${stats}" | awk '{print $2}')
+  s_cpu=$(grep  "peak_cpu_pct"    "${stats}" | awk '{print $2}')
+  s_rss=$(grep  "peak_rss_mb"     "${stats}" | awk '{print $2}')
+  s_thr=$(grep  "threads"         "${stats}" | awk '{print $2}')
+  s_date=$(grep "build_date"      "${stats}" | awk '{print $2}')
+  s_smr=$(grep  "sortmerna"       "${stats}" | awk '{print $2}')
+  rows="${rows}      <tr><td>${name}</td><td>${s_seqs}</td><td>${s_secs}</td><td>${s_size}</td><td>${s_cpu}</td><td>${s_rss}</td><td>${s_thr}</td><td>${s_date}</td><td>${s_smr}</td></tr>\n"
+done
+
+CLUSTER_HTML="${CLUSTER_HTML}" INDEX_HTML="${INDEX_HTML}" python3 - "${rows}" <<'PYEOF'
+import sys, os
+
+rows_raw = sys.argv[1]
+
+section = (
+    "<h2>SortMeRNA Index Build Summary</h2>\n"
+    "<p>Resource usage measured by polling <code>ps</code> every 5 seconds during index construction. "
+    "Peak CPU% is the highest single-sample value; Peak RSS MB is the highest resident set size "
+    "(RAM actually held by the process, excluding swap) observed during the build.</p>\n"
+    "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse:collapse;font-family:monospace;font-size:13px\">\n"
+    "  <thead style=\"background:#e8e8e8\">\n"
+    "    <tr>\n"
+    "      <th>Configuration</th><th>Sequences</th><th>Build time (s)</th><th>Index size</th>\n"
+    "      <th>Peak CPU%</th><th>Peak RSS MB</th><th>Threads</th><th>Build date</th><th>SortMeRNA</th>\n"
+    "    </tr>\n"
+    "  </thead>\n"
+    "  <tbody>\n"
+    + rows_raw.replace('\\n', '\n')
+    + "  </tbody>\n</table>"
+)
+
+cluster_html = os.environ['CLUSTER_HTML']
+index_html   = os.environ['INDEX_HTML']
+
+html = open(cluster_html).read() if os.path.isfile(cluster_html) else '<html><body></body></html>'
+
+marker = 'Recommended Database Configurations'
+pos = html.find(marker)
+if pos != -1:
+    close = html.find('</section>', pos)
+    insert_at = close + len('</section>') if close != -1 else len(html)
+else:
+    insert_at = html.find('</body>')
+    if insert_at == -1:
+        insert_at = len(html)
+
+html = html[:insert_at] + '\n<section>\n' + section + '\n</section>\n' + html[insert_at:]
+open(index_html, 'w').write(html)
+PYEOF
+
+echo "  Done - ${INDEX_HTML}"
+
 echo ""
 echo "Next step: Run bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh"
