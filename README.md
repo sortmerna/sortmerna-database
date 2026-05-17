@@ -205,6 +205,7 @@ export CMS_DIR=$DATA_DIR/cms
 export VERIFIED_DIR=$DATA_DIR/verified
 export VERIFIED_RFAM_DIR=$DATA_DIR/verified_rfam
 export CLUSTERED_DIR=$DATA_DIR/clustered
+export INDEX_DIR=$DATA_DIR/index
 
 # SILVA versions and full download URLs (update to use a different release or file type)
 export SILVA_SSU_VERSION=138.2
@@ -212,6 +213,9 @@ export SILVA_SSU_PATH=https://www.arb-silva.de/fileadmin/silva_databases/release
 export SILVA_LSU_VERSION=138.2
 export SILVA_LSU_PATH=https://www.arb-silva.de/fileadmin/silva_databases/release_138.2/Exports/SILVA_138.2_LSURef_NR99_tax_silva_trunc.fasta.gz
 export RFAM_VERSION=15.1
+
+# SortMeRNA binary
+export PATH=/home/ubuntu/sortmerna-5.0.0-Linux/bin:$PATH
 ```
 
 ### 2. Download Source Databases
@@ -289,7 +293,39 @@ The centroid sequences (`*_XX.fasta`) become the SortMeRNA reference databases. 
 
 - Summary of total sequences per clustering threshold and SortMeRNA reference databases: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/clustered/clustering_summary.html" target="_blank">clustering_summary.html</a>
 
-### 5. Download Non-rRNA Test Sequences (Specificity Testing)
+### 5. Build SortMeRNA Indices
+
+Three database configurations are assembled from the clustered FASTA files and indexed with SortMeRNA (see <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/clustered/clustering_summary.html" target="_blank">clustering_summary.html</a> for details):
+
+| Configuration | SILVA SSU bacteria | SILVA SSU other | SILVA LSU | Rfam 5S / 5.8S |
+|---|---|---|---|---|
+| `smr_v<version>_sensitive_db` | 97% | 97% | 97% | 97% (full) |
+| `smr_v<version>_default_db` | 90% | 95% | 95% | seed |
+| `smr_v<version>_fast_db` | 85% | 90% | 90% | seed |
+
+The sensitive database maximises recall; the default and fast databases trade a small number of sequences for a smaller index and faster runtime. Bacteria SSU uses a one-step lower threshold than the other SILVA domains in the default and fast configurations because bacterial 16S sequences are the largest and most diverse group - a slightly lower threshold helps limit index size without meaningfully reducing sensitivity.
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh $WORK_DIR/data $INDEX_DIR 4
+```
+
+Pass `--force` to rebuild an index that already exists:
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh --force $WORK_DIR/data $INDEX_DIR 4
+```
+
+For each configuration the script produces:
+
+| File / directory | Description |
+|---|---|
+| `<config>/<config>.fasta` | Combined reference FASTA (all domains concatenated) |
+| `<config>/idx/` | SortMeRNA index files |
+| `<config>/index.stats` | Sequence count, build time, index size, SortMeRNA version |
+
+**Index building is done once.** The index only needs to be built once per database configuration. When you later run SortMeRNA alignment with the same `--ref` and `--idx-dir` paths, SortMeRNA finds the existing index and skips rebuilding - even across separate invocations or tmux sessions. Use `--force` to explicitly trigger a rebuild.
+
+### 6. Download Non-rRNA Test Sequences (Specificity Testing)
 
 To measure the false positive rate (specificity), we need a large set of sequences that are not rRNA. SortMeRNA should reject all of these; any that are classified as rRNA are false positives.
 
@@ -321,9 +357,9 @@ Output files:
 
 All sampling uses a fixed random seed (`--seed 42`) for reproducibility.
 
-### 6. Run Benchmarks
+### 7. Run Benchmarks
 
-### 7. Compare Databases
+### 8. Compare Databases
 
 ```bash
 # Compare all clustering levels

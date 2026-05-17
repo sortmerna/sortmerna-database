@@ -46,7 +46,9 @@ if ! command -v seqkit &>/dev/null; then
   exit 1
 fi
 
-echo "Using SortMeRNA version: $(sortmerna --version 2>&1 | head -1)"
+SMR_VERSION=$(sortmerna --version 2>&1 | grep "^SortMeRNA version" | awk '{print $3}')
+echo "Using SortMeRNA version: ${SMR_VERSION}"
+SMR_PREFIX="smr_v${SMR_VERSION}"
 
 mkdir -p "${OUTPUT_DIR}"
 
@@ -112,15 +114,15 @@ build_time_sec:  ${duration}
 index_size:      ${index_size}
 threads:         ${THREADS}
 build_date:      $(date -Iseconds)
-sortmerna:       $(sortmerna --version 2>&1 | head -1)
+sortmerna:       ${SMR_VERSION}
 EOF
 
   echo "  Done in ${duration}s - index size: ${index_size}"
   echo "  Index: ${db_dir}/idx"
 }
 
-# smr_v4.7_sensitive_db: all SILVA at 97%, RFAM full at 97%
-build_config "smr_v4.7_sensitive_db" \
+# sensitive: all SILVA at 97%, RFAM full at 97%
+build_config "${SMR_PREFIX}_sensitive_db" \
   "${CLUSTERED_DIR}/silva_ssu_bacteria_97.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_archaea_97.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_eukaryota_97.fasta" \
@@ -130,8 +132,8 @@ build_config "smr_v4.7_sensitive_db" \
   "${CLUSTERED_DIR}/rfam_5s_97.fasta" \
   "${CLUSTERED_DIR}/rfam_5_8s_97.fasta"
 
-# smr_v4.7_default_db: SILVA at 95% (bacteria SSU at 90%), RFAM seed
-build_config "smr_v4.7_default_db" \
+# default: SILVA at 95% (bacteria SSU at 90%), RFAM seed
+build_config "${SMR_PREFIX}_default_db" \
   "${CLUSTERED_DIR}/silva_ssu_bacteria_90.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_archaea_95.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_eukaryota_95.fasta" \
@@ -141,8 +143,8 @@ build_config "smr_v4.7_default_db" \
   "${VERIFIED_RFAM_DIR}/verified_5s_seed.fasta" \
   "${VERIFIED_RFAM_DIR}/verified_5.8s_seed.fasta"
 
-# smr_v4.7_fast_db: SILVA at 90% (bacteria SSU at 85%), RFAM seed
-build_config "smr_v4.7_fast_db" \
+# fast: SILVA at 90% (bacteria SSU at 85%), RFAM seed
+build_config "${SMR_PREFIX}_fast_db" \
   "${CLUSTERED_DIR}/silva_ssu_bacteria_85.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_archaea_90.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_eukaryota_90.fasta" \
@@ -159,7 +161,7 @@ echo "============================================"
 echo ""
 echo "Summary:"
 printf "  %-30s  %10s  %10s  %s\n" "Configuration" "Sequences" "Build time" "Index size"
-for name in smr_v4.7_sensitive_db smr_v4.7_default_db smr_v4.7_fast_db; do
+for name in "${SMR_PREFIX}_sensitive_db" "${SMR_PREFIX}_default_db" "${SMR_PREFIX}_fast_db"; do
   stats="${OUTPUT_DIR}/${name}/index.stats"
   if [[ -f "${stats}" ]]; then
     seqs=$(grep "total_sequences" "${stats}" | awk '{print $2}')
