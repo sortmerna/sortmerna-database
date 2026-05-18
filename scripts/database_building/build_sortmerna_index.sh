@@ -105,8 +105,7 @@ build_config() {
     --ref "${combined}" \
     --workdir "${db_dir}" \
     --idx-dir "${db_dir}/idx" \
-    --index 1 \
-    --threads "${THREADS}" &
+    --index 1 &
   local smr_pid=$!
 
   # Poll the sortmerna process every 5 seconds to track peak CPU% and peak RSS (resident

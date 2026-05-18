@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SortMeRNA Database Clustering Summary</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #222;
+      margin: 0;
+      padding: 2.5em 3em;
+    }
+    .container { max-width: 1600px; margin: 0 auto; }
+    h1 { font-size: 1.7em; font-weight: 700; color: #1a3a5c; margin-bottom: 0.2em; }
+    h2 { font-size: 1.3em; font-weight: 700; color: #1a3a5c; margin-top: 2.5em; margin-bottom: 0.4em; }
+    .subtitle { font-size: 1em; color: #555; margin-bottom: 1.2em; }
+    .description {
+      background: #eaf1fb;
+      border-left: 4px solid #3a7bd5;
+      border-radius: 4px;
+      padding: 0.9em 1.2em;
+      margin-bottom: 1.8em;
+      font-size: 0.92em;
+      line-height: 1.6;
+      color: #333;
+    }
+    .description p { margin: 0 0 0.5em; }
+    .description p:last-child { margin-bottom: 0; }
+    .description ul { margin: 0.3em 0 0 1.2em; padding: 0; }
+    .description li { margin-bottom: 0.2em; }
+    .table-wrap { overflow-x: auto; border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.1); margin-bottom: 1em; }
+    table { border-collapse: collapse; width: 100%; background: #fff; font-size: 0.88em; }
+    th, td { border: 1px solid #d0d7e3; padding: 7px 13px; text-align: center; white-space: nowrap; }
+    thead tr:first-child th { background: #1a3a5c; color: #fff; font-size: 0.95em; }
+    thead tr:nth-child(2) th { background: #dce6f5; color: #1a3a5c; font-weight: 600; }
+    tbody tr:nth-child(odd)  { background: #fff; }
+    tbody tr:nth-child(even) { background: #f4f7fc; }
+    tbody tr:hover { background: #ddeeff; }
+    td:first-child { text-align: left; font-weight: 500; min-width: 220px; }
+    td { color: #333; }
+    .footer { margin-top: 1.2em; font-size: 0.8em; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SortMeRNA Database Clustering Summary</h1>
+    <p class="subtitle">Sequence counts after vsearch clustering at multiple identity thresholds</p>
+    <div class="description">
+      <p>Sequence counts per source database and taxonomic domain across all clustering thresholds.
+      Columns with no data across all thresholds are omitted.
+      A dash (-) indicates no sequences were available for that combination.</p>
+      <p><b>Source database versions:</b></p><ul><li>SILVA release <b>138.2</b> (SSURef NR99 and LSURef NR99)</li><li>RFAM release <b>15.1</b> (5S / RF00001, 5.8S / RF00002)</li></ul>
+    </div>
+    <div class="table-wrap">
+      <table>
+  <thead>
+      <tr><th rowspan="2">Configuration</th><th colspan="3">SILVA 138.2 SSURef NR99</th><th colspan="3">SILVA 138.2 LSURef NR99</th><th colspan="2">RFAM 15.1</th></tr>
+      <tr><th>Archaea</th><th>Bacteria</th><th>Eukaryota</th><th>Archaea</th><th>Bacteria</th><th>Eukaryota</th><th>5S</th><th>5.8S</th></tr>
+  </thead>
+  <tbody>
+      <tr><td><b>original (trimmed, filtered)</b></td><td>20,389</td><td>431,141</td><td>58,923</td><td>990</td><td>78,001</td><td>15,828</td><td>591,595</td><td>16,553</td></tr>
+      <tr><td><b>97%</b></td><td>8,368</td><td>158,932</td><td>27,167</td><td>478</td><td>10,037</td><td>9,449</td><td>293,796</td><td>7,144</td></tr>
+      <tr><td><b>95%</b></td><td>4,939</td><td>96,752</td><td>17,507</td><td>393</td><td>7,366</td><td>7,042</td><td>250,576</td><td>6,079</td></tr>
+      <tr><td><b>90%</b></td><td>1,729</td><td>31,451</td><td>7,679</td><td>275</td><td>3,961</td><td>3,822</td><td>167,633</td><td>4,066</td></tr>
+      <tr><td><b>85%</b></td><td>780</td><td>10,087</td><td>3,710</td><td>172</td><td>2,294</td><td>2,227</td><td>106,721</td><td>2,905</td></tr>
+  </tbody>
+</table>
+    </div>
+    <h2>Recommended Database Configurations</h2>
+    <div class="description">
+      <p>Recommended clustering threshold per gene/domain for each SortMeRNA database configuration,
+      with the resulting sequence count shown below each threshold label.
+      Bacteria SSU is clustered one threshold step lower than other SILVA domains.
+      RFAM 5S and 5.8S use seed sequences for the default and fast configurations.
+      A dash (-) indicates the configuration does not apply to that source database.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+  <thead>
+      <tr><th>Configuration</th><th>Archaea SSU</th><th>Bacteria SSU</th><th>Eukaryota SSU</th><th>Archaea LSU</th><th>Bacteria LSU</th><th>Eukaryota LSU</th><th>5S</th><th>5.8S</th></tr>
+  </thead>
+  <tbody>
+      <tr><td><b>SMR v4.7 sensitive db</b></td><td style="text-align:right"><span style="font-size:0.8em;color:#666">97%</span><br>8,368</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">97%</span><br>158,932</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">97%</span><br>27,167</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">97%</span><br>478</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">97%</span><br>10,037</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">97%</span><br>9,449</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">97%</span><br>293,796</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">97%</span><br>7,144</td></tr>
+      <tr><td><b>SMR v4.7 default db</b></td><td style="text-align:right"><span style="font-size:0.8em;color:#666">95%</span><br>4,939</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">90%</span><br>31,451</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">95%</span><br>17,507</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">95%</span><br>393</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">95%</span><br>7,366</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">95%</span><br>7,042</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">seed</span><br>712</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">seed</span><br>61</td></tr>
+      <tr><td><b>SMR v4.7 fast db</b></td><td style="text-align:right"><span style="font-size:0.8em;color:#666">90%</span><br>1,729</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">85%</span><br>10,087</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">90%</span><br>7,679</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">90%</span><br>275</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">90%</span><br>3,961</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">90%</span><br>3,822</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">seed</span><br>712</td><td style="text-align:right"><span style="font-size:0.8em;color:#666">seed</span><br>61</td></tr>
+  </tbody>
+</table>
+    </div>
+    <p class="footer">Generated by cluster_sequences.sh - SortMeRNA database pipeline</p>
+  </div>
+</body>
+</html>
+
+<section>
+<h2>SortMeRNA Index Build Summary</h2>
+<div class="description"><p>Resource usage measured by polling <code>ps</code> every 5 seconds during index construction. Peak CPU% is the highest single-sample value; Peak RSS MB is the highest resident set size (RAM actually held by the process, excluding swap) observed during the build.</p></div>
+<div class="table-wrap"><table>
+  <thead>
+    <tr>
+      <th>Configuration</th><th>Sequences</th><th>Build time (s)</th><th>Index size</th>
+      <th>Peak CPU%</th><th>Peak RSS MB</th><th>Build date</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr><td>smr_v5.0.0_sensitive_db</td><td>515371</td><td>1282</td><td>3.8G</td><td>99.9</td><td>5923</td><td>2026-05-17T07:50:58+00:00</td></tr>
+      <tr><td>smr_v5.0.0_default_db</td><td>69471</td><td>371</td><td>1.7G</td><td>100</td><td>3444</td><td>2026-05-17T07:57:09+00:00</td></tr>
+      <tr><td>smr_v5.0.0_fast_db</td><td>28326</td><td>185</td><td>864M</td><td>100</td><td>1949</td><td>2026-05-17T08:00:14+00:00</td></tr>
+  </tbody>
+</table></div>
+<p class="footer">Generated by build_sortmerna_index.sh - SortMeRNA database pipeline</p>
+</section>
