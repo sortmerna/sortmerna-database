@@ -51,7 +51,7 @@
 set -euo pipefail
 
 POSITIONAL=()
-N_RFAM=150000
+N_Rfam=150000
 RAND_SEED=42
 SKIP_DOWNLOAD=false
 
@@ -69,7 +69,7 @@ show_help() {
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --rfam) N_RFAM="$2"; shift 2 ;;
+        --rfam) N_Rfam="$2"; shift 2 ;;
         --seed) RAND_SEED="$2"; shift 2 ;;
         --skip-download) SKIP_DOWNLOAD=true; shift ;;
         -h|--help) show_help ;;
@@ -91,7 +91,7 @@ echo "T2T name:         ${T2T_NAME}"
 echo "T2T version:      ${T2T_VERSION}"
 echo "T2T base URL:     ${T2T_BASE}"
 echo "Rfam FTP:         ${RFAM_NON_RRNA_FTP}"
-echo "Rfam sample size: ${N_RFAM}"
+echo "Rfam sample size: ${N_Rfam}"
 echo "Random seed:      ${RAND_SEED}"
 echo "============================================"
 echo ""
@@ -152,7 +152,7 @@ else
 fi
 
 ################################################################################
-# 2. RFAM NON-rRNA FAMILIES
+# 2. Rfam NON-rRNA FAMILIES
 ################################################################################
 
 RFAM_DIR="${OUTPUT_DIR}/rfam"
@@ -204,7 +204,7 @@ echo "Sampling Rfam non-rRNA sequences..."
 
 cat "${RFAM_DIR}"/*.fa > "${OUTPUT_DIR}/rfam_non_rrna_all.fasta" 2>/dev/null || true
 
-seqkit sample --rand-seed "${RAND_SEED}" -n "${N_RFAM}" \
+seqkit sample --rand-seed "${RAND_SEED}" -n "${N_Rfam}" \
     "${OUTPUT_DIR}/rfam_non_rrna_all.fasta" > "${OUTPUT_DIR}/rfam_non_rrna_sampled.fasta" 2>/dev/null
 
 echo "Rfam non-rRNA: $(seqkit stats -T "${OUTPUT_DIR}/rfam_non_rrna_sampled.fasta" | tail -1 | cut -f4) sequences"

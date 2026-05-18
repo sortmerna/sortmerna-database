@@ -29,8 +29,8 @@ COLUMNS = [
   ("SILVA", "LSU Ref NR 99", "archaea",   "Archaea"),
   ("SILVA", "LSU Ref NR 99", "bacteria",  "Bacteria"),
   ("SILVA", "LSU Ref NR 99", "eukaryota", "Eukaryota"),
-  ("RFAM",  "5S",            "root",      "5S"),
-  ("RFAM",  "5.8S",          "eukaryota", "5.8S"),
+  ("Rfam",  "5S",            "root",      "5S"),
+  ("Rfam",  "5.8S",          "eukaryota", "5.8S"),
 ]
 
 # Labels for known clustering keys
@@ -50,8 +50,8 @@ TABLE2_COLS = [
   ("SILVA", "LSU Ref NR 99", "archaea",   "Archaea LSU"),
   ("SILVA", "LSU Ref NR 99", "bacteria",  "Bacteria LSU"),
   ("SILVA", "LSU Ref NR 99", "eukaryota", "Eukaryota LSU"),
-  ("RFAM",  "5S",            "root",      "5S"),
-  ("RFAM",  "5.8S",          "eukaryota", "5.8S"),
+  ("Rfam",  "5S",            "root",      "5S"),
+  ("Rfam",  "5.8S",          "eukaryota", "5.8S"),
 ]
 
 # Table 2: per-configuration, per-column lookup spec.
@@ -65,8 +65,8 @@ TABLE2_CONFIGS = [
     ("SILVA", "LSU Ref NR 99", "archaea",   "97%"),
     ("SILVA", "LSU Ref NR 99", "bacteria",  "97%"),
     ("SILVA", "LSU Ref NR 99", "eukaryota", "97%"),
-    ("RFAM",  "5S",            "root",      "97%"),
-    ("RFAM",  "5.8S",          "eukaryota", "97%"),
+    ("Rfam",  "5S",            "root",      "97%"),
+    ("Rfam",  "5.8S",          "eukaryota", "97%"),
   ]),
   ("SMR v4.7 default db", [
     ("SILVA", "SSU Ref NR 99", "archaea",   "95%"),
@@ -75,8 +75,8 @@ TABLE2_CONFIGS = [
     ("SILVA", "LSU Ref NR 99", "archaea",   "95%"),
     ("SILVA", "LSU Ref NR 99", "bacteria",  "95%"),
     ("SILVA", "LSU Ref NR 99", "eukaryota", "95%"),
-    ("RFAM",  "5S seed",       "root",      "100%"),
-    ("RFAM",  "5.8S seed",     "eukaryota", "100%"),
+    ("Rfam",  "5S seed",       "root",      "100%"),
+    ("Rfam",  "5.8S seed",     "eukaryota", "100%"),
   ]),
   ("SMR v4.7 fast db", [
     ("SILVA", "SSU Ref NR 99", "archaea",   "90%"),
@@ -85,8 +85,8 @@ TABLE2_CONFIGS = [
     ("SILVA", "LSU Ref NR 99", "archaea",   "90%"),
     ("SILVA", "LSU Ref NR 99", "bacteria",  "90%"),
     ("SILVA", "LSU Ref NR 99", "eukaryota", "90%"),
-    ("RFAM",  "5S seed",       "root",      "100%"),
-    ("RFAM",  "5.8S seed",     "eukaryota", "100%"),
+    ("Rfam",  "5S seed",       "root",      "100%"),
+    ("Rfam",  "5.8S seed",     "eukaryota", "100%"),
   ]),
 ]
 
@@ -108,7 +108,7 @@ def find_value(data, ref_db_prefix, db_key, kingdom, threshold):
 
 
 def get_original_count(data, ref_db_prefix, db_key, kingdom):
-  """Look up the pre-clustering baseline: 'verified' for SILVA, '100%' for RFAM."""
+  """Look up the pre-clustering baseline: 'verified' for SILVA, '100%' for Rfam."""
   threshold = "verified" if ref_db_prefix == "SILVA" else "100%"
   return find_value(data, ref_db_prefix, db_key, kingdom, threshold)
 
@@ -286,7 +286,7 @@ def main():
   parser.add_argument("--silva-version", default=None, metavar="VER",
                       help="SILVA release version (e.g. 138.2)")
   parser.add_argument("--rfam-version", default=None, metavar="VER",
-                      help="RFAM release version (e.g. 15.1)")
+                      help="Rfam release version (e.g. 15.1)")
   args = parser.parse_args()
 
   try:
@@ -302,7 +302,7 @@ def main():
   if args.silva_version:
     db_versions.append(f"SILVA release <b>{args.silva_version}</b> (SSURef NR99 and LSURef NR99)")
   if args.rfam_version:
-    db_versions.append(f"RFAM release <b>{args.rfam_version}</b> (5S / RF00001, 5.8S / RF00002)")
+    db_versions.append(f"Rfam release <b>{args.rfam_version}</b> (5S / RF00001, 5.8S / RF00002)")
   versions_html = (
     "<p><b>Source database versions:</b></p><ul>"
     + "".join(f"<li>{v}</li>" for v in db_versions)
@@ -373,7 +373,7 @@ def main():
     "      <p>Recommended clustering threshold per gene/domain for each SortMeRNA database configuration,\n"
     "      with the resulting sequence count shown below each threshold label.\n"
     "      Bacteria SSU is clustered one threshold step lower than other SILVA domains.\n"
-    "      RFAM 5S and 5.8S use seed sequences for the default and fast configurations.\n"
+    "      Rfam 5S and 5.8S use seed sequences for the default and fast configurations.\n"
     "      A dash (-) indicates the configuration does not apply to that source database.</p>\n"
     "    </div>\n"
     "    <div class=\"table-wrap\">\n"

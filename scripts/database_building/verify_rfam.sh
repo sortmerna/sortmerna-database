@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# verify_rfam.sh - Verify RFAM rRNA sequences with Infernal cmsearch
+# verify_rfam.sh - Verify Rfam rRNA sequences with Infernal cmsearch
 #
 # Verifies 5S (RF00001) and 5.8S (RF00002) sequences (full and seed sets)
 # against their corresponding Rfam covariance models using --hmmonly --cut_ga,
@@ -32,9 +32,9 @@ UTILS_DIR="${UTILS_DIR:-${SMR_DB_ROOT_DIR}/scripts/utils}"
 RFAM_VERSION="${RFAM_VERSION:?Please set RFAM_VERSION}"
 
 echo "============================================"
-echo "RFAM Verification Script"
+echo "Rfam Verification Script"
 echo "Version: ${RFAM_VERSION}"
-echo "RFAM sequences: ${RFAM_DIR}"
+echo "Rfam sequences: ${RFAM_DIR}"
 echo "CMs: ${CMS_DIR}"
 echo "Output: ${OUTPUT_DIR}"
 echo "Threads: ${THREADS}"
@@ -153,7 +153,7 @@ HTML_SUMMARY="${OUTPUT_DIR}/verification_summary.html"
 python3 "${UTILS_DIR}/generate_verification_summary.py" \
   "${STATS_TSV}" \
   --output "${HTML_SUMMARY}" \
-  --title "RFAM Verification Summary" \
+  --title "Rfam Verification Summary" \
   --version "Rfam ${RFAM_VERSION}" \
   --tool "cmsearch --cut_ga"
 

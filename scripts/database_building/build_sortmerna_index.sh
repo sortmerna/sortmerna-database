@@ -5,9 +5,9 @@
 # Concatenates per-domain clustered FASTA files into three database configurations
 # and builds a SortMeRNA index for each:
 #
-#   smr_v<SMR_VERSION>_sensitive_db - all SILVA at 97%, RFAM full at 97%
-#   smr_v<SMR_VERSION>_default_db   - SILVA at 95% (bacteria SSU at 90%), RFAM seed
-#   smr_v<SMR_VERSION>_fast_db      - SILVA at 90% (bacteria SSU at 85%), RFAM seed
+#   smr_v<SMR_VERSION>_sensitive_db - all SILVA at 97%, Rfam full at 97%
+#   smr_v<SMR_VERSION>_default_db   - SILVA at 95% (bacteria SSU at 90%), Rfam seed
+#   smr_v<SMR_VERSION>_fast_db      - SILVA at 90% (bacteria SSU at 85%), Rfam seed
 
 set -euo pipefail
 
@@ -30,7 +30,7 @@ VERIFIED_RFAM_DIR="${VERIFIED_RFAM_DIR:-${INPUT_DIR}/verified_rfam}"
 echo "============================================"
 echo "SortMeRNA Index Building Script"
 echo "Clustered dir:    ${CLUSTERED_DIR}"
-echo "Verified RFAM dir: ${VERIFIED_RFAM_DIR}"
+echo "Verified Rfam dir: ${VERIFIED_RFAM_DIR}"
 echo "Output directory: ${OUTPUT_DIR}"
 echo "Threads:          ${THREADS}"
 echo "Force rebuild:    ${FORCE}"
@@ -145,7 +145,7 @@ EOF
   echo "  Index: ${db_dir}/idx"
 }
 
-# sensitive: all SILVA at 97%, RFAM full at 97%
+# sensitive: all SILVA at 97%, Rfam full at 97%
 build_config "${SMR_PREFIX}_sensitive_db" \
   "${CLUSTERED_DIR}/silva_ssu_bacteria_97.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_archaea_97.fasta" \
@@ -156,7 +156,7 @@ build_config "${SMR_PREFIX}_sensitive_db" \
   "${CLUSTERED_DIR}/rfam_5s_97.fasta" \
   "${CLUSTERED_DIR}/rfam_5_8s_97.fasta"
 
-# default: SILVA at 95% (bacteria SSU at 90%), RFAM seed
+# default: SILVA at 95% (bacteria SSU at 90%), Rfam seed
 build_config "${SMR_PREFIX}_default_db" \
   "${CLUSTERED_DIR}/silva_ssu_bacteria_90.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_archaea_95.fasta" \
@@ -167,7 +167,7 @@ build_config "${SMR_PREFIX}_default_db" \
   "${VERIFIED_RFAM_DIR}/verified_5s_seed.fasta" \
   "${VERIFIED_RFAM_DIR}/verified_5.8s_seed.fasta"
 
-# fast: SILVA at 90% (bacteria SSU at 85%), RFAM seed
+# fast: SILVA at 90% (bacteria SSU at 85%), Rfam seed
 build_config "${SMR_PREFIX}_fast_db" \
   "${CLUSTERED_DIR}/silva_ssu_bacteria_85.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_archaea_90.fasta" \
@@ -214,8 +214,7 @@ for name in "${SMR_PREFIX}_sensitive_db" "${SMR_PREFIX}_default_db" "${SMR_PREFI
   s_cpu=$(grep  "peak_cpu_pct"    "${stats}" | awk '{print $2}')
   s_rss=$(grep  "peak_rss_mb"     "${stats}" | awk '{print $2}')
   s_date=$(grep "build_date"      "${stats}" | awk '{print $2}')
-  s_smr=$(grep  "sortmerna"       "${stats}" | awk '{print $2}')
-  rows="${rows}      <tr><td>${name}</td><td>${s_seqs}</td><td>${s_secs}</td><td>${s_size}</td><td>${s_cpu}</td><td>${s_rss}</td><td>${s_date}</td><td>${s_smr}</td></tr>\n"
+  rows="${rows}      <tr><td>${name}</td><td>${s_seqs}</td><td>${s_secs}</td><td>${s_size}</td><td>${s_cpu}</td><td>${s_rss}</td><td>${s_date}</td></tr>\n"
 done
 
 CLUSTER_HTML="${CLUSTER_HTML}" INDEX_HTML="${INDEX_HTML}" python3 - "${rows}" <<'PYEOF'
@@ -234,7 +233,7 @@ section = (
     "  <thead>\n"
     "    <tr>\n"
     "      <th>Configuration</th><th>Sequences</th><th>Build time (s)</th><th>Index size</th>\n"
-    "      <th>Peak CPU%</th><th>Peak RSS MB</th><th>Build date</th><th>SortMeRNA</th>\n"
+    "      <th>Peak CPU%</th><th>Peak RSS MB</th><th>Build date</th>\n"
     "    </tr>\n"
     "  </thead>\n"
     "  <tbody>\n"

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# download_rfam.sh - Download RFAM rRNA families
+# download_rfam.sh - Download Rfam rRNA families
 #
 # Downloads both full and seed FASTA sequences for 5S (RF00001) and 5.8S (RF00002) rRNA
 # Source: https://rfam.org/
@@ -12,14 +12,14 @@ RFAM_VERSION="${RFAM_VERSION:-15.1}"
 RFAM_FTP_URL="https://ftp.ebi.ac.uk/pub/databases/Rfam/${RFAM_VERSION}"
 OUTPUT_DIR="${1:-data/rfam}"
 
-# RFAM families to download
+# Rfam families to download
 declare -A RFAM_FAMILIES=(
   ["RF00001"]="5S_rRNA"
   ["RF00002"]="5_8S_rRNA"
 )
 
 echo "============================================"
-echo "RFAM Database Download Script"
+echo "Rfam Database Download Script"
 echo "Version: ${RFAM_VERSION}"
 echo "Output directory: ${OUTPUT_DIR}"
 echo "============================================"
@@ -64,7 +64,7 @@ for family_id in "${!RFAM_FAMILIES[@]}"; do
   full_file="${OUTPUT_DIR}/${family_id}_${family_name}_full.fa.gz"
   download_file "${full_url}" "${full_file}" "${family_name} (${family_id}) full sequences"
 
-  # Download seed sequences (curated representatives) from RFAM API
+  # Download seed sequences (curated representatives) from Rfam API
   seed_url="https://rfam.org/family/${family_id}/alignment/fastau"
   seed_file="${OUTPUT_DIR}/${family_id}_${family_name}_seed.fa"
   download_file "${seed_url}" "${seed_file}" "${family_name} (${family_id}) seed sequences"

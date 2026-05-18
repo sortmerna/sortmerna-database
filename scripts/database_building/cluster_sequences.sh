@@ -2,7 +2,7 @@
 #
 # cluster_sequences.sh - Cluster rRNA sequences using VSEARCH
 #
-# Clusters SILVA and RFAM sequences at multiple identity thresholds
+# Clusters SILVA and Rfam sequences at multiple identity thresholds
 # by kingdom, generating a summary table in markdown format.
 #
 # For each clustering threshold, outputs:
@@ -206,10 +206,10 @@ for domain in bacteria archaea eukaryota; do
   done
 done
 
-# Process RFAM 5S
+# Process Rfam 5S
 echo ""
 echo "============================================"
-echo "Processing RFAM 5S sequences"
+echo "Processing Rfam 5S sequences"
 echo "============================================"
 
 RFAM_5S_FULL="${VERIFIED_RFAM_DIR}/verified_5s_full.fasta"
@@ -220,7 +220,7 @@ if [[ -n "${RFAM_5S_SEED}" && -f "${RFAM_5S_SEED}" ]]; then
   stats=$(get_seq_stats "${RFAM_5S_SEED}")
   num_seqs=$(echo "${stats}" | cut -f1)
   total_nt=$(echo "${stats}" | cut -f2)
-  add_result "RFAM ${RFAM_VERSION}" "5S seed" "root" "100%" "${num_seqs}" "${total_nt}"
+  add_result "Rfam ${RFAM_VERSION}" "5S seed" "root" "100%" "${num_seqs}" "${total_nt}"
 fi
 
 # 5S full sequences
@@ -228,7 +228,7 @@ if [[ -n "${RFAM_5S_FULL}" && -f "${RFAM_5S_FULL}" ]]; then
   stats=$(get_seq_stats "${RFAM_5S_FULL}")
   num_seqs=$(echo "${stats}" | cut -f1)
   total_nt=$(echo "${stats}" | cut -f2)
-  add_result "RFAM ${RFAM_VERSION}" "5S" "root" "100%" "${num_seqs}" "${total_nt}"
+  add_result "Rfam ${RFAM_VERSION}" "5S" "root" "100%" "${num_seqs}" "${total_nt}"
 
   # Cluster at each threshold
   for threshold in "${THRESHOLDS[@]}"; do
@@ -237,16 +237,16 @@ if [[ -n "${RFAM_5S_FULL}" && -f "${RFAM_5S_FULL}" ]]; then
     stats=$(get_seq_stats "${output}")
     num_seqs=$(echo "${stats}" | cut -f1)
     total_nt=$(echo "${stats}" | cut -f2)
-    add_result "RFAM ${RFAM_VERSION}" "5S" "root" "${threshold}%" "${num_seqs}" "${total_nt}"
+    add_result "Rfam ${RFAM_VERSION}" "5S" "root" "${threshold}%" "${num_seqs}" "${total_nt}"
   fi
   python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
   done
 fi
 
-# Process RFAM 5.8S
+# Process Rfam 5.8S
 echo ""
 echo "============================================"
-echo "Processing RFAM 5.8S sequences"
+echo "Processing Rfam 5.8S sequences"
 echo "============================================"
 
 RFAM_5_8S_FULL="${VERIFIED_RFAM_DIR}/verified_5.8s_full.fasta"
@@ -257,7 +257,7 @@ if [[ -n "${RFAM_5_8S_SEED}" && -f "${RFAM_5_8S_SEED}" ]]; then
   stats=$(get_seq_stats "${RFAM_5_8S_SEED}")
   num_seqs=$(echo "${stats}" | cut -f1)
   total_nt=$(echo "${stats}" | cut -f2)
-  add_result "RFAM ${RFAM_VERSION}" "5.8S seed" "eukaryota" "100%" "${num_seqs}" "${total_nt}"
+  add_result "Rfam ${RFAM_VERSION}" "5.8S seed" "eukaryota" "100%" "${num_seqs}" "${total_nt}"
 fi
 
 # 5.8S full sequences
@@ -265,7 +265,7 @@ if [[ -n "${RFAM_5_8S_FULL}" && -f "${RFAM_5_8S_FULL}" ]]; then
   stats=$(get_seq_stats "${RFAM_5_8S_FULL}")
   num_seqs=$(echo "${stats}" | cut -f1)
   total_nt=$(echo "${stats}" | cut -f2)
-  add_result "RFAM ${RFAM_VERSION}" "5.8S" "eukaryota" "100%" "${num_seqs}" "${total_nt}"
+  add_result "Rfam ${RFAM_VERSION}" "5.8S" "eukaryota" "100%" "${num_seqs}" "${total_nt}"
 
   # Cluster at each threshold
   for threshold in "${THRESHOLDS[@]}"; do
@@ -274,7 +274,7 @@ if [[ -n "${RFAM_5_8S_FULL}" && -f "${RFAM_5_8S_FULL}" ]]; then
     stats=$(get_seq_stats "${output}")
     num_seqs=$(echo "${stats}" | cut -f1)
     total_nt=$(echo "${stats}" | cut -f2)
-    add_result "RFAM ${RFAM_VERSION}" "5.8S" "eukaryota" "${threshold}%" "${num_seqs}" "${total_nt}"
+    add_result "Rfam ${RFAM_VERSION}" "5.8S" "eukaryota" "${threshold}%" "${num_seqs}" "${total_nt}"
   fi
   python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
   done

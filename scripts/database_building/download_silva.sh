@@ -106,4 +106,4 @@ for fasta in "${OUTPUT_DIR}"/*.fasta; do
 done
 
 echo ""
-echo "Next step: Run download_rfam.sh to download RFAM sequences"
+echo "Next step: Run download_rfam.sh to download Rfam sequences"
