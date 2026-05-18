@@ -36,8 +36,10 @@ echo "Threads:          ${THREADS}"
 echo "Force rebuild:    ${FORCE}"
 echo "============================================"
 
-if ! command -v sortmerna &>/dev/null; then
-  echo "Error: SortMeRNA not found. Please install SortMeRNA first."
+SMR_BIN="${SMR_BIN:?Please set SMR_BIN in your environment (see README Set paths section)}"
+
+if [[ ! -x "${SMR_BIN}" ]]; then
+  echo "Error: SortMeRNA not found or not executable: ${SMR_BIN}"
   exit 1
 fi
 
@@ -47,9 +49,9 @@ if ! command -v seqkit &>/dev/null; then
 fi
 
 SMR_VERSION="${SMR_VERSION:?Please set SMR_VERSION in your environment (see README Set paths section)}"
-ACTUAL_VERSION=$(sortmerna --version 2>&1 | grep "^SortMeRNA version" | awk '{print $3}')
+ACTUAL_VERSION=$("${SMR_BIN}" --version 2>&1 | grep "^SortMeRNA version" | awk '{print $3}')
 if [[ "${SMR_VERSION}" != "${ACTUAL_VERSION}" ]]; then
-  echo "Error: SMR_VERSION=${SMR_VERSION} does not match installed sortmerna ${ACTUAL_VERSION}"
+  echo "Error: SMR_VERSION=${SMR_VERSION} does not match ${SMR_BIN} version ${ACTUAL_VERSION}"
   exit 1
 fi
 echo "Using SortMeRNA version: ${SMR_VERSION}"
@@ -101,7 +103,7 @@ build_config() {
   local start
   start=$(date +%s)
 
-  sortmerna \
+  "${SMR_BIN}" \
     --ref "${combined}" \
     --workdir "${db_dir}" \
     --idx-dir "${db_dir}/idx" \
