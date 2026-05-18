@@ -292,7 +292,7 @@ and challenging specificity cases:
 | Source | Description | Count |
 |--------|-------------|-------|
 | **Human T2T genome (CHM13v2.0)** | Simulated 150bp PE reads, rRNA loci masked prior to simulation | 850,000 |
-| **Rfam non-rRNA families** | tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs - chosen because they share structural features with rRNA and are the most likely source of false positives | 150,000 |
+| **Rfam non-rRNA families** | 10 families chosen because they share structural features with rRNA and are the most likely source of false positives (see table below) | 150,000 |
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR 4
@@ -303,6 +303,21 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 2. Simulate 850,000 150bp PE reads with ART
 3. Sample 150,000 Rfam non-rRNA sequences
 4. Apply header keyword filter to remove any rRNA-related sequences
+
+**Rfam non-rRNA families:**
+
+| Family | Rfam ID |
+|--------|---------|
+| tRNA | RF00005 |
+| SRP RNA | RF00017 |
+| tmRNA | RF00023 |
+| RNase P (bacterial) | RF00010 |
+| RNase P (eukaryotic) | RF00009 |
+| U1 spliceosomal | RF00003 |
+| U2 spliceosomal | RF00004 |
+| U4 spliceosomal | RF00015 |
+| U5 spliceosomal | RF00020 |
+| U6 spliceosomal | RF00026 |
 
 All sampling uses a fixed random seed (`--seed 42`) for reproducibility.
 
@@ -324,7 +339,7 @@ Evaluate the databases built in Phase 1 for sensitivity (rRNA detection) and spe
 Generate synthetic Illumina reads with known rRNA/non-rRNA composition:
 - **Tool**: ART (150bp paired-end, Illumina-specific error profiles)
 - **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database
-- **Non-rRNA source**: `non_rRNA_test_1M.fasta` - bacterial mRNA, eukaryotic cDNA, Rfam ncRNA, and genomic fragments
+- **Non-rRNA source**: `non_rRNA_test_1M.fasta` - simulated T2T genome reads (rRNA loci masked) and Rfam non-rRNA families (tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs)
 
 **Important note on SortMeRNA as a filter, not a classifier**
 
@@ -362,8 +377,7 @@ Sensitivity test using real PacBio long-read amplicon data:
   sequencing
 - **Rationale**: Every read is a guaranteed true positive by virtue of PCR 
   amplification with 27F/2490R primers. Tests SortMeRNA's ability to handle ~4,500 bp long reads.
-- **Non-rRNA source**: PBSIM3 simulated reads from `non_rRNA_test_1M.fasta` 
-  (bacterial mRNA, eukaryotic cDNA, Rfam ncRNA, genomic fragments)
+- **Non-rRNA source**: PBSIM3 simulated reads from `non_rRNA_test_1M.fasta` (simulated T2T genome reads and Rfam non-rRNA families)
 - **Experiments**:
   - **Sensitivity**: Run all 253,089 operon sequences through SortMeRNA; 
     expected classification rate = 100% per database configuration
