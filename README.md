@@ -295,7 +295,7 @@ Two separate test sets from different sources, used independently to measure spe
 | File | Source | Description |
 |------|--------|-------------|
 | `non_rRNA_test_1M_T2T.fasta` | Human T2T genome (CHM13v2.0) | 1M simulated 150bp PE reads, rRNA loci masked prior to simulation |
-| `non_rRNA_test_Rfam.fasta` | Rfam non-rRNA families | 1M sequences sampled evenly across 10 families that share structural features with rRNA (the most challenging specificity test) |
+| `non_rRNA_test_Rfam.fasta` | Rfam non-rRNA families | 500K sequences sampled evenly across 10 families that share structural features with rRNA (the most challenging specificity test) |
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR 4
@@ -324,10 +324,10 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 | U5 spliceosomal | RF00020 |
 | U6 spliceosomal | RF00026 |
 
-Sampling evenly across families (100K per family at the 1M default) ensures all families are equally represented regardless of family size. A fixed random seed (`--seed 42`) makes the output reproducible.
+Sampling evenly across families (fair-share allocation, ~102K per large family at the 500K default) ensures all families are equally represented regardless of family size. A fixed random seed (`--seed 42`) makes the output reproducible.
 
 ```bash
-bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh $NON_RRNA_DIR 4 --t2t-reads 1000000 --rfam-reads 1000000
+bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh $NON_RRNA_DIR 4 --t2t-reads 1000000 --rfam-reads 500000
 ```
 
 ## Phase 2: Validation and Benchmarking
