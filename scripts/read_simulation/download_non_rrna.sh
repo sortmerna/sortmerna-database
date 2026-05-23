@@ -204,7 +204,7 @@ fi
 echo ""
 echo "Sampling Rfam non-rRNA sequences..."
 
-cat "${RFAM_DIR}"/*.fa > "${OUTPUT_DIR}/rfam_non_rrna_all.fasta" 2>/dev/null || true
+find "${RFAM_DIR}" -name "*.fa" | sort | xargs cat > "${OUTPUT_DIR}/rfam_non_rrna_all.fasta"
 
 seqkit sample --rand-seed "${RAND_SEED}" -n "${N_Rfam}" \
     "${OUTPUT_DIR}/rfam_non_rrna_all.fasta" > "${OUTPUT_DIR}/rfam_non_rrna_sampled.fasta" 2>/dev/null
