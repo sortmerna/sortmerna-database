@@ -24,8 +24,6 @@
 #   threads             Number of threads (default: 4)
 #
 # Options:
-#   --rfam INT          Number of Rfam non-rRNA sequences to sample (default: 150000)
-#   --seed INT          Random seed for reproducibility (default: 42)
 #   --margin INT        Bp to extend each rRNA locus on each side (default: 100)
 #   --skip-download     Skip download, use existing files
 #   -h, --help          Show help
@@ -48,18 +46,16 @@
 #   t2t/${T2T_VERSION}_assembly_report.txt   - Chromosome name mapping (NC_ -> chr)
 #   t2t/${T2T_VERSION}_rrna_loci.bed         - rRNA loci in BED format (for bedtools maskfasta)
 #   rfam/RF*.fa.gz                          - Rfam non-rRNA family FASTA files
-#   rfam_non_rrna_sampled.fasta              - Sampled Rfam sequences ready for use
+#   rfam_non_rrna_all.fasta                 - All Rfam non-rRNA sequences combined
 #
 # Next step: Run simulate_non_rrna.sh to mask rRNA loci, simulate T2T reads
-#            with ART, and combine with Rfam sequences into non_rRNA_test_1M.fasta
+#            with InSilicoSeq, and filter Rfam sequences by length
 #
 ################################################################################
 
 set -euo pipefail
 
 POSITIONAL=()
-N_Rfam=150000
-RAND_SEED=42
 SKIP_DOWNLOAD=false
 RNA_LOCI_MARGIN=100
 
@@ -79,8 +75,6 @@ show_help() {
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --rfam) N_Rfam="$2"; shift 2 ;;
-        --seed) RAND_SEED="$2"; shift 2 ;;
         --margin) RNA_LOCI_MARGIN="$2"; shift 2 ;;
         --skip-download) SKIP_DOWNLOAD=true; shift ;;
         -h|--help) show_help ;;
@@ -102,8 +96,6 @@ echo "T2T GCF accession: ${T2T_GCF_ACCESSION}"
 echo "T2T name:          ${T2T_NAME}"
 echo "T2T version:       ${T2T_VERSION}"
 echo "Rfam FTP:          ${RFAM_NON_RRNA_FTP}"
-echo "Rfam sample size:  ${N_Rfam}"
-echo "Random seed:       ${RAND_SEED}"
 echo "rRNA loci margin:  ${RNA_LOCI_MARGIN} bp"
 echo "============================================"
 echo ""
@@ -221,14 +213,11 @@ if [[ "${SKIP_DOWNLOAD}" == false ]]; then
 fi
 
 echo ""
-echo "Sampling Rfam non-rRNA sequences..."
+echo "Combining Rfam non-rRNA sequences..."
 
 find "${RFAM_DIR}" -name "*.fa" | sort | xargs cat > "${OUTPUT_DIR}/rfam_non_rrna_all.fasta"
 
-seqkit sample --rand-seed "${RAND_SEED}" -n "${N_Rfam}" \
-    "${OUTPUT_DIR}/rfam_non_rrna_all.fasta" > "${OUTPUT_DIR}/rfam_non_rrna_sampled.fasta" 2>/dev/null
-
-echo "Rfam non-rRNA: $(seqkit stats -T "${OUTPUT_DIR}/rfam_non_rrna_sampled.fasta" | tail -1 | cut -f4) sequences"
+echo "Rfam non-rRNA: $(seqkit stats -T "${OUTPUT_DIR}/rfam_non_rrna_all.fasta" | tail -1 | cut -f4) sequences total"
 
 echo ""
 echo "============================================"
@@ -240,7 +229,7 @@ echo "  T2T genome:        ${T2T_DIR}/${T2T_VERSION}.fa.gz"
 echo "  T2T annotation:    ${T2T_DIR}/${T2T_VERSION}_annotation.gff.gz"
 echo "  Assembly report:   ${T2T_DIR}/${T2T_VERSION}_assembly_report.txt"
 echo "  rRNA BED:          ${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
-echo "  Rfam sampled:      ${OUTPUT_DIR}/rfam_non_rrna_sampled.fasta"
+echo "  Rfam all:          ${OUTPUT_DIR}/rfam_non_rrna_all.fasta"
 echo ""
 echo "Next step: Run simulate_non_rrna.sh to mask rRNA loci, simulate T2T reads"
-echo "           with ART, and combine with Rfam sequences into non_rRNA_test_1M.fasta"
+echo "           with InSilicoSeq, and filter Rfam sequences by length"

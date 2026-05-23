@@ -26,7 +26,7 @@ dependencies:
   - r-tidyverse
 
   # Simulation tools (for benchmarking phase)
-  - art>=2016.06.05
+  - insilicoseq>=2.0
   - pbsim3>=3.0.0
 
   # Utilities
