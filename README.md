@@ -321,6 +321,12 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 
 All sampling uses a fixed random seed (`--seed 42`) for reproducibility.
 
+Run read simulation:
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh $NON_RRNA_DIR 4
+```
+
 **Output files:**
 
 | File | Description |
