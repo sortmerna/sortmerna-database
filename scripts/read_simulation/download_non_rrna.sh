@@ -33,6 +33,7 @@
 # Options:
 #   --rfam INT          Number of Rfam non-rRNA sequences to sample (default: 150000)
 #   --seed INT          Random seed for reproducibility (default: 42)
+#   --margin INT        Bp to extend each rRNA locus on each side (default: 100)
 #   --skip-download     Skip download, use existing files
 #   -h, --help          Show help
 #
@@ -54,6 +55,7 @@ POSITIONAL=()
 N_Rfam=150000
 RAND_SEED=42
 SKIP_DOWNLOAD=false
+RNA_LOCI_MARGIN=100
 
 T2T_ACCESSION="${T2T_ACCESSION:-GCA_009914755.4}"
 T2T_NAME="${T2T_NAME:-T2T-CHM13v2.0}"
@@ -71,6 +73,7 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --rfam) N_Rfam="$2"; shift 2 ;;
         --seed) RAND_SEED="$2"; shift 2 ;;
+        --margin) RNA_LOCI_MARGIN="$2"; shift 2 ;;
         --skip-download) SKIP_DOWNLOAD=true; shift ;;
         -h|--help) show_help ;;
         *) POSITIONAL+=("$1"); shift ;;
@@ -93,6 +96,7 @@ echo "T2T base URL:     ${T2T_BASE}"
 echo "Rfam FTP:         ${RFAM_NON_RRNA_FTP}"
 echo "Rfam sample size: ${N_Rfam}"
 echo "Random seed:      ${RAND_SEED}"
+echo "rRNA loci margin: ${RNA_LOCI_MARGIN} bp"
 echo "============================================"
 echo ""
 
@@ -142,7 +146,7 @@ fi
 echo "Extracting rRNA loci from GBFF to BED (for masking in simulation step)..."
 T2T_RRNA_BED="${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
 if [[ ! -f "${T2T_RRNA_BED}" ]]; then
-    python3 "${UTILS_DIR}/extract_rrna_loci.py" "${T2T_GBFF_GZ}" "${T2T_RRNA_BED}" --margin 100
+    python3 "${UTILS_DIR}/extract_rrna_loci.py" "${T2T_GBFF_GZ}" "${T2T_RRNA_BED}" --margin "${RNA_LOCI_MARGIN}"
     sort -k1,1 -k2,2n "${T2T_RRNA_BED}" -o "${T2T_RRNA_BED}"
     echo "  rRNA loci: $(wc -l < "${T2T_RRNA_BED}") regions -> ${T2T_RRNA_BED}"
 else
