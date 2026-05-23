@@ -121,8 +121,8 @@ T2T_GFF_GZ="${T2T_DIR}/${T2T_VERSION}.gff.gz"
 
 if [[ "${SKIP_DOWNLOAD}" == false ]]; then
     if [[ ! -f "${T2T_GENOME_GZ}" ]]; then
-        echo "Downloading ${T2T_VERSION} genome (~3.1 GB)..."
-        wget -q -c "${T2T_BASE}/${T2T_ACCESSION}_${T2T_NAME}_genomic.fna.gz" \
+        echo "Downloading ${T2T_VERSION} genome (~889 MB compressed)..."
+        wget -c --progress=bar "${T2T_BASE}/${T2T_ACCESSION}_${T2T_NAME}_genomic.fna.gz" \
             -O "${T2T_GENOME_GZ}"
         echo "  Saved: ${T2T_VERSION}.fa.gz"
     else
@@ -131,7 +131,7 @@ if [[ "${SKIP_DOWNLOAD}" == false ]]; then
 
     if [[ ! -f "${T2T_GFF_GZ}" ]]; then
         echo "Downloading ${T2T_VERSION} GFF annotations (for rRNA locus masking)..."
-        wget -q -c "${T2T_BASE}/${T2T_ACCESSION}_${T2T_NAME}_genomic.gff.gz" \
+        wget -c "${T2T_BASE}/${T2T_ACCESSION}_${T2T_NAME}_genomic.gff.gz" \
             -O "${T2T_GFF_GZ}"
         echo "  Saved: ${T2T_VERSION}.gff.gz"
     else
@@ -187,7 +187,7 @@ if [[ "${SKIP_DOWNLOAD}" == false ]]; then
             continue
         fi
         echo "Downloading ${family_id} (${family_name})..."
-        wget -q -c "${RFAM_NON_RRNA_FTP}/${family_id}.fa.gz" -O "${outfile}" || {
+        wget -c "${RFAM_NON_RRNA_FTP}/${family_id}.fa.gz" -O "${outfile}" || {
             echo "Warning: ${family_id} download failed, continuing..."
             rm -f "${outfile}"
         }

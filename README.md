@@ -130,7 +130,7 @@ export RFAM_VERSION=15.1
 # Human T2T genome - used as non-rRNA specificity test source
 export T2T_ACCESSION=GCA_009914755.4
 # NCBI assembly name used in FTP filenames (${T2T_ACCESSION}_${T2T_NAME}_genomic.fna.gz)
-export T2T_NAME=CHM13_T2T_v2.0
+export T2T_NAME=T2T-CHM13v2.0
 # human-readable version used for output filenames
 export T2T_VERSION=chm13v2.0
 # full FTP directory URL (derived from accession + name)
