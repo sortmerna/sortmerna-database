@@ -129,12 +129,16 @@ export RFAM_VERSION=15.1
 
 # Human T2T genome - used as non-rRNA specificity test source
 export T2T_ACCESSION=GCA_009914755.4
+# RefSeq (GCF) accession - used to download rRNA annotation GFF3
+export T2T_GCF_ACCESSION=GCF_009914755.1
 # NCBI assembly name used in FTP filenames (${T2T_ACCESSION}_${T2T_NAME}_genomic.fna.gz)
 export T2T_NAME=T2T-CHM13v2.0
 # human-readable version used for output filenames
 export T2T_VERSION=chm13v2.0
-# full FTP directory URL (derived from accession + name)
+# full FTP directory URL for GCA assembly (genome FASTA)
 export T2T_BASE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/009/914/755/${T2T_ACCESSION}_${T2T_NAME}
+# full FTP directory URL for GCF assembly (rRNA annotation GFF3)
+export T2T_GCF_BASE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/${T2T_GCF_ACCESSION}_${T2T_NAME}
 
 # Rfam non-rRNA families FTP (tied to RFAM_VERSION; change to CURRENT to always pull the latest)
 export RFAM_NON_RRNA_FTP=https://ftp.ebi.ac.uk/pub/databases/Rfam/$RFAM_VERSION/fasta_files
@@ -291,7 +295,7 @@ Two separate test sets from different sources, used independently to measure spe
 | File | Source | Description |
 |------|--------|-------------|
 | `non_rRNA_test_1M_T2T.fasta` | Human T2T genome (CHM13v2.0) | 1M simulated 150bp PE reads, rRNA loci masked prior to simulation |
-| `non_rRNA_test_Rfam.fasta` | Rfam non-rRNA families | Sequences 100-200 bp from 10 families that share structural features with rRNA (the most challenging specificity test) |
+| `non_rRNA_test_Rfam.fasta` | Rfam non-rRNA families | 10% sample from each of 10 families that share structural features with rRNA (the most challenging specificity test) |
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR 4
@@ -303,27 +307,27 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 
 **Preparation (Rfam):**
 1. Download 10 non-rRNA families (tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs)
-2. Filter sequences to 100-200 bp (comparable to read length; excludes tRNA at ~73 bp and long families like tmRNA/SRP)
+2. Sample 10% from each family independently (fixed seed for reproducibility)
 
 **Rfam non-rRNA families:**
 
-| Family | Rfam ID | Length |
-|--------|---------|--------|
-| tRNA | RF00005 | ~73 bp |
-| SRP RNA | RF00017 | ~300 bp |
-| tmRNA | RF00023 | ~360 bp |
-| RNase P (bacterial) | RF00010 | ~400 bp |
-| RNase P (eukaryotic) | RF00009 | variable |
-| U1 spliceosomal | RF00003 | ~164 bp |
-| U2 spliceosomal | RF00004 | ~187 bp |
-| U4 spliceosomal | RF00015 | ~141 bp |
-| U5 spliceosomal | RF00020 | ~116 bp |
-| U6 spliceosomal | RF00026 | ~107 bp |
+| Family | Rfam ID |
+|--------|---------|
+| tRNA | RF00005 |
+| SRP RNA | RF00017 |
+| tmRNA | RF00023 |
+| RNase P (bacterial) | RF00010 |
+| RNase P (eukaryotic) | RF00009 |
+| U1 spliceosomal | RF00003 |
+| U2 spliceosomal | RF00004 |
+| U4 spliceosomal | RF00015 |
+| U5 spliceosomal | RF00020 |
+| U6 spliceosomal | RF00026 |
 
-The 100-200 bp filter retains mainly the spliceosomal RNAs (U1-U6), which fall within the read length range and provide the hardest specificity test. Simulation uses a fixed random seed (`--seed 42`) for reproducibility.
+Sampling 10% from each family independently ensures all families are equally represented regardless of family size. Simulation uses a fixed random seed (`--seed 42`) for reproducibility.
 
 ```bash
-bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh $NON_RRNA_DIR 4
+bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh $NON_RRNA_DIR 4 --t2t-reads 1000000
 ```
 
 ## Phase 2: Validation and Benchmarking
