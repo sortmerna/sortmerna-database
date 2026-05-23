@@ -29,7 +29,7 @@ This repository contains code and workflows to:
 - [x] Generate database statistics and metadata
 
 ### Phase 2: Validation and Benchmarking
-- [ ] Simulate Illumina 150bp rRNA and non-rRNA reads using non-seed cluster members and non-rRNA sequences (ART)
+- [x] Simulate Illumina 150bp rRNA using non-seed cluster members and non-rRNA reads  using T2T genome + Rfam non-rRNA families (ART)
 - [ ] Download real Illumina metatranscriptomics data
 - [ ] Download real PacBio amplicon data (Karst et al. 2021)
 - [ ] Download real PacBio metagenomics data

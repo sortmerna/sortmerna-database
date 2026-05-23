@@ -7,7 +7,7 @@
 # Provides ~1M non-rRNA sequences from two sources:
 #
 #   1. Human T2T genome (version set via T2T_VERSION / T2T_ACCESSION / T2T_NAME env vars)
-#      rRNA loci are masked using the T2T GFF annotations before read simulation.
+#      rRNA loci are masked using the RefSeq GFF3 annotation before read simulation.
 #      850,000 150bp PE reads are simulated with ART (see simulate_non_rrna.sh).
 #
 #   2. Rfam non-rRNA families (150,000 sequences)
@@ -16,13 +16,6 @@
 #
 # Rfam sequences share structural features with rRNA and are the most likely
 # source of false positives - making them the most challenging specificity test.
-#
-# Usage: bash download_non_rrna.sh [OPTIONS]
-#
-# Environment variables (set in README "Set paths" section):
-#   T2T_ACCESSION       NCBI accession for CHM13v2.0 (default: GCA_009914755.4)
-#   T2T_BASE            NCBI FTP base URL for the T2T assembly
-#   RFAM_NON_RRNA_FTP   Rfam FASTA FTP base URL (default: CURRENT release)
 #
 # Usage: bash download_non_rrna.sh [output_dir [threads]] [OPTIONS]
 #
@@ -37,12 +30,25 @@
 #   --skip-download     Skip download, use existing files
 #   -h, --help          Show help
 #
+# Environment variables (set in README "Set paths" section):
+#   T2T_ACCESSION       GCA accession for CHM13v2.0 genome FASTA (default: GCA_009914755.4)
+#   T2T_GCF_ACCESSION   GCF accession for RefSeq rRNA annotation (default: GCF_009914755.1)
+#   T2T_NAME            Assembly name (default: T2T-CHM13v2.0)
+#   T2T_BASE            NCBI FTP base URL for the GCA assembly (genome FASTA)
+#   T2T_GCF_BASE        NCBI FTP base URL for the GCF assembly (rRNA annotation)
+#   RFAM_NON_RRNA_FTP   Rfam FASTA FTP base URL (default: CURRENT release)
+#
+# Note: genome FASTA is from GCA (original submission, chr1/chr2 names);
+#       rRNA annotation GFF3 is from GCF (RefSeq, NC_ accession names).
+#       The assembly report is downloaded to map NC_ names back to chr names.
+#
 # Outputs:
-#   t2t/${T2T_VERSION}.fa.gz           - T2T genome (input for ART simulation)
-#   t2t/${T2T_VERSION}.gbff.gz         - T2T GBFF annotations (rRNA loci parsed for masking)
-#   t2t/${T2T_VERSION}_rrna_loci.bed   - rRNA loci in BED format (for bedtools maskfasta)
-#   rfam/RF*.fa.gz                     - Rfam non-rRNA family FASTA files
-#   rfam_non_rrna_sampled.fasta        - Sampled Rfam sequences ready for use
+#   t2t/${T2T_VERSION}.fa.gz                 - T2T genome (input for ART simulation)
+#   t2t/${T2T_VERSION}_annotation.gff.gz     - RefSeq GFF3 annotation (~76 MB)
+#   t2t/${T2T_VERSION}_assembly_report.txt   - Chromosome name mapping (NC_ -> chr)
+#   t2t/${T2T_VERSION}_rrna_loci.bed         - rRNA loci in BED format (for bedtools maskfasta)
+#   rfam/RF*.fa.gz                          - Rfam non-rRNA family FASTA files
+#   rfam_non_rrna_sampled.fasta              - Sampled Rfam sequences ready for use
 #
 # Next step: Run simulate_non_rrna.sh to mask rRNA loci, simulate T2T reads
 #            with ART, and combine with Rfam sequences into non_rRNA_test_1M.fasta
@@ -58,9 +64,11 @@ SKIP_DOWNLOAD=false
 RNA_LOCI_MARGIN=100
 
 T2T_ACCESSION="${T2T_ACCESSION:-GCA_009914755.4}"
+T2T_GCF_ACCESSION="${T2T_GCF_ACCESSION:-GCF_009914755.1}"
 T2T_NAME="${T2T_NAME:-T2T-CHM13v2.0}"
 T2T_VERSION="${T2T_VERSION:-chm13v2.0}"
 T2T_BASE="${T2T_BASE:-https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/009/914/755/${T2T_ACCESSION}_${T2T_NAME}}"
+T2T_GCF_BASE="${T2T_GCF_BASE:-https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/${T2T_GCF_ACCESSION}_${T2T_NAME}}"
 RFAM_NON_RRNA_FTP="${RFAM_NON_RRNA_FTP:-https://ftp.ebi.ac.uk/pub/databases/Rfam/CURRENT/fasta_files}"
 
 show_help() {
@@ -89,14 +97,14 @@ OUTPUT_DIR="$(mkdir -p "${OUTPUT_DIR}" && cd "${OUTPUT_DIR}" && pwd)"
 echo "============================================"
 echo "Non-rRNA Source Download Script"
 echo "Output directory: ${OUTPUT_DIR}"
-echo "T2T accession:    ${T2T_ACCESSION}"
-echo "T2T name:         ${T2T_NAME}"
-echo "T2T version:      ${T2T_VERSION}"
-echo "T2T base URL:     ${T2T_BASE}"
-echo "Rfam FTP:         ${RFAM_NON_RRNA_FTP}"
-echo "Rfam sample size: ${N_Rfam}"
-echo "Random seed:      ${RAND_SEED}"
-echo "rRNA loci margin: ${RNA_LOCI_MARGIN} bp"
+echo "T2T GCA accession: ${T2T_ACCESSION}"
+echo "T2T GCF accession: ${T2T_GCF_ACCESSION}"
+echo "T2T name:          ${T2T_NAME}"
+echo "T2T version:       ${T2T_VERSION}"
+echo "Rfam FTP:          ${RFAM_NON_RRNA_FTP}"
+echo "Rfam sample size:  ${N_Rfam}"
+echo "Random seed:       ${RAND_SEED}"
+echo "rRNA loci margin:  ${RNA_LOCI_MARGIN} bp"
 echo "============================================"
 echo ""
 
@@ -109,19 +117,20 @@ for tool in wget seqkit; do
 done
 
 ################################################################################
-# 1. HUMAN T2T GENOME
+# 1. HUMAN T2T GENOME + ANNOTATION
 ################################################################################
 
 T2T_DIR="${OUTPUT_DIR}/t2t"
 
 echo "============================================"
-echo "Downloading T2T genome (${T2T_VERSION})"
+echo "Downloading T2T genome and annotation (${T2T_VERSION})"
 echo "============================================"
 
 mkdir -p "${T2T_DIR}"
 
 T2T_GENOME_GZ="${T2T_DIR}/${T2T_VERSION}.fa.gz"
-T2T_GBFF_GZ="${T2T_DIR}/${T2T_VERSION}.gbff.gz"
+T2T_GFF_GZ="${T2T_DIR}/${T2T_VERSION}_annotation.gff.gz"
+T2T_ASSEMBLY_REPORT="${T2T_DIR}/${T2T_VERSION}_assembly_report.txt"
 
 if [[ "${SKIP_DOWNLOAD}" == false ]]; then
     if [[ ! -f "${T2T_GENOME_GZ}" ]]; then
@@ -133,20 +142,30 @@ if [[ "${SKIP_DOWNLOAD}" == false ]]; then
         echo "Already exists: ${T2T_VERSION}.fa.gz"
     fi
 
-    if [[ ! -f "${T2T_GBFF_GZ}" ]]; then
-        echo "Downloading ${T2T_VERSION} GBFF annotations (~900 MB, for rRNA locus masking)..."
-        wget -c --progress=bar "${T2T_BASE}/${T2T_ACCESSION}_${T2T_NAME}_genomic.gbff.gz" \
-            -O "${T2T_GBFF_GZ}"
-        echo "  Saved: ${T2T_VERSION}.gbff.gz"
+    if [[ ! -f "${T2T_GFF_GZ}" ]]; then
+        echo "Downloading ${T2T_VERSION} RefSeq GFF3 annotation (~76 MB, for rRNA locus masking)..."
+        wget -c --progress=bar "${T2T_GCF_BASE}/${T2T_GCF_ACCESSION}_${T2T_NAME}_genomic.gff.gz" \
+            -O "${T2T_GFF_GZ}"
+        echo "  Saved: ${T2T_VERSION}_annotation.gff.gz"
     else
-        echo "Already exists: ${T2T_VERSION}.gbff.gz"
+        echo "Already exists: ${T2T_VERSION}_annotation.gff.gz"
+    fi
+
+    if [[ ! -f "${T2T_ASSEMBLY_REPORT}" ]]; then
+        echo "Downloading assembly report (chromosome name mapping)..."
+        wget -c "${T2T_GCF_BASE}/${T2T_GCF_ACCESSION}_${T2T_NAME}_assembly_report.txt" \
+            -O "${T2T_ASSEMBLY_REPORT}"
+        echo "  Saved: ${T2T_VERSION}_assembly_report.txt"
+    else
+        echo "Already exists: ${T2T_VERSION}_assembly_report.txt"
     fi
 fi
 
-echo "Extracting rRNA loci from GBFF to BED (for masking in simulation step)..."
+echo "Extracting rRNA loci from GFF3 to BED (for masking in simulation step)..."
 T2T_RRNA_BED="${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
-if [[ ! -f "${T2T_RRNA_BED}" ]]; then
-    python3 "${UTILS_DIR}/extract_rrna_loci.py" "${T2T_GBFF_GZ}" "${T2T_RRNA_BED}" --margin "${RNA_LOCI_MARGIN}"
+if [[ ! -f "${T2T_RRNA_BED}" ]] || [[ ! -s "${T2T_RRNA_BED}" ]]; then
+    python3 "${UTILS_DIR}/extract_rrna_loci.py" "${T2T_GFF_GZ}" "${T2T_RRNA_BED}" \
+        --margin "${RNA_LOCI_MARGIN}" --name-map "${T2T_ASSEMBLY_REPORT}"
     sort -k1,1 -k2,2n "${T2T_RRNA_BED}" -o "${T2T_RRNA_BED}"
     echo "  rRNA loci: $(wc -l < "${T2T_RRNA_BED}") regions -> ${T2T_RRNA_BED}"
 else
@@ -217,11 +236,11 @@ echo "Download complete"
 echo "============================================"
 echo ""
 echo "Outputs:"
-echo "  T2T genome:   ${T2T_DIR}/${T2T_VERSION}.fa.gz"
-echo "  T2T GBFF:     ${T2T_DIR}/${T2T_VERSION}.gbff.gz"
-echo "  rRNA BED:     ${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
-echo "  Rfam sampled: ${OUTPUT_DIR}/rfam_non_rrna_sampled.fasta"
+echo "  T2T genome:        ${T2T_DIR}/${T2T_VERSION}.fa.gz"
+echo "  T2T annotation:    ${T2T_DIR}/${T2T_VERSION}_annotation.gff.gz"
+echo "  Assembly report:   ${T2T_DIR}/${T2T_VERSION}_assembly_report.txt"
+echo "  rRNA BED:          ${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
+echo "  Rfam sampled:      ${OUTPUT_DIR}/rfam_non_rrna_sampled.fasta"
 echo ""
 echo "Next step: Run simulate_non_rrna.sh to mask rRNA loci, simulate T2T reads"
 echo "           with ART, and combine with Rfam sequences into non_rRNA_test_1M.fasta"
-echo "  3. Target: <0.1% false positive rate"

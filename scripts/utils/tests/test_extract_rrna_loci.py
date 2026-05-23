@@ -5,15 +5,26 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from extract_rrna_loci import extract_rrna_loci
-
-SCRIPT = Path(__file__).parent.parent / "extract_rrna_loci.py"
+from extract_rrna_loci import extract_rrna_loci, load_name_map
 
 
-def write_gbff(path, content):
+def write_gff(path, content):
     opener = gzip.open if str(path).endswith(".gz") else open
     with opener(path, "wt") as f:
         f.write(content)
+
+
+def write_report(path, rows):
+    """Write a minimal NCBI assembly report with given (refseq, ucsc) pairs."""
+    header = (
+        "# Assembly name: test\n"
+        "# comment\n"
+        "# seq-name\trole\tmol\ttype\tgenbank\trel\trefseq\tunit\tlen\tucsc\n"
+    )
+    with open(path, "w") as f:
+        f.write(header)
+        for refseq, ucsc in rows:
+            f.write(f"x\tx\tx\tx\tx\tx\t{refseq}\tx\t0\t{ucsc}\n")
 
 
 def read_bed(path):
@@ -21,196 +32,146 @@ def read_bed(path):
     return [tuple(l.split("\t")) for l in lines if l]
 
 
-# ── extract_rrna_loci ─────────────────────────────────────────────────────────
+def gff_row(seqname, start, end, feature="rRNA"):
+    return f"{seqname}\tRefSeq\t{feature}\t{start}\t{end}\t.\t+\t.\tID=test\n"
+
+
+# -- extract_rrna_loci --------------------------------------------------------
 
 class TestExtractRrnaLoci:
-    def test_simple_forward(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000001\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            100..500\n"
-            "                     /product=\"18S ribosomal RNA\"\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed)
+    def test_simple(self, tmp_path):
+        gff = tmp_path / "test.gff"
+        bed = tmp_path / "out.bed"
+        write_gff(gff, gff_row("chr1", 100, 500))
+        count = extract_rrna_loci(gff, bed)
         assert count == 1
-        assert read_bed(bed) == [("NC_000001", "99", "500")]
-
-    def test_complement_location(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000002\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            complement(200..800)\n"
-            "                     /product=\"23S ribosomal RNA\"\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed)
-        assert count == 1
-        assert read_bed(bed) == [("NC_000002", "199", "800")]
-
-    def test_multiline_join(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000003\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            join(100..300,\n"
-            "                     400..600)\n"
-            "                     /product=\"rRNA\"\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed)
-        assert count == 2
-        assert read_bed(bed) == [("NC_000003", "99", "300"), ("NC_000003", "399", "600")]
+        assert read_bed(bed) == [("chr1", "99", "500")]
 
     def test_non_rrna_features_ignored(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000004\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     gene            1..100\n"
-            "                     /gene=\"ACTB\"\n"
-            "     CDS             1..100\n"
-            "                     /product=\"actin\"\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed)
+        gff = tmp_path / "test.gff"
+        bed = tmp_path / "out.bed"
+        write_gff(gff,
+            gff_row("chr1", 1, 100, feature="gene") +
+            gff_row("chr1", 1, 100, feature="CDS") +
+            gff_row("chr1", 1, 100, feature="tRNA")
+        )
+        count = extract_rrna_loci(gff, bed)
         assert count == 0
         assert read_bed(bed) == []
 
-    def test_multiple_chromosomes(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000001\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            10..50\n"
-            "ORIGIN\n"
-            "//\n"
-            "LOCUS       NC_000002\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            200..400\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed)
-        assert count == 2
-        assert read_bed(bed) == [("NC_000001", "9", "50"), ("NC_000002", "199", "400")]
-
-    def test_rrna_at_end_of_file(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000001\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            1..100\n"
-        ))
-        count = extract_rrna_loci(gbff, bed)
+    def test_comment_lines_skipped(self, tmp_path):
+        gff = tmp_path / "test.gff"
+        bed = tmp_path / "out.bed"
+        write_gff(gff,
+            "##gff-version 3\n"
+            "# this is a comment\n" +
+            gff_row("chr1", 100, 500)
+        )
+        count = extract_rrna_loci(gff, bed)
         assert count == 1
-        assert read_bed(bed) == [("NC_000001", "0", "100")]
+        assert read_bed(bed) == [("chr1", "99", "500")]
+
+    def test_multiple_chromosomes(self, tmp_path):
+        gff = tmp_path / "test.gff"
+        bed = tmp_path / "out.bed"
+        write_gff(gff,
+            gff_row("chr1", 10, 50) +
+            gff_row("chr2", 200, 400)
+        )
+        count = extract_rrna_loci(gff, bed)
+        assert count == 2
+        assert read_bed(bed) == [("chr1", "9", "50"), ("chr2", "199", "400")]
+
+    def test_multiple_rrna_same_chrom(self, tmp_path):
+        gff = tmp_path / "test.gff"
+        bed = tmp_path / "out.bed"
+        write_gff(gff,
+            gff_row("chr1", 100, 500) +
+            gff_row("chr1", 1000, 3000)
+        )
+        count = extract_rrna_loci(gff, bed)
+        assert count == 2
+        assert read_bed(bed) == [("chr1", "99", "500"), ("chr1", "999", "3000")]
 
     def test_gzipped_input(self, tmp_path):
-        gbff = tmp_path / "test.gbff.gz"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000001\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            1..100\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed)
+        gff = tmp_path / "test.gff.gz"
+        bed = tmp_path / "out.bed"
+        write_gff(gff, gff_row("chr1", 1, 100))
+        count = extract_rrna_loci(gff, bed)
         assert count == 1
-        assert read_bed(bed) == [("NC_000001", "0", "100")]
+        assert read_bed(bed) == [("chr1", "0", "100")]
 
     def test_margin_basic(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000001              10000 bp\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            500..1000\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed, margin=100)
+        gff = tmp_path / "test.gff"
+        bed = tmp_path / "out.bed"
+        write_gff(gff, gff_row("chr1", 500, 1000))
+        count = extract_rrna_loci(gff, bed, margin=100)
         assert count == 1
-        assert read_bed(bed) == [("NC_000001", "399", "1100")]
+        assert read_bed(bed) == [("chr1", "399", "1100")]
 
     def test_margin_clamps_start_at_zero(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000001              10000 bp\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            50..200\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed, margin=100)
+        gff = tmp_path / "test.gff"
+        bed = tmp_path / "out.bed"
+        write_gff(gff, gff_row("chr1", 50, 200))
+        count = extract_rrna_loci(gff, bed, margin=100)
         assert count == 1
-        assert read_bed(bed) == [("NC_000001", "0", "300")]
-
-    def test_margin_clamps_end_at_chrom_length(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000001              1000 bp\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            800..950\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed, margin=100)
-        assert count == 1
-        assert read_bed(bed) == [("NC_000001", "699", "1000")]
+        assert read_bed(bed) == [("chr1", "0", "300")]
 
     def test_negative_margin_raises(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, "LOCUS       NC_000001\n")
+        gff = tmp_path / "test.gff"
+        bed = tmp_path / "out.bed"
+        write_gff(gff, "##gff-version 3\n")
         with pytest.raises(ValueError, match="margin must be >= 0"):
-            extract_rrna_loci(gbff, bed, margin=-1)
+            extract_rrna_loci(gff, bed, margin=-1)
 
-    def test_fuzzy_coordinates(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000001\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            <1..500\n"
-            "                     /product=\"18S\"\n"
-            "     rRNA            100..>900\n"
-            "                     /product=\"28S\"\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed)
-        assert count == 2
-        assert read_bed(bed) == [("NC_000001", "0", "500"), ("NC_000001", "99", "900")]
+    def test_name_map_translates_refseq(self, tmp_path):
+        gff    = tmp_path / "test.gff"
+        bed    = tmp_path / "out.bed"
+        report = tmp_path / "report.txt"
+        write_gff(gff, gff_row("NC_060925.1", 100, 500))
+        write_report(report, [("NC_060925.1", "chr1")])
+        count = extract_rrna_loci(gff, bed, name_map_path=report)
+        assert count == 1
+        assert read_bed(bed) == [("chr1", "99", "500")]
 
-    def test_multiple_rrna_features_same_chrom(self, tmp_path):
-        gbff = tmp_path / "test.gbff"
-        bed  = tmp_path / "out.bed"
-        write_gbff(gbff, (
-            "LOCUS       NC_000001\n"
-            "FEATURES             Location/Qualifiers\n"
-            "     rRNA            100..500\n"
-            "                     /product=\"18S\"\n"
-            "     rRNA            1000..3000\n"
-            "                     /product=\"28S\"\n"
-            "ORIGIN\n"
-            "//\n"
-        ))
-        count = extract_rrna_loci(gbff, bed)
+    def test_name_map_unknown_seqname_kept(self, tmp_path):
+        gff    = tmp_path / "test.gff"
+        bed    = tmp_path / "out.bed"
+        report = tmp_path / "report.txt"
+        write_gff(gff, gff_row("NC_UNKNOWN.1", 100, 500))
+        write_report(report, [("NC_060925.1", "chr1")])
+        count = extract_rrna_loci(gff, bed, name_map_path=report)
+        assert count == 1
+        assert read_bed(bed) == [("NC_UNKNOWN.1", "99", "500")]
+
+    def test_name_map_multiple_chroms(self, tmp_path):
+        gff    = tmp_path / "test.gff"
+        bed    = tmp_path / "out.bed"
+        report = tmp_path / "report.txt"
+        write_gff(gff,
+            gff_row("NC_060925.1", 100, 500) +
+            gff_row("NC_060926.1", 200, 800)
+        )
+        write_report(report, [("NC_060925.1", "chr1"), ("NC_060926.1", "chr2")])
+        count = extract_rrna_loci(gff, bed, name_map_path=report)
         assert count == 2
-        assert read_bed(bed) == [("NC_000001", "99", "500"), ("NC_000001", "999", "3000")]
+        assert read_bed(bed) == [("chr1", "99", "500"), ("chr2", "199", "800")]
+
+
+# -- load_name_map ------------------------------------------------------------
+
+class TestLoadNameMap:
+    def test_basic_mapping(self, tmp_path):
+        report = tmp_path / "report.txt"
+        write_report(report, [("NC_060925.1", "chr1"), ("NC_060926.1", "chr2")])
+        m = load_name_map(report)
+        assert m["NC_060925.1"] == "chr1"
+        assert m["NC_060926.1"] == "chr2"
+
+    def test_na_entries_excluded(self, tmp_path):
+        report = tmp_path / "report.txt"
+        with open(report, "w") as f:
+            f.write("# comment\n")
+            f.write("x\tx\tx\tx\tx\tx\tna\tx\t0\tna\n")
+        m = load_name_map(report)
+        assert len(m) == 0
