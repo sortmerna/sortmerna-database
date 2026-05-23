@@ -185,6 +185,8 @@ if [[ "${SKIP_ART}" == false ]]; then
             -i "${T2T_MASKED}" \
             -p \
             -l 150 \
+            -m 200 \
+            -s 10 \
             -f "${FOLD}" \
             -rs "${RAND_SEED}" \
             -o "${ART_PREFIX}"
