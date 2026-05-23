@@ -255,6 +255,7 @@ done < <(python3 "${UTILS_DIR}/fair_share_rfam.py" "${N_RFAM_READS}" "${RFAM_DIR
 
 > "${RFAM_OUTPUT}"
 rfam_html_rows=""
+rfam_total_seqs=0
 
 for fa in "${RFAM_DIR}"/RF*.fa; do
     [[ -f "${fa}" ]] || continue
@@ -274,6 +275,7 @@ for fa in "${RFAM_DIR}"/RF*.fa; do
     cat "${rfam_tmp}" >> "${RFAM_OUTPUT}"
     rm -f "${rfam_tmp}"
 
+    rfam_total_seqs=$(( rfam_total_seqs + n_total ))
     echo "  ${rfam_id} (${family_name}): ${n_total} total, ${min_len}-${max_len} bp -> ${n_sampled} sampled"
     rfam_html_rows="${rfam_html_rows}      <tr><td>${family_name//_/ }</td><td>${rfam_id}</td><td>${n_total}</td><td>${min_len}-${max_len}</td><td>${n_sampled}</td></tr>\n"
 done
@@ -301,6 +303,7 @@ N_LOCI="${n_loci}" \
 MASKED_BP="${masked_bp}" \
 N_RFAM_READS="${N_RFAM_READS}" \
 N_RFAM="${n_rfam}" \
+RFAM_TOTAL_SEQS="${rfam_total_seqs}" \
 OUTPUT_HTML="${OUTPUT_HTML}" \
 python3 - "${rfam_html_rows}" <<'PYEOF'
 import sys, os, datetime
@@ -376,7 +379,7 @@ correctly rejects structurally complex non-rRNA sequences.</p>
     </tr>
   </thead>
   <tbody>
-{rfam_rows}    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td></td><td></td><td>{n_rfam}</td></tr>
+{rfam_rows}    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td>{rfam_total_seqs}</td><td></td><td>{n_rfam}</td></tr>
   </tbody>
 </table></div>
 </section>
@@ -397,6 +400,7 @@ correctly rejects structurally complex non-rRNA sequences.</p>
     n_t2t=e['N_T2T'],
     n_rfam_reads=e['N_RFAM_READS'],
     rfam_rows=rfam_rows_raw.replace('\\n', '\n'),
+    rfam_total_seqs=e['RFAM_TOTAL_SEQS'],
     n_rfam=e['N_RFAM'],
 )
 
@@ -413,7 +417,7 @@ echo ""
 echo "Outputs:"
 echo "  Masked genome:  ${T2T_MASKED}"
 echo "  T2T test set:   ${T2T_OUTPUT} (${n_t2t} reads)"
-echo "  Rfam test set:  ${RFAM_OUTPUT} (${n_rfam} sequences, ${RFAM_PCT_DISPLAY}% per family)"
+echo "  Rfam test set:  ${RFAM_OUTPUT} (${n_rfam} sequences)"
 echo "  HTML summary:   ${OUTPUT_HTML}"
 echo ""
 echo "Next step: Run simulate_rrna_reads.sh to simulate rRNA reads for sensitivity testing"
