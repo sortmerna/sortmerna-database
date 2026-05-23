@@ -243,12 +243,15 @@ echo "  Saved: non_rRNA_test_1M_T2T.fasta (${n_t2t} reads)"
 
 echo ""
 echo "============================================"
-echo "Step 5: Sample ${N_RFAM_READS} total sequences from Rfam families"
+echo "Step 5: Sample ${N_RFAM_READS} total sequences from Rfam families (fair-share)"
 echo "============================================"
 
-n_families=$(ls "${RFAM_DIR}"/RF*.fa 2>/dev/null | wc -l)
-PER_FAMILY=$(( N_RFAM_READS / n_families ))
-echo "  ${n_families} families, ${PER_FAMILY} sequences per family"
+# Compute per-family allocations: evenly distributed, with remainder
+# redistributed from small families to large ones (see fair_share_rfam.py).
+declare -A alloc_map
+while IFS=$'\t' read -r stem n; do
+    alloc_map["${stem}"]="${n}"
+done < <(python3 "${UTILS_DIR}/fair_share_rfam.py" "${N_RFAM_READS}" "${RFAM_DIR}")
 
 > "${RFAM_OUTPUT}"
 rfam_html_rows=""
@@ -258,6 +261,7 @@ for fa in "${RFAM_DIR}"/RF*.fa; do
     family_file=$(basename "${fa}" .fa)
     rfam_id="${family_file%%_*}"
     family_name="${family_file#*_}"
+    n_alloc="${alloc_map[${family_file}]:-0}"
 
     stats=$(seqkit stats -T "${fa}" | tail -1)
     n_total=$(echo "${stats}" | cut -f4)
@@ -265,7 +269,7 @@ for fa in "${RFAM_DIR}"/RF*.fa; do
     max_len=$(echo "${stats}" | cut -f8)
 
     rfam_tmp=$(mktemp)
-    seqkit sample -n "${PER_FAMILY}" --rand-seed "${RAND_SEED}" "${fa}" > "${rfam_tmp}"
+    seqkit sample -n "${n_alloc}" --rand-seed "${RAND_SEED}" "${fa}" > "${rfam_tmp}"
     n_sampled=$(seqkit stats -T "${rfam_tmp}" | tail -1 | cut -f4)
     cat "${rfam_tmp}" >> "${RFAM_OUTPUT}"
     rm -f "${rfam_tmp}"
@@ -295,7 +299,6 @@ RAND_SEED="${RAND_SEED}" \
 N_T2T="${n_t2t}" \
 N_LOCI="${n_loci}" \
 MASKED_BP="${masked_bp}" \
-PER_FAMILY="${PER_FAMILY}" \
 N_RFAM_READS="${N_RFAM_READS}" \
 N_RFAM="${n_rfam}" \
 OUTPUT_HTML="${OUTPUT_HTML}" \
@@ -359,8 +362,9 @@ happens to span an rRNA region.</p>
 <section>
 <h2>Rfam Non-rRNA Families</h2>
 <div class="description">
-<p>Up to {per_family} sequences sampled from each family (target total: {n_rfam_reads}) using a fixed
-random seed. Families smaller than the per-family quota contribute all their sequences.
+<p>Target total: {n_rfam_reads} sequences sampled using fair-share allocation across families.
+Families smaller than the per-family quota contribute all their sequences; the remainder
+is redistributed to larger families so the target is met exactly (see fair_share_rfam.py).
 No read simulation applied - sequences are used as-is to test whether SortMeRNA
 correctly rejects structurally complex non-rRNA sequences.</p>
 </div>
@@ -368,7 +372,7 @@ correctly rejects structurally complex non-rRNA sequences.</p>
   <thead>
     <tr>
       <th>Family</th><th>Rfam ID</th><th>Total sequences</th>
-      <th>Length range (bp)</th><th>Sequences sampled (target: {per_family})</th>
+      <th>Length range (bp)</th><th>Sequences sampled</th>
     </tr>
   </thead>
   <tbody>
@@ -391,7 +395,6 @@ correctly rejects structurally complex non-rRNA sequences.</p>
     iss_model=e['ISS_MODEL'],
     rand_seed=e['RAND_SEED'],
     n_t2t=e['N_T2T'],
-    per_family=e['PER_FAMILY'],
     n_rfam_reads=e['N_RFAM_READS'],
     rfam_rows=rfam_rows_raw.replace('\\n', '\n'),
     n_rfam=e['N_RFAM'],
