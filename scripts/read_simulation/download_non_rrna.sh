@@ -38,7 +38,7 @@
 #
 # Outputs:
 #   t2t/${T2T_VERSION}.fa.gz           - T2T genome (input for ART simulation)
-#   t2t/${T2T_VERSION}.gff.gz          - T2T GFF annotations (rRNA loci for masking)
+#   t2t/${T2T_VERSION}.gbff.gz         - T2T GBFF annotations (rRNA loci parsed for masking)
 #   t2t/${T2T_VERSION}_rrna_loci.bed   - rRNA loci in BED format (for bedtools maskfasta)
 #   rfam/RF*.fa.gz                     - Rfam non-rRNA family FASTA files
 #   rfam_non_rrna_sampled.fasta        - Sampled Rfam sequences ready for use
@@ -56,7 +56,7 @@ RAND_SEED=42
 SKIP_DOWNLOAD=false
 
 T2T_ACCESSION="${T2T_ACCESSION:-GCA_009914755.4}"
-T2T_NAME="${T2T_NAME:-CHM13_T2T_v2.0}"
+T2T_NAME="${T2T_NAME:-T2T-CHM13v2.0}"
 T2T_VERSION="${T2T_VERSION:-chm13v2.0}"
 T2T_BASE="${T2T_BASE:-https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/009/914/755/${T2T_ACCESSION}_${T2T_NAME}}"
 RFAM_NON_RRNA_FTP="${RFAM_NON_RRNA_FTP:-https://ftp.ebi.ac.uk/pub/databases/Rfam/CURRENT/fasta_files}"
@@ -117,7 +117,7 @@ echo "============================================"
 mkdir -p "${T2T_DIR}"
 
 T2T_GENOME_GZ="${T2T_DIR}/${T2T_VERSION}.fa.gz"
-T2T_GFF_GZ="${T2T_DIR}/${T2T_VERSION}.gff.gz"
+T2T_GBFF_GZ="${T2T_DIR}/${T2T_VERSION}.gbff.gz"
 
 if [[ "${SKIP_DOWNLOAD}" == false ]]; then
     if [[ ! -f "${T2T_GENOME_GZ}" ]]; then
@@ -129,23 +129,62 @@ if [[ "${SKIP_DOWNLOAD}" == false ]]; then
         echo "Already exists: ${T2T_VERSION}.fa.gz"
     fi
 
-    if [[ ! -f "${T2T_GFF_GZ}" ]]; then
-        echo "Downloading ${T2T_VERSION} GFF annotations (for rRNA locus masking)..."
-        wget -c "${T2T_BASE}/${T2T_ACCESSION}_${T2T_NAME}_genomic.gff.gz" \
-            -O "${T2T_GFF_GZ}"
-        echo "  Saved: ${T2T_VERSION}.gff.gz"
+    if [[ ! -f "${T2T_GBFF_GZ}" ]]; then
+        echo "Downloading ${T2T_VERSION} GBFF annotations (~900 MB, for rRNA locus masking)..."
+        wget -c --progress=bar "${T2T_BASE}/${T2T_ACCESSION}_${T2T_NAME}_genomic.gbff.gz" \
+            -O "${T2T_GBFF_GZ}"
+        echo "  Saved: ${T2T_VERSION}.gbff.gz"
     else
-        echo "Already exists: ${T2T_VERSION}.gff.gz"
+        echo "Already exists: ${T2T_VERSION}.gbff.gz"
     fi
 fi
 
-echo "Extracting rRNA loci from GFF to BED (for masking in simulation step)..."
+echo "Extracting rRNA loci from GBFF to BED (for masking in simulation step)..."
 T2T_RRNA_BED="${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
 if [[ ! -f "${T2T_RRNA_BED}" ]]; then
-    zcat "${T2T_GFF_GZ}" \
-        | awk '$3 == "rRNA" {print $1"\t"$4-1"\t"$5}' \
-        | sort -k1,1 -k2,2n \
-        > "${T2T_RRNA_BED}"
+    python3 - "${T2T_GBFF_GZ}" "${T2T_RRNA_BED}" <<'PYEOF'
+import sys, gzip, re
+
+gbff_gz, bed_out = sys.argv[1], sys.argv[2]
+count = 0
+chrom = None
+in_rrna = False
+loc_buf = ''
+
+def emit(chrom, loc, out):
+    global count
+    for s, e in re.findall(r'(\d+)\.\.(\d+)', loc):
+        out.write(f"{chrom}\t{int(s)-1}\t{e}\n")
+        count += 1
+
+with gzip.open(gbff_gz, 'rt') as f, open(bed_out, 'w') as out:
+    for line in f:
+        if line.startswith('LOCUS '):
+            if in_rrna and loc_buf:
+                emit(chrom, loc_buf, out)
+            chrom = line.split()[1]
+            in_rrna = False
+            loc_buf = ''
+        elif in_rrna:
+            stripped = line.rstrip()
+            # Location continuation: 21 spaces, not a qualifier (no /)
+            if len(stripped) > 21 and stripped[:21] == ' ' * 21 and stripped[21] != '/':
+                loc_buf += stripped[21:]
+            else:
+                emit(chrom, loc_buf, out)
+                in_rrna = False
+                loc_buf = ''
+        # New rRNA feature line: 5-space indent + 'rRNA'
+        if not in_rrna and line[:5] == '     ' and line[5:9] == 'rRNA':
+            parts = line[5:].split()
+            in_rrna = True
+            loc_buf = parts[1] if len(parts) > 1 else ''
+    if in_rrna and loc_buf:
+        emit(chrom, loc_buf, out)
+
+print(f"  rRNA loci: {count} regions -> {bed_out}")
+PYEOF
+    sort -k1,1 -k2,2n "${T2T_RRNA_BED}" -o "${T2T_RRNA_BED}"
     echo "  rRNA loci: $(wc -l < "${T2T_RRNA_BED}") regions -> ${T2T_RRNA_BED}"
 else
     echo "Already exists: ${T2T_VERSION}_rrna_loci.bed ($(wc -l < "${T2T_RRNA_BED}") regions)"
@@ -215,9 +254,9 @@ echo "Download complete"
 echo "============================================"
 echo ""
 echo "Outputs:"
-echo "  T2T genome:   ${T2T_DIR}/chm13v2.0.fa.gz"
-echo "  T2T GFF:      ${T2T_DIR}/chm13v2.0.gff.gz"
-echo "  rRNA BED:     ${T2T_DIR}/chm13v2.0_rrna_loci.bed"
+echo "  T2T genome:   ${T2T_DIR}/${T2T_VERSION}.fa.gz"
+echo "  T2T GBFF:     ${T2T_DIR}/${T2T_VERSION}.gbff.gz"
+echo "  rRNA BED:     ${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
 echo "  Rfam sampled: ${OUTPUT_DIR}/rfam_non_rrna_sampled.fasta"
 echo ""
 echo "Next step: Run simulate_non_rrna.sh to mask rRNA loci, simulate T2T reads"
