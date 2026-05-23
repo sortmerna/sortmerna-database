@@ -53,6 +53,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UTILS_DIR="${SCRIPT_DIR}/../utils"
+
 POSITIONAL=()
 N_T2T=1000000
 ISS_MODEL=HiSeq
