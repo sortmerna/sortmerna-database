@@ -7,7 +7,7 @@
 # and sample Rfam non-rRNA sequences to produce two test sets:
 #
 #   non_rRNA_test_1M_T2T.fasta   - 1M simulated T2T genome reads (rRNA loci masked)
-#   non_rRNA_test_Rfam.fasta     - 10% sample from each of 10 Rfam non-rRNA families
+#   non_rRNA_test_Rfam.fasta     - Rfam non-rRNA sequences sampled evenly across families
 #
 # Inputs (from download_non_rrna.sh):
 #   t2t/${T2T_VERSION}.fa.gz         - T2T genome (compressed)
@@ -19,7 +19,7 @@
 #   2. Mask rRNA loci with bedtools maskfasta
 #   3. Simulate 1M Illumina PE reads with InSilicoSeq
 #   4. Convert to FASTA -> non_rRNA_test_1M_T2T.fasta
-#   5. Sample 10% from each Rfam family -> non_rRNA_test_Rfam.fasta
+#   5. Sample N_RFAM/n_families sequences from each Rfam family -> non_rRNA_test_Rfam.fasta
 #   6. Write HTML summary report
 #
 # Usage: bash simulate_non_rrna.sh [output_dir [threads]] [OPTIONS]
@@ -33,7 +33,9 @@
 #                     InSilicoSeq is run with N_T2T/2 read pairs so that R1+R2
 #                     combined equals exactly N_T2T individual reads.
 #   --model STR       InSilicoSeq error model: HiSeq, NovaSeq, MiSeq (default: HiSeq)
-#   --rfam-pct FLOAT  Fraction to sample from each Rfam family (default: 0.1 = 10%)
+#   --rfam-reads INT  Total Rfam sequences to sample across all families (default: 1000000)
+#                     Divided evenly: N_RFAM/n_families sequences sampled per family.
+#                     If a family has fewer sequences than the per-family quota, all are taken.
 #   --seed INT        Random seed for InSilicoSeq simulation and Rfam sampling (default: 42)
 #   --skip-mask       Skip masking step, use existing masked genome
 #   --skip-sim        Skip InSilicoSeq simulation, use existing output
@@ -54,7 +56,7 @@ set -euo pipefail
 POSITIONAL=()
 N_T2T=1000000
 ISS_MODEL=HiSeq
-RFAM_PCT=0.1
+N_RFAM_READS=1000000
 RAND_SEED=42
 SKIP_MASK=false
 SKIP_SIM=false
@@ -73,7 +75,7 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --t2t-reads) N_T2T="$2"; shift 2 ;;
         --model) ISS_MODEL="$2"; shift 2 ;;
-        --rfam-pct) RFAM_PCT="$2"; shift 2 ;;
+        --rfam-reads) N_RFAM_READS="$2"; shift 2 ;;
         --seed) RAND_SEED="$2"; shift 2 ;;
         --skip-mask) SKIP_MASK=true; shift ;;
         --skip-sim) SKIP_SIM=true; shift ;;
@@ -86,8 +88,6 @@ OUTPUT_DIR="${POSITIONAL[0]:-${NON_RRNA_DIR:-data/non_rrna}}"
 THREADS="${POSITIONAL[1]:-4}"
 
 OUTPUT_DIR="$(mkdir -p "${OUTPUT_DIR}" && cd "${OUTPUT_DIR}" && pwd)"
-
-RFAM_PCT_DISPLAY=$(awk -v p="${RFAM_PCT}" 'BEGIN{printf "%.0f", p*100}')
 
 T2T_DIR="${OUTPUT_DIR}/t2t"
 ISS_DIR="${OUTPUT_DIR}/iss"
@@ -108,7 +108,7 @@ echo "Output directory: ${OUTPUT_DIR}"
 echo "T2T version:      ${T2T_VERSION}"
 echo "T2T reads:        ${N_T2T}"
 echo "ISS model:        ${ISS_MODEL}"
-echo "Rfam sample:      ${RFAM_PCT_DISPLAY}% per family"
+echo "Rfam reads:       ${N_RFAM_READS} total (evenly split across families)"
 echo "Random seed:      ${RAND_SEED}"
 echo "Threads:          ${THREADS}"
 echo "============================================"
@@ -243,8 +243,12 @@ echo "  Saved: non_rRNA_test_1M_T2T.fasta (${n_t2t} reads)"
 
 echo ""
 echo "============================================"
-echo "Step 5: Sample ${RFAM_PCT_DISPLAY}% from each Rfam family"
+echo "Step 5: Sample ${N_RFAM_READS} total sequences from Rfam families"
 echo "============================================"
+
+n_families=$(ls "${RFAM_DIR}"/RF*.fa 2>/dev/null | wc -l)
+PER_FAMILY=$(( N_RFAM_READS / n_families ))
+echo "  ${n_families} families, ${PER_FAMILY} sequences per family"
 
 > "${RFAM_OUTPUT}"
 rfam_html_rows=""
@@ -261,7 +265,7 @@ for fa in "${RFAM_DIR}"/RF*.fa; do
     max_len=$(echo "${stats}" | cut -f8)
 
     rfam_tmp=$(mktemp)
-    seqkit sample -p "${RFAM_PCT}" --rand-seed "${RAND_SEED}" "${fa}" > "${rfam_tmp}"
+    seqkit sample -n "${PER_FAMILY}" --rand-seed "${RAND_SEED}" "${fa}" > "${rfam_tmp}"
     n_sampled=$(seqkit stats -T "${rfam_tmp}" | tail -1 | cut -f4)
     cat "${rfam_tmp}" >> "${RFAM_OUTPUT}"
     rm -f "${rfam_tmp}"
@@ -291,7 +295,8 @@ RAND_SEED="${RAND_SEED}" \
 N_T2T="${n_t2t}" \
 N_LOCI="${n_loci}" \
 MASKED_BP="${masked_bp}" \
-RFAM_PCT_DISPLAY="${RFAM_PCT_DISPLAY}" \
+PER_FAMILY="${PER_FAMILY}" \
+N_RFAM_READS="${N_RFAM_READS}" \
 N_RFAM="${n_rfam}" \
 OUTPUT_HTML="${OUTPUT_HTML}" \
 python3 - "${rfam_html_rows}" <<'PYEOF'
@@ -354,15 +359,16 @@ happens to span an rRNA region.</p>
 <section>
 <h2>Rfam Non-rRNA Families</h2>
 <div class="description">
-<p>{rfam_pct}% of sequences sampled independently from each family using a fixed random
-seed. No read simulation applied - sequences are used as-is to test whether SortMeRNA
+<p>Up to {per_family} sequences sampled from each family (target total: {n_rfam_reads}) using a fixed
+random seed. Families smaller than the per-family quota contribute all their sequences.
+No read simulation applied - sequences are used as-is to test whether SortMeRNA
 correctly rejects structurally complex non-rRNA sequences.</p>
 </div>
 <div class="table-wrap"><table>
   <thead>
     <tr>
       <th>Family</th><th>Rfam ID</th><th>Total sequences</th>
-      <th>Length range (bp)</th><th>Sequences sampled ({rfam_pct}%)</th>
+      <th>Length range (bp)</th><th>Sequences sampled (target: {per_family})</th>
     </tr>
   </thead>
   <tbody>
@@ -385,7 +391,8 @@ correctly rejects structurally complex non-rRNA sequences.</p>
     iss_model=e['ISS_MODEL'],
     rand_seed=e['RAND_SEED'],
     n_t2t=e['N_T2T'],
-    rfam_pct=e['RFAM_PCT_DISPLAY'],
+    per_family=e['PER_FAMILY'],
+    n_rfam_reads=e['N_RFAM_READS'],
     rfam_rows=rfam_rows_raw.replace('\\n', '\n'),
     n_rfam=e['N_RFAM'],
 )

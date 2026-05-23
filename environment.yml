@@ -26,8 +26,12 @@ dependencies:
   - r-tidyverse
 
   # Simulation tools (for benchmarking phase)
-  - insilicoseq>=2.0
+  # insilicoseq installed via pip (conda only has 1.3.5; 2.x requires pip)
   - pbsim3>=3.0.0
+
+  - pip
+  - pip:
+    - InSilicoSeq>=2.0
 
   # Utilities
   - wget
