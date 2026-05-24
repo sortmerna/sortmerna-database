@@ -254,6 +254,8 @@ if [[ ! -f "${T2T_RRNA_BED}" ]] || [[ ! -s "${T2T_RRNA_BED}" ]]; then
             fi
         done
 
+        # Combine GFF3 and cmsearch loci, sort by chrom/start (required by bedtools merge),
+        # then collapse overlapping intervals into a non-redundant union BED.
         cat "${T2T_GFF3_BED}" "${T2T_CMSEARCH_BED}" \
             | sort -k1,1 -k2,2n \
             | bedtools merge \
