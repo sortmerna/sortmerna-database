@@ -16,7 +16,7 @@ def load_name_map(report_path):
     """Build RefSeq-accn -> UCSC-name map from an NCBI assembly report.
 
     Reads tab-delimited rows (skipping # comment lines) and maps column 7
-    (RefSeq-Accn, e.g. NC_060925.1) to column 10 (UCSC-style-name, e.g. chr1).
+    (RefSeq-Accn, e.g. NC_060925.1) to column 5 (GenBank-Accn, e.g. CP068277.2).
     """
     mapping = {}
     opener = gzip.open if Path(report_path).suffix == ".gz" else open
@@ -25,11 +25,11 @@ def load_name_map(report_path):
             if line.startswith('#'):
                 continue
             parts = line.rstrip('\n').split('\t')
-            if len(parts) >= 10:
-                refseq = parts[6].strip()
-                ucsc   = parts[9].strip()
-                if refseq not in ('na', '') and ucsc not in ('na', ''):
-                    mapping[refseq] = ucsc
+            if len(parts) >= 7:
+                refseq  = parts[6].strip()
+                genbank = parts[4].strip()
+                if refseq not in ('na', '') and genbank not in ('na', ''):
+                    mapping[refseq] = genbank
     return mapping
 
 

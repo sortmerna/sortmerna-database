@@ -324,6 +324,8 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 | U5 spliceosomal | RF00020 |
 | U6 spliceosomal | RF00026 |
 
+Sequences are used as-is without read simulation. Most Rfam families consist predominantly of short RNAs (tRNA averages 73 bp, spliceosomal snRNAs 100-200 bp); simulating 150 bp reads from these sequences would discard the majority of them due to length, losing the very diversity the test is designed to cover. The natural length distribution is also the point: these structurally complex RNAs should be rejected by SortMeRNA regardless of length.
+
 Sampling evenly across families (fair-share allocation, ~102K per large family at the 500K default) ensures all families are equally represented regardless of family size. A fixed random seed (`--seed 42`) makes the output reproducible.
 
 ```bash

@@ -244,6 +244,7 @@ for fa in "${RFAM_DIR}"/RF*.fa; do
     stats=$(seqkit stats -T "${fa}" | tail -1)
     n_total=$(echo "${stats}" | cut -f4)
     min_len=$(echo "${stats}" | cut -f6)
+    avg_len=$(echo "${stats}" | cut -f7)
     max_len=$(echo "${stats}" | cut -f8)
 
     rfam_tmp=$(mktemp)
@@ -253,8 +254,8 @@ for fa in "${RFAM_DIR}"/RF*.fa; do
     rm -f "${rfam_tmp}"
 
     rfam_total_seqs=$(( rfam_total_seqs + n_total ))
-    echo "  ${rfam_id} (${family_name}): ${n_total} total, ${min_len}-${max_len} bp -> ${n_sampled} sampled"
-    rfam_html_rows="${rfam_html_rows}      <tr><td>${family_name//_/ }</td><td>${rfam_id}</td><td>${n_total}</td><td>${min_len}-${max_len}</td><td>${n_sampled}</td></tr>\n"
+    echo "  ${rfam_id} (${family_name}): ${n_total} total, ${min_len}-${max_len} bp (avg ${avg_len}) -> ${n_sampled} sampled"
+    rfam_html_rows="${rfam_html_rows}      <tr><td>${family_name//_/ }</td><td>${rfam_id}</td><td>${n_total}</td><td>${min_len}-${max_len}</td><td>${avg_len}</td><td>${n_sampled}</td></tr>\n"
 done
 
 n_rfam=$(seqkit stats -T "${RFAM_OUTPUT}" | tail -1 | cut -f4)
@@ -352,11 +353,11 @@ correctly rejects structurally complex non-rRNA sequences.</p>
   <thead>
     <tr>
       <th>Family</th><th>Rfam ID</th><th>Total sequences</th>
-      <th>Length range (bp)</th><th>Sequences sampled</th>
+      <th>Length range (bp)</th><th>Average length (bp)</th><th>Sequences sampled</th>
     </tr>
   </thead>
   <tbody>
-{rfam_rows}    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td>{rfam_total_seqs}</td><td></td><td>{n_rfam}</td></tr>
+{rfam_rows}    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td>{rfam_total_seqs}</td><td></td><td></td><td>{n_rfam}</td></tr>
   </tbody>
 </table></div>
 </section>
