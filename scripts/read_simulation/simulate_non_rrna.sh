@@ -291,6 +291,37 @@ echo "============================================"
 echo "Step 6: Write HTML summary"
 echo "============================================"
 
+# Gather cmsearch stats for HTML (if cmsearch was run in download_non_rrna.sh)
+T2T_GFF3_BED="${T2T_DIR}/${T2T_VERSION}_gff3_loci.bed"
+T2T_CMSEARCH_BED="${T2T_DIR}/${T2T_VERSION}_cmsearch_loci.bed"
+
+CMS_USED=false
+GFF3_REGIONS=0; GFF3_BP=0; CMS_REGIONS=0; CMS_BP=0; EXTRA_BP=0
+cms_family_rows=""
+
+if [[ -f "${T2T_CMSEARCH_BED}" ]] && [[ -f "${T2T_GFF3_BED}" ]]; then
+    CMS_USED=true
+    GFF3_REGIONS=$(wc -l < "${T2T_GFF3_BED}")
+    GFF3_BP=$(awk '{sum+=$3-$2} END{print sum}' "${T2T_GFF3_BED}")
+    CMS_REGIONS=$(wc -l < "${T2T_CMSEARCH_BED}")
+    CMS_BP=$(awk '{sum+=$3-$2} END{print sum}' "${T2T_CMSEARCH_BED}")
+    EXTRA_BP=$(bedtools subtract -a "${T2T_CMSEARCH_BED}" -b "${T2T_GFF3_BED}" \
+        | awk '{sum+=$3-$2} END{print sum+0}')
+
+    for cm_id in RF01960 RF02543 RF00001 RF00002; do
+        extra_bed="${T2T_DIR}/${cm_id}_extra_vs_gff3.bed"
+        n_extra=0
+        [[ -f "${extra_bed}" ]] && n_extra=$(wc -l < "${extra_bed}")
+        case "${cm_id}" in
+            RF01960) cm_name="18S SSU rRNA" ; cm_note="Regions not annotated in RefSeq GFF3" ;;
+            RF02543) cm_name="28S LSU rRNA" ; cm_note="Regions not annotated in RefSeq GFF3" ;;
+            RF00001) cm_name="5S rRNA"      ; cm_note="Regions not annotated in RefSeq GFF3; includes 5S pseudogenes distributed genome-wide (BLAST confirmed)" ;;
+            RF00002) cm_name="5.8S rRNA"    ; cm_note="Regions not annotated in RefSeq GFF3" ;;
+        esac
+        cms_family_rows="${cms_family_rows}      <tr><td>${cm_name}</td><td>${cm_id}</td><td>${n_extra}</td><td>${cm_note}</td></tr>\n"
+    done
+fi
+
 T2T_ACCESSION="${T2T_ACCESSION}" \
 T2T_GCF_ACCESSION="${T2T_GCF_ACCESSION}" \
 T2T_NAME="${T2T_NAME}" \
@@ -303,13 +334,58 @@ MASKED_BP="${masked_bp}" \
 N_RFAM_READS="${N_RFAM_READS}" \
 N_RFAM="${n_rfam}" \
 RFAM_TOTAL_SEQS="${rfam_total_seqs}" \
+CMS_USED="${CMS_USED}" \
+GFF3_REGIONS="${GFF3_REGIONS}" \
+GFF3_BP="${GFF3_BP}" \
+CMS_REGIONS="${CMS_REGIONS}" \
+CMS_BP="${CMS_BP}" \
+EXTRA_BP="${EXTRA_BP}" \
 OUTPUT_HTML="${OUTPUT_HTML}" \
-python3 - "${rfam_html_rows}" <<'PYEOF'
+python3 - "${rfam_html_rows}" "${cms_family_rows}" <<'PYEOF'
 import sys, os, datetime
 
 rfam_rows_raw = sys.argv[1]
+cms_rows_raw  = sys.argv[2]
 
 e = os.environ
+
+# Build optional cmsearch section (inserted as a pre-built string to avoid
+# brace-escaping issues with Python's .format() in the main template)
+cms_used = e.get('CMS_USED', 'false') == 'true'
+if cms_used:
+    cms_rows = cms_rows_raw.replace('\\n', '\n')
+    cms_section = (
+        '<section>\n'
+        '<h2>cmsearch rRNA Annotation Supplement</h2>\n'
+        '<div class="description">\n'
+        '<p>The RefSeq GFF3 annotation was supplemented with Infernal cmsearch to identify '
+        'unannotated rRNA copies. The T2T CHM13v2.0 assembly fully resolves the Nucleolar '
+        'Organizer Regions (NOR) on the short arms of acrocentric chromosomes (chr13, chr14, '
+        'chr15, chr21, chr22) for the first time - previous assemblies (GRCh37/GRCh38) had '
+        'these regions as sequence gaps and consequently had near-zero false positive rates. '
+        'Covariance models RF01960 (18S), RF02543 (28S), RF00001 (5S), and RF00002 (5.8S) '
+        'were run with --cut_ga; --hmmonly was applied for the two large subunit models.</p>\n'
+        '</div>\n'
+        '<div class="table-wrap"><table>\n'
+        '  <thead><tr><th>Source</th><th>Regions</th><th>Bases (bp)</th></tr></thead>\n'
+        '  <tbody>\n'
+        f'    <tr><td>GFF3 annotation only</td><td>{e["GFF3_REGIONS"]}</td><td>{e["GFF3_BP"]}</td></tr>\n'
+        f'    <tr><td>cmsearch (all families combined)</td><td>{e["CMS_REGIONS"]}</td><td>{e["CMS_BP"]}</td></tr>\n'
+        f'    <tr><td>Extra bp found by cmsearch vs GFF3</td><td>-</td><td>{e["EXTRA_BP"]}</td></tr>\n'
+        f'    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Final merged BED (GFF3 + cmsearch)</td><td>{e["N_LOCI"]}</td><td>{e["MASKED_BP"]}</td></tr>\n'
+        '  </tbody>\n'
+        '</table></div>\n'
+        '<h3>Per-family regions found by cmsearch but absent from GFF3</h3>\n'
+        '<div class="table-wrap"><table>\n'
+        '  <thead><tr><th>Family</th><th>Rfam ID</th><th>Regions not in GFF3</th><th>Note</th></tr></thead>\n'
+        '  <tbody>\n'
+        + cms_rows +
+        '  </tbody>\n'
+        '</table></div>\n'
+        '</section>\n'
+    )
+else:
+    cms_section = ''
 
 html = """\
 <!DOCTYPE html>
@@ -321,6 +397,7 @@ html = """\
   body {{ font-family: Arial, sans-serif; margin: 40px; color: #333; }}
   h1   {{ color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; }}
   h2   {{ color: #34495e; margin-top: 32px; }}
+  h3   {{ color: #34495e; margin-top: 20px; }}
   .description {{ background: #f8f9fa; border-left: 4px solid #3498db; padding: 10px 16px; margin: 12px 0; }}
   .table-wrap  {{ overflow-x: auto; margin: 16px 0; }}
   table  {{ border-collapse: collapse; min-width: 600px; }}
@@ -361,6 +438,7 @@ happens to span an rRNA region.</p>
 </table></div>
 </section>
 
+{cms_section}
 <section>
 <h2>Rfam Non-rRNA Families</h2>
 <div class="description">
@@ -401,6 +479,7 @@ correctly rejects structurally complex non-rRNA sequences.</p>
     rfam_rows=rfam_rows_raw.replace('\\n', '\n'),
     rfam_total_seqs=e['RFAM_TOTAL_SEQS'],
     n_rfam=e['N_RFAM'],
+    cms_section=cms_section,
 )
 
 open(e['OUTPUT_HTML'], 'w').write(html)
