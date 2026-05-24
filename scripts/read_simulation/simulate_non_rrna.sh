@@ -169,27 +169,25 @@ if [[ "${missing}" -eq 1 ]]; then
     exit 1
 fi
 
-n_before=$(grep -v "^>" "${T2T_FA}" | tr -cd 'Nn' | wc -c)
+n_loci=$(wc -l < "${T2T_RRNA_BED}")
+masked_bp=$(awk '{sum += $3-$2} END{print sum}' "${T2T_RRNA_BED}")
 
 if [[ ! -f "${T2T_MASKED}" ]]; then
-    n_loci=$(wc -l < "${T2T_RRNA_BED}")
     echo "Masking ${n_loci} rRNA loci with bedtools maskfasta..."
+    n_before=$(grep -v "^>" "${T2T_FA}" | tr -cd 'Nn' | wc -c)
     bedtools maskfasta \
         -fi "${T2T_FA}" \
         -bed "${T2T_RRNA_BED}" \
         -fo "${T2T_MASKED}"
     echo "  Saved: ${T2T_VERSION}_masked.fa"
+    n_after=$(grep -v "^>" "${T2T_MASKED}" | tr -cd 'Nn' | wc -c)
+    n_added=$(( n_after - n_before ))
+    if [[ "${n_added}" -ne "${masked_bp}" ]]; then
+        echo "Warning: newly masked bases (${n_added}) != BED total (${masked_bp})."
+        echo "  This may indicate overlapping BED regions or intervals clamped at chromosome ends."
+    fi
 else
     echo "Already exists: ${T2T_VERSION}_masked.fa"
-fi
-
-n_loci=$(wc -l < "${T2T_RRNA_BED}")
-masked_bp=$(awk '{sum += $3-$2} END{print sum}' "${T2T_RRNA_BED}")
-n_after=$(grep -v "^>" "${T2T_MASKED}" | tr -cd 'Nn' | wc -c)
-n_added=$(( n_after - n_before ))
-if [[ "${n_added}" -ne "${masked_bp}" ]]; then
-    echo "Warning: newly masked bases (${n_added}) != BED total (${masked_bp})."
-    echo "  This may indicate overlapping BED regions or intervals clamped at chromosome ends."
 fi
 
 ################################################################################
@@ -313,12 +311,12 @@ if [[ -f "${T2T_CMSEARCH_BED}" ]] && [[ -f "${T2T_GFF3_BED}" ]]; then
         n_extra=0
         [[ -f "${extra_bed}" ]] && n_extra=$(wc -l < "${extra_bed}")
         case "${cm_id}" in
-            RF01960) cm_name="18S SSU rRNA" ; cm_note="Regions not annotated in RefSeq GFF3" ;;
-            RF02543) cm_name="28S LSU rRNA" ; cm_note="Regions not annotated in RefSeq GFF3" ;;
-            RF00001) cm_name="5S rRNA"      ; cm_note="Regions not annotated in RefSeq GFF3; includes 5S pseudogenes distributed genome-wide (BLAST confirmed)" ;;
-            RF00002) cm_name="5.8S rRNA"    ; cm_note="Regions not annotated in RefSeq GFF3" ;;
+            RF01960) cm_name="18S SSU rRNA" ;;
+            RF02543) cm_name="28S LSU rRNA" ;;
+            RF00001) cm_name="5S rRNA"      ;;
+            RF00002) cm_name="5.8S rRNA"    ;;
         esac
-        cms_family_rows="${cms_family_rows}      <tr><td>${cm_name}</td><td>${cm_id}</td><td>${n_extra}</td><td>${cm_note}</td></tr>\n"
+        cms_family_rows="${cms_family_rows}      <tr><td>${cm_name}</td><td>${cm_id}</td><td>${n_extra}</td></tr>\n"
     done
 fi
 
@@ -359,10 +357,7 @@ if cms_used:
         '<h2>cmsearch rRNA Annotation Supplement</h2>\n'
         '<div class="description">\n'
         '<p>The RefSeq GFF3 annotation was supplemented with Infernal cmsearch to identify '
-        'unannotated rRNA copies. The T2T CHM13v2.0 assembly fully resolves the Nucleolar '
-        'Organizer Regions (NOR) on the short arms of acrocentric chromosomes (chr13, chr14, '
-        'chr15, chr21, chr22) for the first time - previous assemblies (GRCh37/GRCh38) had '
-        'these regions as sequence gaps and consequently had near-zero false positive rates. '
+        'unannotated rRNA copies and rRNA pseudogenes not individually annotated in RefSeq. '
         'Covariance models RF01960 (18S), RF02543 (28S), RF00001 (5S), and RF00002 (5.8S) '
         'were run with --cut_ga; --hmmonly was applied for the two large subunit models.</p>\n'
         '</div>\n'
@@ -377,7 +372,7 @@ if cms_used:
         '</table></div>\n'
         '<h3>Per-family regions found by cmsearch but absent from GFF3</h3>\n'
         '<div class="table-wrap"><table>\n'
-        '  <thead><tr><th>Family</th><th>Rfam ID</th><th>Regions not in GFF3</th><th>Note</th></tr></thead>\n'
+        '  <thead><tr><th>Family</th><th>Rfam ID</th><th>Regions not in GFF3</th></tr></thead>\n'
         '  <tbody>\n'
         + cms_rows +
         '  </tbody>\n'
