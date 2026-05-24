@@ -34,18 +34,24 @@
 #   T2T_BASE            NCBI FTP base URL for the GCA assembly (genome FASTA)
 #   T2T_GCF_BASE        NCBI FTP base URL for the GCF assembly (rRNA annotation)
 #   RFAM_NON_RRNA_FTP   Rfam FASTA FTP base URL (default: CURRENT release)
+#   CMS_DIR             Directory containing pressed Rfam CMs (from download_cms.sh)
+#                       If set, cmsearch is run to supplement GFF3 rRNA annotation.
 #
 # Note: genome FASTA is from GCA (GenBank accession names, e.g. CP068277.2);
 #       rRNA annotation GFF3 is from GCF (RefSeq, NC_ accession names).
 #       The assembly report maps NC_ names to GenBank accession names to match the FASTA.
+#       cmsearch uses RF01960 (18S), RF02543 (28S), RF00001 (5S), RF00002 (5.8S).
 #
 # Outputs:
-#   t2t/${T2T_VERSION}.fa.gz                 - T2T genome (input for ART simulation)
-#   t2t/${T2T_VERSION}_annotation.gff.gz     - RefSeq GFF3 annotation (~76 MB)
-#   t2t/${T2T_VERSION}_assembly_report.txt   - Chromosome name mapping (NC_ -> chr)
-#   t2t/${T2T_VERSION}_rrna_loci.bed         - rRNA loci in BED format (for bedtools maskfasta)
-#   rfam/RF*.fa.gz                          - Rfam non-rRNA family FASTA files
-#   rfam_non_rrna_all.fasta                 - All Rfam non-rRNA sequences combined
+#   t2t/${T2T_VERSION}.fa.gz                    - T2T genome (input for ISS simulation)
+#   t2t/${T2T_VERSION}_annotation.gff.gz        - RefSeq GFF3 annotation (~76 MB)
+#   t2t/${T2T_VERSION}_assembly_report.txt      - Chromosome name mapping (NC_ -> GenBank)
+#   t2t/${T2T_VERSION}_gff3_loci.bed            - rRNA loci from GFF3 annotation
+#   t2t/RF*_hits.tbl                            - cmsearch tblout files (if CMS_DIR set)
+#   t2t/${T2T_VERSION}_cmsearch_loci.bed        - rRNA loci from cmsearch (if CMS_DIR set)
+#   t2t/${T2T_VERSION}_rrna_loci.bed            - final merged BED (for bedtools maskfasta)
+#   rfam/RF*.fa.gz                              - Rfam non-rRNA family FASTA files
+#   rfam_non_rrna_all.fasta                     - All Rfam non-rRNA sequences combined
 #
 # Next step: Run simulate_non_rrna.sh to mask rRNA loci, simulate T2T reads
 #            with InSilicoSeq, and filter Rfam sequences by length
@@ -64,6 +70,7 @@ T2T_VERSION="${T2T_VERSION:-chm13v2.0}"
 T2T_BASE="${T2T_BASE:-https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/009/914/755/${T2T_ACCESSION}_${T2T_NAME}}"
 T2T_GCF_BASE="${T2T_GCF_BASE:-https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/${T2T_GCF_ACCESSION}_${T2T_NAME}}"
 RFAM_NON_RRNA_FTP="${RFAM_NON_RRNA_FTP:-https://ftp.ebi.ac.uk/pub/databases/Rfam/CURRENT/fasta_files}"
+CMS_DIR="${CMS_DIR:-}"
 
 show_help() {
     grep '^#' "$0" | grep -v '#!/usr/bin/env bash' | sed 's/^# \?//'
@@ -148,15 +155,85 @@ else
     echo "Already exists: ${T2T_VERSION}_assembly_report.txt"
 fi
 
-echo "Extracting rRNA loci from GFF3 to BED (for masking in simulation step)..."
+T2T_FA="${T2T_DIR}/${T2T_VERSION}.fa"
+T2T_GFF3_BED="${T2T_DIR}/${T2T_VERSION}_gff3_loci.bed"
+T2T_CMSEARCH_BED="${T2T_DIR}/${T2T_VERSION}_cmsearch_loci.bed"
 T2T_RRNA_BED="${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
+
 if [[ ! -f "${T2T_RRNA_BED}" ]] || [[ ! -s "${T2T_RRNA_BED}" ]]; then
-    python3 "${UTILS_DIR}/extract_rrna_loci.py" "${T2T_GFF_GZ}" "${T2T_RRNA_BED}" \
+
+    echo "Extracting rRNA loci from GFF3..."
+    python3 "${UTILS_DIR}/extract_rrna_loci.py" "${T2T_GFF_GZ}" "${T2T_GFF3_BED}" \
         --margin "${RNA_LOCI_MARGIN}" --name-map "${T2T_ASSEMBLY_REPORT}"
-    sort -k1,1 -k2,2n "${T2T_RRNA_BED}" \
+    sort -k1,1 -k2,2n "${T2T_GFF3_BED}" \
+        | bedtools merge > "${T2T_GFF3_BED}.tmp" \
+        && mv "${T2T_GFF3_BED}.tmp" "${T2T_GFF3_BED}"
+    gff3_regions=$(wc -l < "${T2T_GFF3_BED}")
+    gff3_bp=$(awk '{sum+=$3-$2} END{print sum}' "${T2T_GFF3_BED}")
+    echo "  GFF3 loci: ${gff3_regions} regions, ${gff3_bp} bp"
+
+    if [[ -n "${CMS_DIR}" ]] && command -v cmsearch &>/dev/null; then
+        if [[ ! -f "${T2T_FA}" ]]; then
+            echo "Decompressing ${T2T_VERSION}.fa.gz for cmsearch..."
+            zcat "${T2T_GENOME_GZ}" > "${T2T_FA}"
+        fi
+
+        echo ""
+        echo "============================================"
+        echo "Running cmsearch for rRNA loci (RF01960, RF02543, RF00001, RF00002)"
+        echo "============================================"
+
+        for cm in RF01960 RF02543 RF00001 RF00002; do
+            tblout="${T2T_DIR}/${cm}_hits.tbl"
+            if [[ ! -f "${tblout}" ]]; then
+                case "${cm}" in
+                    RF01960|RF02543) hmmonly="--hmmonly" ;;
+                    *)               hmmonly="" ;;
+                esac
+                echo "Running cmsearch ${cm}${hmmonly:+ (--hmmonly)} ..."
+                cmsearch ${hmmonly} --cut_ga --cpu "${THREADS}" \
+                    --tblout "${tblout}" \
+                    "${CMS_DIR}/${cm}.cm" "${T2T_FA}" > /dev/null
+                echo "  Saved: $(basename "${tblout}")"
+            else
+                echo "Already exists: ${cm}_hits.tbl"
+            fi
+        done
+
+        awk -v margin="${RNA_LOCI_MARGIN}" '
+            /^#/ { next }
+            $17 != "!" { next }
+            {
+                s = ($8 < $9) ? $8 : $9
+                e = ($8 < $9) ? $9 : $8
+                start = (s - 1 - margin < 0) ? 0 : s - 1 - margin
+                print $1 "\t" start "\t" (e + margin)
+            }
+        ' "${T2T_DIR}/RF01960_hits.tbl" "${T2T_DIR}/RF02543_hits.tbl" \
+          "${T2T_DIR}/RF00001_hits.tbl" "${T2T_DIR}/RF00002_hits.tbl" \
+        | sort -k1,1 -k2,2n \
         | bedtools merge \
-        > "${T2T_RRNA_BED}.tmp" && mv "${T2T_RRNA_BED}.tmp" "${T2T_RRNA_BED}"
-    echo "  rRNA loci: $(wc -l < "${T2T_RRNA_BED}") regions -> ${T2T_RRNA_BED}"
+        > "${T2T_CMSEARCH_BED}"
+
+        cms_regions=$(wc -l < "${T2T_CMSEARCH_BED}")
+        cms_bp=$(awk '{sum+=$3-$2} END{print sum}' "${T2T_CMSEARCH_BED}")
+        extra_bp=$(bedtools subtract -a "${T2T_CMSEARCH_BED}" -b "${T2T_GFF3_BED}" \
+            | awk '{sum+=$3-$2} END{print sum+0}')
+        echo "  cmsearch loci: ${cms_regions} regions, ${cms_bp} bp"
+        echo "  Extra vs GFF3: ${extra_bp} bp not covered by GFF3 annotation"
+
+        cat "${T2T_GFF3_BED}" "${T2T_CMSEARCH_BED}" \
+            | sort -k1,1 -k2,2n \
+            | bedtools merge \
+            > "${T2T_RRNA_BED}"
+    else
+        [[ -z "${CMS_DIR}" ]] && echo "CMS_DIR not set - using GFF3 annotation only."
+        cp "${T2T_GFF3_BED}" "${T2T_RRNA_BED}"
+    fi
+
+    total_regions=$(wc -l < "${T2T_RRNA_BED}")
+    total_bp=$(awk '{sum+=$3-$2} END{print sum}' "${T2T_RRNA_BED}")
+    echo "  Final BED: ${total_regions} regions, ${total_bp} bp -> ${T2T_RRNA_BED}"
 else
     echo "Already exists: ${T2T_VERSION}_rrna_loci.bed ($(wc -l < "${T2T_RRNA_BED}") regions)"
 fi
@@ -223,7 +300,9 @@ echo "Outputs:"
 echo "  T2T genome:        ${T2T_DIR}/${T2T_VERSION}.fa.gz"
 echo "  T2T annotation:    ${T2T_DIR}/${T2T_VERSION}_annotation.gff.gz"
 echo "  Assembly report:   ${T2T_DIR}/${T2T_VERSION}_assembly_report.txt"
-echo "  rRNA BED:          ${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
+echo "  GFF3 loci BED:     ${T2T_GFF3_BED}"
+[[ -f "${T2T_CMSEARCH_BED}" ]] && echo "  cmsearch loci BED: ${T2T_CMSEARCH_BED}"
+echo "  Final rRNA BED:    ${T2T_RRNA_BED}"
 echo "  Rfam all:          ${OUTPUT_DIR}/rfam_non_rrna_all.fasta"
 echo ""
 echo "Next step: Run simulate_non_rrna.sh to mask rRNA loci, simulate T2T reads"
