@@ -25,7 +25,6 @@
 #
 # Options:
 #   --margin INT        Bp to extend each rRNA locus on each side (default: 100)
-#   --skip-download     Skip download, use existing files
 #   -h, --help          Show help
 #
 # Environment variables (set in README "Set paths" section):
@@ -36,9 +35,9 @@
 #   T2T_GCF_BASE        NCBI FTP base URL for the GCF assembly (rRNA annotation)
 #   RFAM_NON_RRNA_FTP   Rfam FASTA FTP base URL (default: CURRENT release)
 #
-# Note: genome FASTA is from GCA (original submission, chr1/chr2 names);
+# Note: genome FASTA is from GCA (GenBank accession names, e.g. CP068277.2);
 #       rRNA annotation GFF3 is from GCF (RefSeq, NC_ accession names).
-#       The assembly report is downloaded to map NC_ names back to chr names.
+#       The assembly report maps NC_ names to GenBank accession names to match the FASTA.
 #
 # Outputs:
 #   t2t/${T2T_VERSION}.fa.gz                 - T2T genome (input for ART simulation)
@@ -56,7 +55,6 @@
 set -euo pipefail
 
 POSITIONAL=()
-SKIP_DOWNLOAD=false
 RNA_LOCI_MARGIN=100
 
 T2T_ACCESSION="${T2T_ACCESSION:-GCA_009914755.4}"
@@ -76,7 +74,6 @@ show_help() {
 while [[ $# -gt 0 ]]; do
     case $1 in
         --margin) RNA_LOCI_MARGIN="$2"; shift 2 ;;
-        --skip-download) SKIP_DOWNLOAD=true; shift ;;
         -h|--help) show_help ;;
         *) POSITIONAL+=("$1"); shift ;;
     esac
@@ -124,33 +121,31 @@ T2T_GENOME_GZ="${T2T_DIR}/${T2T_VERSION}.fa.gz"
 T2T_GFF_GZ="${T2T_DIR}/${T2T_VERSION}_annotation.gff.gz"
 T2T_ASSEMBLY_REPORT="${T2T_DIR}/${T2T_VERSION}_assembly_report.txt"
 
-if [[ "${SKIP_DOWNLOAD}" == false ]]; then
-    if [[ ! -f "${T2T_GENOME_GZ}" ]]; then
-        echo "Downloading ${T2T_VERSION} genome (~889 MB compressed)..."
-        wget -c --progress=bar "${T2T_BASE}/${T2T_ACCESSION}_${T2T_NAME}_genomic.fna.gz" \
-            -O "${T2T_GENOME_GZ}"
-        echo "  Saved: ${T2T_VERSION}.fa.gz"
-    else
-        echo "Already exists: ${T2T_VERSION}.fa.gz"
-    fi
+if [[ ! -f "${T2T_GENOME_GZ}" ]]; then
+    echo "Downloading ${T2T_VERSION} genome (~889 MB compressed)..."
+    wget -c --progress=bar "${T2T_BASE}/${T2T_ACCESSION}_${T2T_NAME}_genomic.fna.gz" \
+        -O "${T2T_GENOME_GZ}"
+    echo "  Saved: ${T2T_VERSION}.fa.gz"
+else
+    echo "Already exists: ${T2T_VERSION}.fa.gz"
+fi
 
-    if [[ ! -f "${T2T_GFF_GZ}" ]]; then
-        echo "Downloading ${T2T_VERSION} RefSeq GFF3 annotation (~76 MB, for rRNA locus masking)..."
-        wget -c --progress=bar "${T2T_GCF_BASE}/${T2T_GCF_ACCESSION}_${T2T_NAME}_genomic.gff.gz" \
-            -O "${T2T_GFF_GZ}"
-        echo "  Saved: ${T2T_VERSION}_annotation.gff.gz"
-    else
-        echo "Already exists: ${T2T_VERSION}_annotation.gff.gz"
-    fi
+if [[ ! -f "${T2T_GFF_GZ}" ]]; then
+    echo "Downloading ${T2T_VERSION} RefSeq GFF3 annotation (~76 MB, for rRNA locus masking)..."
+    wget -c --progress=bar "${T2T_GCF_BASE}/${T2T_GCF_ACCESSION}_${T2T_NAME}_genomic.gff.gz" \
+        -O "${T2T_GFF_GZ}"
+    echo "  Saved: ${T2T_VERSION}_annotation.gff.gz"
+else
+    echo "Already exists: ${T2T_VERSION}_annotation.gff.gz"
+fi
 
-    if [[ ! -f "${T2T_ASSEMBLY_REPORT}" ]]; then
-        echo "Downloading assembly report (chromosome name mapping)..."
-        wget -c "${T2T_GCF_BASE}/${T2T_GCF_ACCESSION}_${T2T_NAME}_assembly_report.txt" \
-            -O "${T2T_ASSEMBLY_REPORT}"
-        echo "  Saved: ${T2T_VERSION}_assembly_report.txt"
-    else
-        echo "Already exists: ${T2T_VERSION}_assembly_report.txt"
-    fi
+if [[ ! -f "${T2T_ASSEMBLY_REPORT}" ]]; then
+    echo "Downloading assembly report (chromosome name mapping)..."
+    wget -c "${T2T_GCF_BASE}/${T2T_GCF_ACCESSION}_${T2T_NAME}_assembly_report.txt" \
+        -O "${T2T_ASSEMBLY_REPORT}"
+    echo "  Saved: ${T2T_VERSION}_assembly_report.txt"
+else
+    echo "Already exists: ${T2T_VERSION}_assembly_report.txt"
 fi
 
 echo "Extracting rRNA loci from GFF3 to BED (for masking in simulation step)..."
@@ -184,33 +179,31 @@ declare -A RFAM_NON_RRNA=(
     ["RF00026"]="U6_spliceosomal"
 )
 
-if [[ "${SKIP_DOWNLOAD}" == false ]]; then
-    echo ""
-    echo "============================================"
-    echo "Downloading Rfam non-rRNA families"
-    echo "============================================"
+echo ""
+echo "============================================"
+echo "Downloading Rfam non-rRNA families"
+echo "============================================"
 
-    mkdir -p "${RFAM_DIR}"
+mkdir -p "${RFAM_DIR}"
 
-    for family_id in "${!RFAM_NON_RRNA[@]}"; do
-        family_name="${RFAM_NON_RRNA[$family_id]}"
-        outfile="${RFAM_DIR}/${family_id}_${family_name}.fa.gz"
-        if [[ -f "${outfile}" ]]; then
-            echo "Already exists: $(basename "${outfile}")"
-            continue
-        fi
-        echo "Downloading ${family_id} (${family_name})..."
-        wget -c "${RFAM_NON_RRNA_FTP}/${family_id}.fa.gz" -O "${outfile}" || {
-            echo "Warning: ${family_id} download failed, continuing..."
-            rm -f "${outfile}"
-        }
-    done
+for family_id in "${!RFAM_NON_RRNA[@]}"; do
+    family_name="${RFAM_NON_RRNA[$family_id]}"
+    outfile="${RFAM_DIR}/${family_id}_${family_name}.fa.gz"
+    if [[ -f "${outfile}" ]]; then
+        echo "Already exists: $(basename "${outfile}")"
+        continue
+    fi
+    echo "Downloading ${family_id} (${family_name})..."
+    wget -c "${RFAM_NON_RRNA_FTP}/${family_id}.fa.gz" -O "${outfile}" || {
+        echo "Warning: ${family_id} download failed, continuing..."
+        rm -f "${outfile}"
+    }
+done
 
-    echo "Decompressing Rfam files..."
-    for gz in "${RFAM_DIR}"/*.gz; do
-        [[ -f "${gz}" ]] && gunzip -kf "${gz}"
-    done
-fi
+echo "Decompressing Rfam files..."
+for gz in "${RFAM_DIR}"/*.gz; do
+    [[ -f "${gz}" ]] && gunzip -kf "${gz}"
+done
 
 echo ""
 echo "Combining Rfam non-rRNA sequences..."

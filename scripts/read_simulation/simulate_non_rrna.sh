@@ -156,6 +156,19 @@ echo "============================================"
 echo "Step 2: Mask rRNA loci"
 echo "============================================"
 
+missing=0
+while IFS= read -r chrom; do
+    if ! grep -qPm1 "^>${chrom}(\s|$)" "${T2T_FA}"; then
+        echo "Error: BED chromosome '${chrom}' not found in ${T2T_FA}."
+        missing=1
+    fi
+done < <(cut -f1 "${T2T_RRNA_BED}" | sort -u)
+if [[ "${missing}" -eq 1 ]]; then
+    echo "Chromosome names in the BED must match FASTA headers."
+    echo "Delete ${T2T_RRNA_BED} and re-run download_non_rrna.sh to regenerate."
+    exit 1
+fi
+
 if [[ ! -f "${T2T_MASKED}" ]]; then
     n_loci=$(wc -l < "${T2T_RRNA_BED}")
     echo "Masking ${n_loci} rRNA loci with bedtools maskfasta..."
