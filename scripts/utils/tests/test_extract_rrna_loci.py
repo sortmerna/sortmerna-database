@@ -15,7 +15,7 @@ def write_gff(path, content):
 
 
 def write_report(path, rows):
-    """Write a minimal NCBI assembly report with given (refseq, ucsc) pairs."""
+    """Write a minimal NCBI assembly report with given (refseq, genbank) pairs."""
     header = (
         "# Assembly name: test\n"
         "# comment\n"
@@ -23,8 +23,8 @@ def write_report(path, rows):
     )
     with open(path, "w") as f:
         f.write(header)
-        for refseq, ucsc in rows:
-            f.write(f"x\tx\tx\tx\tx\tx\t{refseq}\tx\t0\t{ucsc}\n")
+        for refseq, genbank in rows:
+            f.write(f"x\tx\tx\tx\t{genbank}\tx\t{refseq}\tx\t0\tx\n")
 
 
 def read_bed(path):
@@ -172,6 +172,6 @@ class TestLoadNameMap:
         report = tmp_path / "report.txt"
         with open(report, "w") as f:
             f.write("# comment\n")
-            f.write("x\tx\tx\tx\tx\tx\tna\tx\t0\tna\n")
+            f.write("x\tx\tx\tx\tna\tx\tna\tx\t0\tx\n")
         m = load_name_map(report)
         assert len(m) == 0
