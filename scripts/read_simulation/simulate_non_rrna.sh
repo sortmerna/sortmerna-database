@@ -169,6 +169,8 @@ if [[ "${missing}" -eq 1 ]]; then
     exit 1
 fi
 
+n_before=$(grep -v "^>" "${T2T_FA}" | tr -cd 'Nn' | wc -c)
+
 if [[ ! -f "${T2T_MASKED}" ]]; then
     n_loci=$(wc -l < "${T2T_RRNA_BED}")
     echo "Masking ${n_loci} rRNA loci with bedtools maskfasta..."
@@ -183,6 +185,12 @@ fi
 
 n_loci=$(wc -l < "${T2T_RRNA_BED}")
 masked_bp=$(awk '{sum += $3-$2} END{print sum}' "${T2T_RRNA_BED}")
+n_after=$(grep -v "^>" "${T2T_MASKED}" | tr -cd 'Nn' | wc -c)
+n_added=$(( n_after - n_before ))
+if [[ "${n_added}" -ne "${masked_bp}" ]]; then
+    echo "Warning: newly masked bases (${n_added}) != BED total (${masked_bp})."
+    echo "  This may indicate overlapping BED regions or intervals clamped at chromosome ends."
+fi
 
 ################################################################################
 # 3. SIMULATE ILLUMINA READS WITH InSilicoSeq

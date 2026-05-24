@@ -153,7 +153,9 @@ T2T_RRNA_BED="${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
 if [[ ! -f "${T2T_RRNA_BED}" ]] || [[ ! -s "${T2T_RRNA_BED}" ]]; then
     python3 "${UTILS_DIR}/extract_rrna_loci.py" "${T2T_GFF_GZ}" "${T2T_RRNA_BED}" \
         --margin "${RNA_LOCI_MARGIN}" --name-map "${T2T_ASSEMBLY_REPORT}"
-    sort -k1,1 -k2,2n "${T2T_RRNA_BED}" -o "${T2T_RRNA_BED}"
+    sort -k1,1 -k2,2n "${T2T_RRNA_BED}" \
+        | bedtools merge \
+        > "${T2T_RRNA_BED}.tmp" && mv "${T2T_RRNA_BED}.tmp" "${T2T_RRNA_BED}"
     echo "  rRNA loci: $(wc -l < "${T2T_RRNA_BED}") regions -> ${T2T_RRNA_BED}"
 else
     echo "Already exists: ${T2T_VERSION}_rrna_loci.bed ($(wc -l < "${T2T_RRNA_BED}") regions)"
