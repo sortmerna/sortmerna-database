@@ -31,7 +31,7 @@
 # Options:
 #   --t2t-reads INT   Number of simulated T2T reads to include (default: 1000000)
 #                     ISS --n_reads splits evenly between R1 and R2, so R1+R2 combined = N_T2T.
-#   --model STR       InSilicoSeq error model: HiSeq, NovaSeq, MiSeq (default: HiSeq)
+#   --model STR       InSilicoSeq error model: HiSeq, NovaSeq, MiSeq (default: NovaSeq)
 #   --rfam-reads INT  Total Rfam sequences to sample across all families (default: 500000)
 #                     Fair-share allocation: quota redistributed from small families to large
 #                     ones so the target is met exactly (see fair_share_rfam.py).
@@ -55,7 +55,7 @@ UTILS_DIR="${SCRIPT_DIR}/../utils"
 
 POSITIONAL=()
 N_T2T=1000000
-ISS_MODEL=HiSeq
+ISS_MODEL=NovaSeq
 N_RFAM_READS=500000
 RAND_SEED=42
 

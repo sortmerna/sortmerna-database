@@ -303,7 +303,7 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 
 **Preparation (T2T):**
 1. Mask rRNA loci in CHM13v2.0 using RefSeq GFF3 annotations
-2. Simulate 1M 150bp PE reads with InSilicoSeq (HiSeq error model)
+2. Simulate 1M 150bp PE reads with InSilicoSeq (NovaSeq error model)
 
 **Preparation (Rfam):**
 1. Download 10 non-rRNA families (tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs)
@@ -324,7 +324,7 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 | U5 spliceosomal | RF00020 |
 | U6 spliceosomal | RF00026 |
 
-Sequences are used as-is without read simulation. Most Rfam families consist predominantly of short RNAs (tRNA averages 73 bp, spliceosomal snRNAs 100-200 bp); simulating 150 bp reads from these sequences would discard the majority of them due to length, losing the very diversity the test is designed to cover. The natural length distribution is also the point: these structurally complex RNAs should be rejected by SortMeRNA regardless of length.
+Sequences are used as-is without read simulation. Most Rfam families consist of short RNAs (tRNA averages 73 bp, spliceosomal snRNAs 100-200 bp); simulating 150 bp reads from these sequences would discard the majority of them due to length, losing the very diversity the test is designed to cover. The natural length distribution is also the point: these structurally complex RNAs should be rejected by SortMeRNA regardless of length.
 
 Sampling evenly across families (fair-share allocation, ~102K per large family at the 500K default) ensures all families are equally represented regardless of family size. A fixed random seed (`--seed 42`) makes the output reproducible.
 
@@ -340,7 +340,7 @@ Evaluate the databases built in Phase 1 for sensitivity (rRNA detection) and spe
 
 #### Simulated Data (Illumina)
 Generate synthetic Illumina reads with known rRNA/non-rRNA composition:
-- **Tool**: InSilicoSeq (150bp paired-end, HiSeq error model)
+- **Tool**: InSilicoSeq (150bp paired-end, NovaSeq error model)
 - **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database
 - **Non-rRNA source**: `non_rRNA_test_1M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` - tested separately
 

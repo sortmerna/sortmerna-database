@@ -49,6 +49,8 @@
 #   t2t/${T2T_VERSION}_gff3_loci.bed            - rRNA loci from GFF3 annotation
 #   t2t/RF*_hits.tbl                            - cmsearch tblout files (if CMS_DIR set)
 #   t2t/${T2T_VERSION}_cmsearch_loci.bed        - rRNA loci from cmsearch (if CMS_DIR set)
+#   t2t/RF*_extra_vs_gff3.bed                  - per-family regions found by cmsearch but not GFF3
+#   t2t/RF*_extra_vs_gff3.fasta                - sequences for those regions (for BLAST verification)
 #   t2t/${T2T_VERSION}_rrna_loci.bed            - final merged BED (for bedtools maskfasta)
 #   rfam/RF*.fa.gz                              - Rfam non-rRNA family FASTA files
 #   rfam_non_rrna_all.fasta                     - All Rfam non-rRNA sequences combined
@@ -221,6 +223,36 @@ if [[ ! -f "${T2T_RRNA_BED}" ]] || [[ ! -s "${T2T_RRNA_BED}" ]]; then
             | awk '{sum+=$3-$2} END{print sum+0}')
         echo "  cmsearch loci: ${cms_regions} regions, ${cms_bp} bp"
         echo "  Extra vs GFF3: ${extra_bp} bp not covered by GFF3 annotation"
+
+        echo ""
+        echo "Extracting per-family sequences found by cmsearch but not in GFF3..."
+        for cm in RF01960 RF02543 RF00001 RF00002; do
+            tblout="${T2T_DIR}/${cm}_hits.tbl"
+            extra_bed="${T2T_DIR}/${cm}_extra_vs_gff3.bed"
+            extra_fa="${T2T_DIR}/${cm}_extra_vs_gff3.fasta"
+            awk -v margin="${RNA_LOCI_MARGIN}" '
+                /^#/ { next }
+                $17 != "!" { next }
+                {
+                    s = ($8 < $9) ? $8 : $9
+                    e = ($8 < $9) ? $9 : $8
+                    start = (s - 1 - margin < 0) ? 0 : s - 1 - margin
+                    print $1 "\t" start "\t" (e + margin)
+                }
+            ' "${tblout}" \
+            | sort -k1,1 -k2,2n \
+            | bedtools merge \
+            | bedtools subtract -a - -b "${T2T_GFF3_BED}" \
+            > "${extra_bed}"
+            n_regions=$(wc -l < "${extra_bed}")
+            if [[ "${n_regions}" -gt 0 ]]; then
+                bedtools getfasta -fi "${T2T_FA}" -bed "${extra_bed}" -fo "${extra_fa}"
+                echo "  ${cm}: ${n_regions} regions not in GFF3 -> $(basename "${extra_fa}")"
+            else
+                echo "  ${cm}: no regions outside GFF3"
+                rm -f "${extra_bed}"
+            fi
+        done
 
         cat "${T2T_GFF3_BED}" "${T2T_CMSEARCH_BED}" \
             | sort -k1,1 -k2,2n \
