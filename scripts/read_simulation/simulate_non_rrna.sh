@@ -30,15 +30,12 @@
 #
 # Options:
 #   --t2t-reads INT   Number of simulated T2T reads to include (default: 1000000)
-#                     InSilicoSeq is run with N_T2T/2 read pairs so that R1+R2
-#                     combined equals exactly N_T2T individual reads.
+#                     ISS --n_reads splits evenly between R1 and R2, so R1+R2 combined = N_T2T.
 #   --model STR       InSilicoSeq error model: HiSeq, NovaSeq, MiSeq (default: HiSeq)
 #   --rfam-reads INT  Total Rfam sequences to sample across all families (default: 500000)
 #                     Fair-share allocation: quota redistributed from small families to large
 #                     ones so the target is met exactly (see fair_share_rfam.py).
 #   --seed INT        Random seed for InSilicoSeq simulation and Rfam sampling (default: 42)
-#   --skip-mask       Skip masking step, use existing masked genome
-#   --skip-sim        Skip InSilicoSeq simulation, use existing output
 #   -h, --help        Show help
 #
 # Environment variables:
@@ -61,8 +58,6 @@ N_T2T=1000000
 ISS_MODEL=HiSeq
 N_RFAM_READS=500000
 RAND_SEED=42
-SKIP_MASK=false
-SKIP_SIM=false
 
 T2T_VERSION="${T2T_VERSION:-chm13v2.0}"
 T2T_ACCESSION="${T2T_ACCESSION:-GCA_009914755.4}"
@@ -80,8 +75,6 @@ while [[ $# -gt 0 ]]; do
         --model) ISS_MODEL="$2"; shift 2 ;;
         --rfam-reads) N_RFAM_READS="$2"; shift 2 ;;
         --seed) RAND_SEED="$2"; shift 2 ;;
-        --skip-mask) SKIP_MASK=true; shift ;;
-        --skip-sim) SKIP_SIM=true; shift ;;
         -h|--help) show_help ;;
         *) POSITIONAL+=("$1"); shift ;;
     esac
@@ -163,24 +156,16 @@ echo "============================================"
 echo "Step 2: Mask rRNA loci"
 echo "============================================"
 
-if [[ "${SKIP_MASK}" == false ]]; then
-    if [[ ! -f "${T2T_MASKED}" ]]; then
-        n_loci=$(wc -l < "${T2T_RRNA_BED}")
-        echo "Masking ${n_loci} rRNA loci with bedtools maskfasta..."
-        bedtools maskfasta \
-            -fi "${T2T_FA}" \
-            -bed "${T2T_RRNA_BED}" \
-            -fo "${T2T_MASKED}"
-        echo "  Saved: ${T2T_VERSION}_masked.fa"
-    else
-        echo "Already exists: ${T2T_VERSION}_masked.fa"
-    fi
+if [[ ! -f "${T2T_MASKED}" ]]; then
+    n_loci=$(wc -l < "${T2T_RRNA_BED}")
+    echo "Masking ${n_loci} rRNA loci with bedtools maskfasta..."
+    bedtools maskfasta \
+        -fi "${T2T_FA}" \
+        -bed "${T2T_RRNA_BED}" \
+        -fo "${T2T_MASKED}"
+    echo "  Saved: ${T2T_VERSION}_masked.fa"
 else
-    echo "Skipping mask (--skip-mask)."
-    if [[ ! -f "${T2T_MASKED}" ]]; then
-        echo "Error: --skip-mask set but ${T2T_MASKED} does not exist"
-        exit 1
-    fi
+    echo "Already exists: ${T2T_VERSION}_masked.fa"
 fi
 
 n_loci=$(wc -l < "${T2T_RRNA_BED}")
@@ -200,29 +185,18 @@ ISS_PREFIX="${ISS_DIR}/${T2T_VERSION}_masked"
 ISS_R1="${ISS_PREFIX}_R1.fastq"
 ISS_R2="${ISS_PREFIX}_R2.fastq"
 
-if [[ "${SKIP_SIM}" == false ]]; then
-    if [[ ! -f "${ISS_R1}" ]] || [[ ! -f "${ISS_R2}" ]]; then
-        # iss generates n_reads PE pairs, so R1+R2 combined = 2 * n_reads.
-        # Use N_T2T/2 pairs to get exactly N_T2T individual reads after combining.
-        N_PAIRS=$(( N_T2T / 2 ))
-        echo "Generating ${N_PAIRS} PE pairs (${N_T2T} individual reads) with InSilicoSeq..."
-        iss generate \
-            --genomes "${T2T_MASKED}" \
-            --model "${ISS_MODEL}" \
-            --n_reads "${N_PAIRS}" \
-            --cpus "${THREADS}" \
-            --seed "${RAND_SEED}" \
-            --output "${ISS_PREFIX}"
-        echo "  Saved: $(basename "${ISS_R1}"), $(basename "${ISS_R2}")"
-    else
-        echo "Already exists: InSilicoSeq output files"
-    fi
+if [[ ! -f "${ISS_R1}" ]] || [[ ! -f "${ISS_R2}" ]]; then
+    echo "Generating ${N_T2T} reads (${N_T2T}/2 per R1/R2) with InSilicoSeq..."
+    iss generate \
+        --genomes "${T2T_MASKED}" \
+        --model "${ISS_MODEL}" \
+        --n_reads "${N_T2T}" \
+        --cpus "${THREADS}" \
+        --seed "${RAND_SEED}" \
+        --output "${ISS_PREFIX}"
+    echo "  Saved: $(basename "${ISS_R1}"), $(basename "${ISS_R2}")"
 else
-    echo "Skipping simulation (--skip-sim)."
-    if [[ ! -f "${ISS_R1}" ]] || [[ ! -f "${ISS_R2}" ]]; then
-        echo "Error: --skip-sim set but ISS output not found: ${ISS_R1}"
-        exit 1
-    fi
+    echo "Already exists: InSilicoSeq output files"
 fi
 
 ################################################################################
