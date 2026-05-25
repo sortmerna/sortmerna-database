@@ -342,11 +342,11 @@ Generate synthetic Illumina reads with known rRNA/non-rRNA composition:
 - **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database
 - **Non-rRNA source**: `non_rRNA_test_10M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` - tested separately
 
-**SortMeRNA is a filter, not a classifier**
+#### SortMeRNA is a filter, not a classifier
 
 SortMeRNA is an rRNA **filter** - it answers "is this read rRNA?" not "which type of rRNA is this?". A read simulated from a bacterial SSU sequence may be detected via a k-mer match and Smith-Waterman extension against an archaeal SSU reference, and this is expected behavior given how conserved rRNA sequences are across domains. Per-type sensitivity is therefore not a meaningful metric. All rRNA types are pooled into a single reads file per Set, and sensitivity is measured as a single aggregate: detected / total.
 
-##### E-value Filtering
+#### E-value Filtering
 
 SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`) with Gumbel parameters (λ, K) [6,7] computed via the ALP library, where `m` is the query length, `n` is the total length of the reference database, `S` is the alignment score, and `E` is the expected number of alignments with score >= S by chance. Rather than computing a floating-point E-value per alignment, SortMeRNA inverts the formula once at startup to derive a minimum Smith-Waterman score (`S_min = ln(E / (K·m·n)) / (-λ)`), then filters reads with a single integer comparison during alignment.
 
