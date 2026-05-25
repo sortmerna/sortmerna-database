@@ -267,7 +267,7 @@ for fa in "${RFAM_DIR}"/RF*.fa; do
     max_len=$(echo "${stats}" | cut -f8)
 
     rfam_tmp=$(mktemp)
-    seqkit sample -n "${n_alloc}" --rand-seed "${RAND_SEED}" "${fa}" > "${rfam_tmp}"
+    seqkit sample -n "${n_alloc}" --rand-seed "${RAND_SEED}" "${fa}" | seqkit seq -w 0 > "${rfam_tmp}"
     n_sampled=$(seqkit stats -T "${rfam_tmp}" | tail -1 | cut -f4)
     cat "${rfam_tmp}" >> "${RFAM_OUTPUT}"
     rm -f "${rfam_tmp}"
@@ -387,7 +387,7 @@ html = """\
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Non-rRNA Test Set Summary</title>
+<title>Non-rRNA Reference Sources Summary for Reads Simulation</title>
 <style>
   body {{ font-family: Arial, sans-serif; margin: 40px; color: #333; }}
   h1   {{ color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; }}
@@ -404,7 +404,7 @@ html = """\
 </style>
 </head>
 <body>
-<h1>Non-rRNA Test Set Summary</h1>
+<h1>Non-rRNA Reference Sources Summary for Reads Simulation</h1>
 <p class="meta">Generated: {date}</p>
 
 <section>

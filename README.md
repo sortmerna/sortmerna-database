@@ -16,6 +16,14 @@ This repository contains code and workflows to:
 4. Optimize clustering parameters for different use cases
 5. Validate databases against simulated and real datasets
    
+## E-value Filtering
+
+SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`) with Gumbel parameters (λ, K) [6,7] computed via the ALP library. Rather than computing a floating-point E-value per alignment, SortMeRNA inverts the formula once at startup to derive a minimum Smith-Waterman score (`S_min = ln(E / (K·m·n)) / (-λ)`), then filters reads with a single integer comparison during alignment.
+
+**Important distinction from BLAST**: in BLAST, `m` is the length of the individual query sequence, giving a per-query E-value. In SortMeRNA, `m` is the total nucleotide count across all reads in the dataset. This means `S_min` sets a run-level threshold: the expected number of spurious alignments across all reads against the database is  <= E, not <= E per read. The effective per-read E-value is therefore `E / total_reads` - with 1M reads and E=1.0, the per-read threshold is 0.000001, far stricter than BLAST's default. A consequence is that the threshold is dataset-size dependent: adding more reads makes filtering more stringent, and short reads face the same absolute score threshold as long reads regardless of their length.
+
+This design is also motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~124M total bases (~69K sequences), roughly 10,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
+
 ## Goals
 
 ### Phase 1: Database Construction
@@ -474,8 +482,11 @@ LGPL-3.0
 
 ## References
 
-1. Kopylova E, Noé L, Touzet H. SortMeRNA: fast and accurate filtering of ribosomal RNAs in metatranscriptomic data. Bioinformatics. 2012 Dec 15;28(24):3211-7. doi: 10.1093/bioinformatics/bts611. Epub 2012 Oct 15. PMID: 23071270.
-2. Quast C, Pruesse E, Yilmaz P, Gerken J, Schweer T, Yarza P, Peplies J, Glöckner FO. The SILVA ribosomal RNA gene database project: improved data processing and web-based tools. Nucleic Acids Res. 2013 Jan;41(Database issue):D590-6. doi: 10.1093/nar/gks1219. Epub 2012 Nov 28. PMID: 23193283; PMCID: PMC3531112.
-3. Kalvari I, Nawrocki EP, Ontiveros-Palacios N, Argasinska J, Lamkiewicz K, Marz M, Griffiths-Jones S, Toffano-Nioche C, Gautheret D, Weinberg Z, Rivas E, Eddy SR, Finn RD, Bateman A, Petrov AI. Rfam 14: expanded coverage of metagenomic, viral and microRNA families. Nucleic Acids Res. 2021 Jan 8;49(D1):D192-D200. doi: 10.1093/nar/gkaa1047. PMID: 33211869; PMCID: PMC7779021.
-4. Karst SM, Ziels RM, Kirkegaard RH et al. High-accuracy long-read amplicon sequences using unique molecular identifiers with Nanopore or PacBio sequencing. Nat Methods 18, 165-169 (2021). https://doi.org/10.1038/s41592-020-01041-y
-
+1. Kopylova E, Noé L, Touzet H. SortMeRNA: fast and accurate filtering of ribosomal RNAs in metatranscriptomic data. Bioinformatics. 2012 Dec 15;28(24):3211-7. doi: 10.1093/bioinformatics/bts611. Epub 2012 Oct 15
+2. Quast C, Pruesse E, Yilmaz P, Gerken J, Schweer T, Yarza P, Peplies J, Glöckner FO. The SILVA ribosomal RNA gene database project: improved data processing and web-based tools. Nucleic Acids Res. 2013 Jan;41(Database issue):D590-6. doi: 10.1093/nar/gks1219. Epub 2012 Nov 28
+3. Kalvari I, Nawrocki EP, Ontiveros-Palacios N, Argasinska J, Lamkiewicz K, Marz M, Griffiths-Jones S, Toffano-Nioche C, Gautheret D, Weinberg Z, Rivas E, Eddy SR, Finn RD, Bateman A, Petrov AI. Rfam 14: expanded coverage of metagenomic, viral and microRNA families. Nucleic Acids Res. 2021 Jan 8;49(D1):D192-D200. doi: 10.1093/nar/gkaa1047
+4. Karst SM, Ziels RM, Kirkegaard RH et al. High-accuracy long-read amplicon sequences using unique molecular identifiers with Nanopore or PacBio sequencing. Nat Methods 18, 165-169 (2021). doi: [10.1038/s41592-020-01041-y](https://doi.org/10.1038/s41592-020-01041-y)
+5. Gourlé H, Karlsson-Lindsjö O, Hayer J, Bongcam-Rudloff E. Simulating Illumina metagenomic data with InSilicoSeq. Bioinformatics. 2019 Feb 1;35(3):521-522. doi: [10.1093/bioinformatics/bty630](https://doi.org/10.1093/bioinformatics/bty630)
+6. Karlin S, Altschul SF. Methods for assessing the statistical significance of molecular sequence features by using general scoring schemes. Proc Natl Acad Sci U S A. 1990 Mar;87(6):2264-2268. doi: [10.1073/pnas.87.6.2264](https://doi.org/10.1073/pnas.87.6.2264)
+7. Madden T. The BLAST Sequence Analysis Tool. 2013 Mar 15. In: The NCBI Handbook [Internet]. 2nd edition. Bethesda (MD): National Center for Biotechnology Information (US); 2013-. Available from: https://www.ncbi.nlm.nih.gov/books/NBK153387/
+8. National Library of Medicine. BLAST Databases. July 2023. Available from: https://www.nlm.nih.gov/ncbi/workshops/2023-08_BLAST_evol/databases.html
