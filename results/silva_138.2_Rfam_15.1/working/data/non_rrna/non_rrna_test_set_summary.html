@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Non-rRNA Test Set Summary</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+  h1   { color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; }
+  h2   { color: #34495e; margin-top: 32px; }
+  h3   { color: #34495e; margin-top: 20px; }
+  .description { background: #f8f9fa; border-left: 4px solid #3498db; padding: 10px 16px; margin: 12px 0; }
+  .table-wrap  { overflow-x: auto; margin: 16px 0; }
+  table  { border-collapse: collapse; min-width: 600px; }
+  th, td { border: 1px solid #ddd; padding: 8px 14px; text-align: left; }
+  th     { background: #2c3e50; color: #fff; }
+  tr:nth-child(even) { background: #f2f2f2; }
+  .meta  { font-size: 0.9em; color: #666; margin-top: 4px; }
+  .footer { font-size: 0.8em; color: #999; margin-top: 40px; border-top: 1px solid #ddd; padding-top: 8px; }
+</style>
+</head>
+<body>
+<h1>Non-rRNA Test Set Summary</h1>
+<p class="meta">Generated: 2026-05-24 08:14:48</p>
+
+<section>
+<h2>T2T Genome (Human CHM13v2.0)</h2>
+<div class="description">
+<p>Illumina 150bp PE reads simulated from the T2T CHM13v2.0 human genome with rRNA loci
+masked prior to simulation. Masking prevents false negatives where a simulated read
+happens to span an rRNA region.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Assembly name</td><td>T2T-CHM13v2.0</td></tr>
+    <tr><td>GCA accession</td><td>GCA_009914755.4</td></tr>
+    <tr><td>GCF accession (annotation source)</td><td>GCF_009914755.1</td></tr>
+    <tr><td>Version</td><td>chm13v2.0</td></tr>
+    <tr><td>rRNA loci masked</td><td>1302</td></tr>
+    <tr><td>Total bases masked (including margins)</td><td>1964578</td></tr>
+    <tr><td>Simulation tool</td><td>InSilicoSeq</td></tr>
+    <tr><td>Error model</td><td>NovaSeq</td></tr>
+    <tr><td>Read length</td><td>150 bp (paired-end)</td></tr>
+    <tr><td>Random seed</td><td>42</td></tr>
+    <tr><td>Reads generated</td><td>1000000</td></tr>
+    <tr><td>Output file</td><td>non_rRNA_test_1M_T2T.fasta</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<section>
+<h2>cmsearch rRNA Annotation Supplement</h2>
+<div class="description">
+<p>The RefSeq GFF3 annotation was supplemented with Infernal cmsearch to identify unannotated rRNA copies and rRNA pseudogenes not individually annotated in RefSeq. Covariance models RF01960 (18S), RF02543 (28S), RF00001 (5S), and RF00002 (5.8S) were run with --cut_ga; --hmmonly was applied for the two large subunit models.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Source</th><th>Regions</th><th>Bases (bp)</th></tr></thead>
+  <tbody>
+    <tr><td>GFF3 annotation only</td><td>744</td><td>1685909</td></tr>
+    <tr><td>cmsearch (all families combined)</td><td>1730</td><td>1640185</td></tr>
+    <tr><td>Extra bp found by cmsearch vs GFF3</td><td>-</td><td>278669</td></tr>
+    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Final merged BED (GFF3 + cmsearch)</td><td>1302</td><td>1964578</td></tr>
+  </tbody>
+</table></div>
+<h3>Per-family regions found by cmsearch but absent from GFF3</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Family</th><th>Rfam ID</th><th>Regions not in GFF3</th></tr></thead>
+  <tbody>
+      <tr><td>18S SSU rRNA</td><td>RF01960</td><td>40</td></tr>
+      <tr><td>28S LSU rRNA</td><td>RF02543</td><td>118</td></tr>
+      <tr><td>5S rRNA</td><td>RF00001</td><td>382</td></tr>
+      <tr><td>5.8S rRNA</td><td>RF00002</td><td>20</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<section>
+<h2>Rfam Non-rRNA Families</h2>
+<div class="description">
+<p>Target total: 500000 sequences sampled using fair-share allocation across families.
+Families smaller than the per-family quota contribute all their sequences; the remainder
+is redistributed to larger families so the target is met exactly (see fair_share_rfam.py).
+No read simulation applied - sequences are used as-is to test whether SortMeRNA
+correctly rejects structurally complex non-rRNA sequences.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead>
+    <tr>
+      <th>Family</th><th>Rfam ID</th><th>Total sequences</th>
+      <th>Length range (bp)</th><th>Average length (bp)</th><th>Sequences sampled</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr><td>U1 spliceosomal</td><td>RF00003</td><td>40284</td><td>77-312</td><td>161.2</td><td>40284</td></tr>
+      <tr><td>U2 spliceosomal</td><td>RF00004</td><td>71722</td><td>37-351</td><td>164.9</td><td>71722</td></tr>
+      <tr><td>tRNA</td><td>RF00005</td><td>5336929</td><td>33-271</td><td>72.7</td><td>101813</td></tr>
+      <tr><td>RNaseP eukaryotic</td><td>RF00009</td><td>3964</td><td>62-768</td><td>323.9</td><td>3964</td></tr>
+      <tr><td>RNaseP bacterial</td><td>RF00010</td><td>8942</td><td>134-775</td><td>382.0</td><td>8942</td></tr>
+      <tr><td>U4 spliceosomal</td><td>RF00015</td><td>32357</td><td>51-311</td><td>128.5</td><td>32357</td></tr>
+      <tr><td>SRP RNA</td><td>RF00017</td><td>383615</td><td>93-687</td><td>158.0</td><td>101813</td></tr>
+      <tr><td>U5 spliceosomal</td><td>RF00020</td><td>28713</td><td>33-226</td><td>114.8</td><td>28713</td></tr>
+      <tr><td>tmRNA</td><td>RF00023</td><td>8579</td><td>45-546</td><td>366.8</td><td>8579</td></tr>
+      <tr><td>U6 spliceosomal</td><td>RF00026</td><td>204635</td><td>43-262</td><td>103.9</td><td>101813</td></tr>
+    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td>6119740</td><td></td><td></td><td>500000</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<p class="footer">Generated by simulate_non_rrna.sh - SortMeRNA database pipeline</p>
+</body>
+</html>
