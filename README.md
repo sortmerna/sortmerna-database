@@ -16,14 +16,6 @@ This repository contains code and workflows to:
 4. Optimize clustering parameters for different use cases
 5. Validate databases against simulated and real datasets
    
-## E-value Filtering
-
-SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`) with Gumbel parameters (λ, K) [6,7] computed via the ALP library. Rather than computing a floating-point E-value per alignment, SortMeRNA inverts the formula once at startup to derive a minimum Smith-Waterman score (`S_min = ln(E / (K·m·n)) / (-λ)`), then filters reads with a single integer comparison during alignment.
-
-**Important distinction from BLAST**: in BLAST, `m` is the length of the individual query sequence, giving a per-query E-value. In SortMeRNA, `m` is the total nucleotide count across all reads in the dataset. This means `S_min` sets a run-level threshold: the expected number of spurious alignments across all reads against the database is  <= E, not <= E per read. The effective per-read E-value is therefore `E / total_reads` - with 1M reads and E=1.0, the per-read threshold is 0.000001, far stricter than BLAST's default. A consequence is that the threshold is dataset-size dependent: adding more reads makes filtering more stringent, and short reads face the same absolute score threshold as long reads regardless of their length.
-
-This design is also motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~124M total bases (~69K sequences), roughly 10,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
-
 ## Goals
 
 ### Phase 1: Database Construction
@@ -361,9 +353,17 @@ Generate synthetic Illumina reads with known rRNA/non-rRNA composition:
 - **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database
 - **Non-rRNA source**: `non_rRNA_test_1M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` - tested separately
 
-**Important note on SortMeRNA as a filter, not a classifier**
+**SortMeRNA is a filter, not a classifier**
 
 SortMeRNA is an rRNA **filter** - it answers "is this read rRNA?" not "which type of rRNA is this?". A read simulated from a bacterial SSU sequence may be detected via a k-mer match and Smith-Waterman extension against an archaeal SSU reference, and this is expected behavior given how conserved rRNA sequences are across domains. Per-type sensitivity is therefore not a meaningful metric. All rRNA types are pooled into a single reads file per Set, and sensitivity is measured as a single aggregate: detected / total.
+
+##### E-value Filtering
+
+SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`) with Gumbel parameters (λ, K) [6,7] computed via the ALP library, where `m` is the query length, `n` is the total length of the reference database, `S` is the alignment score, and `E` is the expected number of alignments with score >= S by chance. Rather than computing a floating-point E-value per alignment, SortMeRNA inverts the formula once at startup to derive a minimum Smith-Waterman score (`S_min = ln(E / (K·m·n)) / (-λ)`), then filters reads with a single integer comparison during alignment.
+
+**Distinction from BLAST**: in BLAST, `m` is the length of the individual query sequence, giving a per-query E-value. In SortMeRNA, `m` is the total nucleotide count across all reads in the dataset. This means `S_min` sets a run-level threshold: the expected number of spurious alignments across all reads against the database is <= E, not <= E per read. The effective per-read E-value is therefore `E / total_reads` - with 1M reads and E=1.0, the per-read threshold is 0.000001, far stricter than BLAST's default. A consequence is that the threshold is dataset-size dependent: adding more reads makes filtering more stringent, and short reads face the same absolute score threshold as long reads regardless of their length.
+
+This design is also motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~124M total bases (~69K sequences), roughly 10,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
 
 **Experiment 1: Sensitivity across database configurations**
 
