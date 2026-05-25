@@ -318,21 +318,6 @@ Note: RF00001 (5S rRNA) hits include 5S pseudogenes distributed across many chro
 1. Download 10 non-rRNA families (tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs)
 2. Sample evenly across families (default 1M total = 100K per family, fixed seed for reproducibility)
 
-**Rfam non-rRNA families:**
-
-| Family | Rfam ID |
-|--------|---------|
-| tRNA | RF00005 |
-| SRP RNA | RF00017 |
-| tmRNA | RF00023 |
-| RNase P (bacterial) | RF00010 |
-| RNase P (eukaryotic) | RF00009 |
-| U1 spliceosomal | RF00003 |
-| U2 spliceosomal | RF00004 |
-| U4 spliceosomal | RF00015 |
-| U5 spliceosomal | RF00020 |
-| U6 spliceosomal | RF00026 |
-
 Sequences are used as-is without read simulation. Most Rfam families consist of short RNAs (tRNA averages 73 bp, spliceosomal snRNAs 100-200 bp); simulating 150 bp reads from these sequences would discard the majority of them due to length, losing the very diversity the test is designed to cover. The natural length distribution is also the point: these structurally complex RNAs should be rejected by SortMeRNA regardless of length.
 
 Sampling evenly across families (fair-share allocation, ~102K per large family at the 500K default) ensures all families are equally represented regardless of family size. A fixed random seed (`--seed 42`) makes the output reproducible.
