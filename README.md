@@ -29,7 +29,9 @@ This repository contains code and workflows to:
 - [x] Generate database statistics and metadata
 
 ### Phase 2: Validation and Benchmarking
-- [x] Simulate Illumina 150bp rRNA using non-seed cluster members and non-rRNA reads  using T2T genome + Rfam non-rRNA families (InSilicoSeq)
+- [x] Simulate Illumina 150bp rRNA using non-seed cluster members and non-rRNA reads using T2T genome + Rfam non-rRNA families (InSilicoSeq)
+- [x] Experiment 1: Scalability - run SortMeRNA on T2T non-rRNA and rRNA reads at 10K, 100K, 1M, 10M scale points; generate runtime, FP rate, sensitivity, and E-value plots
+- [ ] Experiment 2: Sensitivity across database configurations - simulate rRNA reads from non-seed members at each clustering threshold; run SortMeRNA against matched database configuration
 - [ ] Download real Illumina metatranscriptomics data
 - [ ] Download real PacBio amplicon data (Karst et al. 2021)
 - [ ] Download real PacBio metagenomics data
@@ -338,7 +340,7 @@ Evaluate the databases built in Phase 1 for sensitivity (rRNA detection) and spe
 Generate synthetic Illumina reads with known rRNA/non-rRNA composition:
 - **Tool**: InSilicoSeq (150bp paired-end, NovaSeq error model)
 - **rRNA source**: Non-seed cluster members (`*_test_members.fasta`) - real rRNA sequences not present in the clustered database
-- **Non-rRNA source**: `non_rRNA_test_1M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` - tested separately
+- **Non-rRNA source**: `non_rRNA_test_10M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` - tested separately
 
 **SortMeRNA is a filter, not a classifier**
 
@@ -354,19 +356,7 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
 
 **Parallelism and `--score_split`**: SortMeRNA processes reads in parallel by dividing the input file into per-thread byte-range chunks - no physical splitting of the reads file occurs. By default, `m` is the total nucleotide count across all reads regardless of thread count, so `S_min` is identical across threads and the run-level threshold holds. The `--score_split` option changes this: it divides `m` by the number of threads, computing `S_min` as if each thread's chunk were an independent dataset. This lowers `S_min` (more lenient threshold), with an effect equivalent to increasing the E-value. It is off by default and should be used with care, as it makes the threshold dependent on the number of threads rather than the size of the dataset.
 
-**Experiment 1: Sensitivity across database configurations**
-
-**Goal:** Does SortMeRNA correctly identify rRNA reads as divergence increases between the read set and the database?
-
-- **Design:** Diagonal 3x3 - each read set tested against its matched database configuration only (same divergence level for reads and database)
-- **Read sets:**
-  - Set 1: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 97% non-seed members -> tested against SMR sensitive db (97%)
-  - Set 2: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 90-95% non-seed members -> tested against SMR default db (90-95%)
-  - Set 3: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 85-90% non-seed members -> tested against SMR fast db (85-90%)
-- **Rationale for 100,000 reads per Set:** Round number that is easy to interpret (1 missed read = 0.001% sensitivity drop), aligns naturally with the first data point of the scalability experiment, and is fast to run
-- **Metric:** Sensitivity = detected / total (aggregate across all rRNA types)
-
-**Experiment 2: Scalability**
+#### Experiment 1: Scalability
 
 **Goal:** How do runtime and memory scale with read volume, and do sensitivity and false positive rate remain stable at large scale?
 
@@ -382,7 +372,7 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
   - S_min (score threshold) vs. read count - illustrates the E-value scaling effect
   - E-value and % identity distributions of aligned reads at each scale point
 
-Run scaling benchmark for T2T non-rRNA reads:
+Run for T2T non-rRNA reads (false positive rate at scale). Requires `non_rRNA_test_10M_T2T.fasta` from `simulate_non_rrna.sh`:
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
@@ -392,6 +382,33 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
     --index-dir $INDEX_DIR \
     --config smr_v5.0.0_default_db
 ```
+
+Run for rRNA reads (sensitivity at scale). Requires Set 2 non-seed rRNA reads simulated from 90-95% identity members (see Step 2 for how to generate them):
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
+    $RRNA_SIM_DIR/set2_rrna_reads.fasta \
+    $RRNA_SIM_DIR/scalability_rrna \
+    4 \
+    --index-dir $INDEX_DIR \
+    --config smr_v5.0.0_default_db
+```
+
+#### Experiment 2: Sensitivity across database configurations
+
+**Goal:** Does SortMeRNA correctly identify rRNA reads as divergence increases between the read set and the database?
+
+- **Design:** Diagonal 3x3 - each read set tested against its matched database configuration only (same divergence level for reads and database)
+- **Read sets:**
+  - Set 1: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 97% non-seed members -> tested against SMR sensitive db (97%)
+  - Set 2: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 90-95% non-seed members -> tested against SMR default db (90-95%)
+  - Set 3: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 85-90% non-seed members -> tested against SMR fast db (85-90%)
+- **Rationale for 100,000 reads per Set:** Round number that is easy to interpret (1 missed read = 0.001% sensitivity drop), aligns naturally with the first data point of the scalability experiment, and is fast to run
+- **Metric:** Sensitivity = detected / total (aggregate across all rRNA types)
+
+Simulate Illumina rRNA reads from non-seed cluster members at each clustering threshold, then run SortMeRNA against the matched database configuration:
+
+*(coming soon - rRNA read simulation script)*
 
 #### Real Benchmark Datasets (PacBio)
 Sensitivity test using real PacBio long-read amplicon data:
