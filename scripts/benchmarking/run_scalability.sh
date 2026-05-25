@@ -13,12 +13,14 @@
 #   --scale INT,...  Comma-separated read counts to test (default: 10000,100000,1000000,10000000)
 #   --label STR      Label used in plot titles and output filenames
 #                    (default: basename of reads.fasta without extension)
-#   --config STR     SortMeRNA database config name (default: smr_v5.0.0_default_db)
+#   --config STR     SortMeRNA database config name under INDEX_DIR (default: smr_v5.0.0_default_db)
+#   --index-dir DIR  Directory containing SortMeRNA index subdirectories
+#                    (overrides INDEX_DIR env var if set)
 #   --seed INT       Random seed for seqkit subsampling (default: 42)
 #
-# Required env vars:
+# Required env vars (can be overridden with the matching option above):
 #   SMR_BIN          Full path to SortMeRNA binary
-#   INDEX_DIR        Directory containing SortMeRNA index subdirectories
+#   INDEX_DIR        Directory containing SortMeRNA index subdirectories (overridable with --index-dir)
 #   SMR_DB_ROOT_DIR  Root of the sortmerna-database repository
 #
 # Outputs (all under <output_dir>):
@@ -38,22 +40,25 @@ SCALE_POINTS_CSV="10000,100000,1000000,10000000"
 RAND_SEED=42
 DB_CONFIG="${DB_CONFIG:-smr_v5.0.0_default_db}"
 LABEL=""
+INDEX_DIR_OPT=""
 
 shift 3 || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --scale)  SCALE_POINTS_CSV="$2"; shift 2 ;;
-        --label)  LABEL="$2";            shift 2 ;;
-        --config) DB_CONFIG="$2";        shift 2 ;;
-        --seed)   RAND_SEED="$2";        shift 2 ;;
+        --scale)     SCALE_POINTS_CSV="$2"; shift 2 ;;
+        --label)     LABEL="$2";            shift 2 ;;
+        --config)    DB_CONFIG="$2";        shift 2 ;;
+        --index-dir) INDEX_DIR_OPT="$2";    shift 2 ;;
+        --seed)      RAND_SEED="$2";        shift 2 ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
 
+[[ -n "${INDEX_DIR_OPT}" ]] && INDEX_DIR="${INDEX_DIR_OPT}"
 [[ -z "${LABEL}" ]] && LABEL="$(basename "${READS}" .fasta)"
 
 : "${SMR_BIN:?SMR_BIN env var not set}"
-: "${INDEX_DIR:?INDEX_DIR env var not set}"
+: "${INDEX_DIR:?INDEX_DIR not set - pass --index-dir or export INDEX_DIR}"
 : "${SMR_DB_ROOT_DIR:?SMR_DB_ROOT_DIR env var not set}"
 
 UTILS_DIR="${SMR_DB_ROOT_DIR}/scripts/utils"
