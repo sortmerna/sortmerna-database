@@ -6,7 +6,7 @@
 # Mask rRNA loci in the T2T genome, simulate Illumina reads with InSilicoSeq,
 # and sample Rfam non-rRNA sequences to produce two test sets:
 #
-#   non_rRNA_test_1M_T2T.fasta   - 1M simulated T2T genome reads (rRNA loci masked)
+#   non_rRNA_test_<N>_T2T.fasta  - N simulated T2T genome reads (rRNA loci masked, default 10M)
 #   non_rRNA_test_Rfam.fasta     - Rfam non-rRNA sequences sampled evenly across families
 #
 # Inputs (from download_non_rrna.sh):
@@ -17,8 +17,8 @@
 # Steps:
 #   1. Decompress T2T genome
 #   2. Mask rRNA loci with bedtools maskfasta
-#   3. Simulate 1M Illumina PE reads with InSilicoSeq
-#   4. Convert to FASTA -> non_rRNA_test_1M_T2T.fasta
+#   3. Simulate N Illumina PE reads with InSilicoSeq (default: 10M)
+#   4. Convert to FASTA -> non_rRNA_test_<N>_T2T.fasta
 #   5. Sample N_RFAM/n_families sequences from each Rfam family -> non_rRNA_test_Rfam.fasta
 #   6. Write HTML summary report
 #
@@ -29,8 +29,10 @@
 #   threads         Number of threads for InSilicoSeq (default: 4)
 #
 # Options:
-#   --t2t-reads INT   Number of simulated T2T reads to include (default: 1000000)
+#   --t2t-reads INT   Number of simulated T2T reads to include (default: 10000000)
 #                     ISS --n_reads splits evenly between R1 and R2, so R1+R2 combined = N_T2T.
+#                     10M is the default so that subsampling covers all scalability scale points
+#                     (10K, 100K, 1M, 10M) without re-running ISS.
 #   --model STR       InSilicoSeq error model: HiSeq, NovaSeq, MiSeq (default: NovaSeq)
 #   --rfam-reads INT  Total Rfam sequences to sample across all families (default: 500000)
 #                     Fair-share allocation: quota redistributed from small families to large
@@ -54,7 +56,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UTILS_DIR="${SCRIPT_DIR}/../utils"
 
 POSITIONAL=()
-N_T2T=1000000
+N_T2T=10000000
 ISS_MODEL=NovaSeq
 N_RFAM_READS=500000
 RAND_SEED=42
@@ -94,7 +96,11 @@ T2T_FA="${T2T_DIR}/${T2T_VERSION}.fa"
 T2T_RRNA_BED="${T2T_DIR}/${T2T_VERSION}_rrna_loci.bed"
 T2T_MASKED="${T2T_DIR}/${T2T_VERSION}_masked.fa"
 
-T2T_OUTPUT="${OUTPUT_DIR}/non_rRNA_test_1M_T2T.fasta"
+if   (( N_T2T % 1000000 == 0 )); then N_T2T_LABEL="$(( N_T2T / 1000000 ))M"
+elif (( N_T2T % 1000    == 0 )); then N_T2T_LABEL="$(( N_T2T / 1000 ))K"
+else                                   N_T2T_LABEL="${N_T2T}"
+fi
+T2T_OUTPUT="${OUTPUT_DIR}/non_rRNA_test_${N_T2T_LABEL}_T2T.fasta"
 RFAM_OUTPUT="${OUTPUT_DIR}/non_rRNA_test_Rfam.fasta"
 OUTPUT_HTML="${OUTPUT_DIR}/non_rrna_test_set_summary.html"
 
@@ -231,7 +237,7 @@ echo "Converting ISS FASTQ to FASTA..."
 cat "${ISS_R1}" "${ISS_R2}" | seqkit fq2fa > "${T2T_OUTPUT}"
 
 n_t2t=$(seqkit stats -T "${T2T_OUTPUT}" | tail -1 | cut -f4)
-echo "  Saved: non_rRNA_test_1M_T2T.fasta (${n_t2t} reads)"
+echo "  Saved: $(basename "${T2T_OUTPUT}") (${n_t2t} reads)"
 
 ################################################################################
 # 5. SAMPLE Rfam FAMILIES
@@ -327,6 +333,7 @@ T2T_VERSION="${T2T_VERSION}" \
 ISS_MODEL="${ISS_MODEL}" \
 RAND_SEED="${RAND_SEED}" \
 N_T2T="${n_t2t}" \
+N_T2T_LABEL="${N_T2T_LABEL}" \
 N_LOCI="${n_loci}" \
 MASKED_BP="${masked_bp}" \
 N_RFAM_READS="${N_RFAM_READS}" \
@@ -428,7 +435,7 @@ happens to span an rRNA region.</p>
     <tr><td>Read length</td><td>150 bp (paired-end)</td></tr>
     <tr><td>Random seed</td><td>{rand_seed}</td></tr>
     <tr><td>Reads generated</td><td>{n_t2t}</td></tr>
-    <tr><td>Output file</td><td>non_rRNA_test_1M_T2T.fasta</td></tr>
+    <tr><td>Output file</td><td>non_rRNA_test_{n_t2t_label}_T2T.fasta</td></tr>
   </tbody>
 </table></div>
 </section>
@@ -470,6 +477,7 @@ correctly rejects structurally complex non-rRNA sequences.</p>
     iss_model=e['ISS_MODEL'],
     rand_seed=e['RAND_SEED'],
     n_t2t=e['N_T2T'],
+    n_t2t_label=e['N_T2T_LABEL'],
     n_rfam_reads=e['N_RFAM_READS'],
     rfam_rows=rfam_rows_raw.replace('\\n', '\n'),
     rfam_total_seqs=e['RFAM_TOTAL_SEQS'],
