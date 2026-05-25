@@ -206,12 +206,18 @@ All sequences were independently verified as rRNA using Infernal's `cmsearch --c
 
 ```bash
 # Verify SILVA SSU and LSU sequences (bacteria, archaea, eukaryota) using --hmmonly --cut_ga
-bash $SMR_DB_ROOT_DIR/scripts/database_building/verify_silva.sh $WORK_DIR/data $VERIFIED_DIR 4
+bash $SMR_DB_ROOT_DIR/scripts/database_building/verify_silva.sh \
+    $WORK_DIR/data \
+    $VERIFIED_DIR \
+    4
 ```
 
 ```bash
 # Verify Rfam 5S and 5.8S seed sequences using full CM search with --cut_ga
-bash $SMR_DB_ROOT_DIR/scripts/database_building/verify_rfam.sh $WORK_DIR/data $VERIFIED_RFAM_DIR 4
+bash $SMR_DB_ROOT_DIR/scripts/database_building/verify_rfam.sh \
+    $WORK_DIR/data \
+    $VERIFIED_RFAM_DIR \
+    4
 ```
 
 Outputs per domain/type in each verified directory:
@@ -234,13 +240,19 @@ Outputs per domain/type in each verified directory:
 
 ```bash
 # Cluster verified SILVA and Rfam sequences at multiple identity thresholds (97%, 95%, 90%, 85%)
-bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh $WORK_DIR/data $CLUSTERED_DIR 4
+bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh \
+    $WORK_DIR/data \
+    $CLUSTERED_DIR \
+    4
 ```
 
 By default, vsearch clustering is skipped for any threshold where the `.uc` output file already exists - only the downstream steps (member extraction, leakage check, summary table) are re-run. To force vsearch to re-cluster and overwrite existing `.uc` files, pass `--force`:
 
 ```bash
-bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh --force $WORK_DIR/data $CLUSTERED_DIR 4
+bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh \
+    --force $WORK_DIR/data \
+    $CLUSTERED_DIR \
+    4
 ```
 
 For each database and clustering threshold, the script outputs four files:
@@ -269,7 +281,10 @@ Three database configurations are assembled from the clustered FASTA files and i
 The sensitive database maximises recall; the default and fast databases trade a small number of sequences for a smaller index and faster runtime. Bacteria SSU uses a one-step lower threshold than the other SILVA domains in the default and fast configurations because bacterial 16S sequences are the largest and most diverse group - a slightly lower threshold helps limit index size without meaningfully reducing sensitivity.
 
 ```bash
-bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh $WORK_DIR/data $INDEX_DIR 4
+bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh \
+    $WORK_DIR/data \
+    $INDEX_DIR \
+    4
 ```
 
 - Per-configuration index build report (sequence count, build time, index size, peak CPU%, peak RAM): <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
@@ -277,7 +292,10 @@ bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh $WORK_D
 Pass `--force` to rebuild an index that already exists:
 
 ```bash
-bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh --force $WORK_DIR/data $INDEX_DIR 4
+bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh \
+    --force $WORK_DIR/data \
+    $INDEX_DIR \
+    4
 ```
 
 For each configuration the script produces:
@@ -296,7 +314,7 @@ Two separate test sets from different sources, used independently to measure spe
 
 | File | Source | Description |
 |------|--------|-------------|
-| `non_rRNA_test_1M_T2T.fasta` | Human T2T genome (CHM13v2.0) | 1M simulated 150bp PE reads, rRNA loci masked prior to simulation |
+| `non_rRNA_test_10M_T2T.fasta` | Human T2T genome (CHM13v2.0) | 10M simulated 150bp PE reads, rRNA loci masked prior to simulation |
 | `non_rRNA_test_Rfam.fasta` | Rfam non-rRNA families | 500K sequences sampled evenly across 10 families that share structural features with rRNA (the most challenging specificity test) |
 
 ```bash
@@ -307,7 +325,7 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 1. Download CHM13v2.0 genome and RefSeq GFF3 annotation
 2. Optionally supplement the GFF3 with Infernal cmsearch (RF01960, RF02543, RF00001, RF00002) to find rRNA copies not individually annotated in RefSeq (see below)
 3. Mask rRNA loci with bedtools maskfasta
-4. Simulate 1M 150bp PE reads with InSilicoSeq (NovaSeq error model)
+4. Simulate 10M 150bp PE reads with InSilicoSeq (NovaSeq error model)
 
 **Supplementing GFF3 with cmsearch:**
 The T2T-CHM13v2.0 assembly resolves the Nucleolar Organizer Regions (NORs) on the short arms of acrocentric chromosomes (chr13, chr14, chr15, chr21, chr22), assembling the large tandem arrays of rDNA repeat units encoding 18S/5.8S/28S rRNA that were largely absent or unsequenced in GRCh37/GRCh38. Comparison of cmsearch-identified rDNA loci against the RefSeq GFF3 annotation reveals rDNA sequence not covered by the annotation (exact figures are reported in <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/non_rrna/non_rrna_test_set_summary.html" target="_blank">non_rrna_test_set_summary.html</a> generated by `simulate_non_rrna.sh`), demonstrating that annotation-based masking alone is insufficient for this assembly. To run cmsearch, set `CMS_DIR` to a directory of pressed Rfam covariance models (see `download_non_rrna.sh` for details); without it the script falls back to GFF3-only masking.
@@ -325,7 +343,11 @@ Sequences are used as-is without read simulation. Most Rfam families consist of 
 Sampling evenly across families (fair-share allocation, ~102K per large family at the 500K default) ensures all families are equally represented regardless of family size. A fixed random seed (`--seed 42`) makes the output reproducible.
 
 ```bash
-bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh $NON_RRNA_DIR 4 --t2t-reads 10000000 --rfam-reads 500000
+bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh \
+    $NON_RRNA_DIR \
+    4 \
+    --t2t-reads 10000000 \
+    --rfam-reads 500000
 ```
 
 - Non-rRNA reference sources summary for read simulation: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/non_rrna/non_rrna_test_set_summary.html" target="_blank">non_rrna_test_set_summary.html</a>
@@ -362,7 +384,7 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
 
 - **Design:** Fixed configuration (SMR default db) across increasing read volumes, run separately for rRNA reads and T2T non-rRNA reads
 - **Read volumes:** 10,000 -> 100,000 -> 1,000,000 -> 10,000,000 reads
-- **rRNA reads:** Subsampled from Set 2 non-seeds (90-95% identity members) - tests sensitivity and the E-value threshold scaling effect (S_min increases with total read count, so sensitivity may shift across scale points)
+- **rRNA reads:** Subsampled from Set 2 non-seeds (90-95% identity members) - tests sensitivity and the E-value threshold scaling effect (`S_min` increases with total read count, so sensitivity may shift across scale points)
 - **Non-rRNA reads:** Subsampled from `non_rRNA_test_10M_T2T.fasta` (10M reads simulated upfront from the masked T2T genome to cover all scale points without re-running InSilicoSeq) - tests false positive rate at scale. The Rfam non-rRNA sequences were not used here because the T2T genome provides a much larger pool to sample from, and InSilicoSeq can generate consistent 150bp paired-end reads at any volume. Rfam families have limited sequence counts and many members are shorter than 150bp, making it impractical to simulate uniform-length reads at the scales needed for this experiment.
 - **Rationale for default db:** The configuration most users would deploy in practice; runtime numbers are directly interpretable for real-world use
 - **Metrics:**
@@ -418,7 +440,7 @@ Sensitivity test using real PacBio long-read amplicon data:
   sequencing
 - **Rationale**: Every read is a guaranteed true positive by virtue of PCR 
   amplification with 27F/2490R primers. Tests SortMeRNA's ability to handle ~4,500 bp long reads.
-- **Non-rRNA source**: PBSIM3 simulated reads from `non_rRNA_test_1M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` - tested separately
+- **Non-rRNA source**: PBSIM3 simulated reads from `non_rRNA_test_10M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` - tested separately
 - **Experiments**:
   - **Sensitivity**: Run all 253,089 operon sequences through SortMeRNA; 
     expected classification rate = 100% per database configuration
@@ -439,6 +461,7 @@ Sensitivity test using real PacBio long-read amplicon data:
 Benchmarking compares the latest SortMeRNA against v2.1b (the version used in the original paper). Since both binaries are named `sortmerna`, install v2.1b separately and reference it by full path.
 
 **Install SortMeRNA v2.1b:**
+
 ```bash
 wget https://github.com/sortmerna/sortmerna/releases/download/2.1b/sortmerna-2.1b-linux.tar.gz
 tar -xzf sortmerna-2.1b-linux.tar.gz -C /home/ubuntu/
