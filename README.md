@@ -390,8 +390,6 @@ Sensitivity test using real PacBio long-read amplicon data:
     expected classification rate = 100% per database configuration
   - **Specificity**: Run PBSIM3-simulated non-rRNA reads through SortMeRNA; 
     measure false positive rate per database configuration
-  - **Runtime/scaling**: Mix real rRNA + simulated non-rRNA reads at 0%, 10%, 
-    25%, 50%, 75%, 90% rRNA composition
 
 #### Performance Metrics
 - **Sensitivity**: True positives / (True positives + False negatives)
