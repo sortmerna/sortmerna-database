@@ -34,11 +34,14 @@
 # Options:
 #   --reads-per-type INT  Target reads per rRNA type per Set (default: 12500)
 #   --model STR           InSilicoSeq error model: HiSeq, NovaSeq, MiSeq (default: NovaSeq)
-#   --min-seq-len INT     Minimum source sequence length for ISS simulation (default: 150).
-#                         Sequences shorter than this are filtered out before ISS; if fewer
-#                         than 10 long-enough sequences remain the type is used as-is without
-#                         ISS (same approach as non-rRNA Rfam sequences). Rfam 5S (~119 bp)
-#                         always falls into this case.
+#   --min-seq-len INT     Minimum source sequence length for ISS simulation (default: 200).
+#                         ISS requires sequences strictly longer than its read length; using
+#                         200 gives 50 bp headroom over the typical 150 bp NovaSeq read length
+#                         and avoids warnings from sequences that are exactly at the boundary
+#                         after gap removal. If fewer than 10 sequences meet this threshold the
+#                         type falls back to using sequences as-is without ISS (same approach
+#                         as non-rRNA Rfam sequences). Rfam 5S (~119 bp) always falls into
+#                         this case.
 #   --seed INT            Random seed (default: 42)
 #   --clustered-dir DIR   Directory containing *_test_members.fasta files
 #                         (overrides CLUSTERED_DIR env var)
@@ -62,7 +65,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POSITIONAL=()
 N_READS_PER_TYPE=12500
 ISS_MODEL=NovaSeq
-MIN_SEQ_LEN=150
+MIN_SEQ_LEN=200
 RAND_SEED=42
 CLUSTERED_DIR_OPT=""
 FORCE=false
@@ -209,10 +212,15 @@ simulate_type() {
 
     mkdir -p "${type_dir}"
 
-    # Filter to sequences >= MIN_SEQ_LEN so ISS does not skip short sequences.
+    # Strip gap characters (. and -) inherited from alignment-based sources, then
+    # filter to sequences >= MIN_SEQ_LEN so ISS does not skip short sequences.
+    # Replace IUPAC ambiguity codes (R, Y, K, W, S, M, D, H, B, V) with N so
+    # ISS receives only unambiguous bases.
     # Rfam 5S (~119 bp) falls below 150 bp and would produce no reads from ISS.
     local long_fa="${type_dir}/source_long.fasta"
-    seqkit seq --min-len "${MIN_SEQ_LEN}" "${source}" | seqkit seq -w 0 > "${long_fa}"
+    seqkit seq -g --min-len "${MIN_SEQ_LEN}" "${source}" \
+        | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
+        | seqkit seq -w 0 > "${long_fa}"
     local n_long
     n_long=$(seqkit stats -T "${long_fa}" | tail -1 | cut -f4)
 
@@ -235,7 +243,9 @@ simulate_type() {
         # Too few long sequences - use all source sequences as-is (no ISS).
         # Consistent with how non-rRNA Rfam sequences are handled.
         echo "  WARNING: only ${n_long}/${n_source} ${type_name} members >= ${MIN_SEQ_LEN} bp - using sequences as-is (no ISS)" >&2
-        seqkit seq -w 0 "${source}" > "${out_fasta}"
+        seqkit seq -g -w 0 "${source}" \
+            | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
+            > "${out_fasta}"
     fi
     rm -f "${long_fa}"
 
