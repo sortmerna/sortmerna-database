@@ -353,6 +353,34 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh \
 
 - Non-rRNA reference sources summary for read simulation: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/non_rrna/non_rrna_test_set_summary.html" target="_blank">non_rrna_test_set_summary.html</a>
 
+### rRNA Test Sets
+
+Three Sets of simulated Illumina rRNA reads, one per database configuration. Each Set uses non-seed cluster members at the matching clustering threshold as source sequences, so every simulated read is a real rRNA sequence absent from the database being tested:
+
+| Set | Source members | Matched database | Reads |
+|-----|---------------|-----------------|-------|
+| Set 1 | 97% non-seeds (all types) | `smr_v${SMR_VERSION}_sensitive_db` | 12,500 per rRNA type x 8 types = 100,000 |
+| Set 2 | bacteria SSU 90%, others 95%, Rfam 97% | `smr_v${SMR_VERSION}_default_db` | 12,500 per rRNA type x 8 types = 100,000 |
+| Set 3 | bacteria SSU 85%, others 90%, Rfam 97% | `smr_v${SMR_VERSION}_fast_db` | 12,500 per rRNA type x 8 types = 100,000 |
+
+Rfam 5S and 5.8S use 97% non-seed members for all Sets because the default and fast databases use seed-only Rfam (no threshold-based clustering), so 97% members are absent from all three databases.
+
+**Preparation:**
+1. Cluster sequences with `cluster_sequences.sh` (produces `*_test_members.fasta` files)
+2. Run InSilicoSeq on each rRNA type's non-seed members (150bp PE, NovaSeq model)
+3. Pool all types per Set into a single FASTA
+
+```bash
+export RRNA_SIM_DIR=$WORK_DIR/data/rrna_sim
+
+bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh \
+    $RRNA_SIM_DIR \
+    4 \
+    --clustered-dir $CLUSTERED_DIR
+```
+
+- rRNA read simulation summary: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/rrna_sim/rrna_simulation_summary.html" target="_blank">rrna_simulation_summary.html</a>
+
 ## Phase 2: Validation and Benchmarking
 
 Evaluate the databases built in Phase 1 for sensitivity (rRNA detection) and specificity (false positive rate), and benchmark the latest SortMeRNA against v2.1b. Simulated Illumina reads from non-seed cluster members test sensitivity at each clustering threshold; non-rRNA reads from the T2T genome and Rfam test specificity. Real PacBio amplicon data provides an independent validation.
@@ -448,26 +476,9 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
 - **Rationale for 100,000 reads per Set:** Round number that is easy to interpret (1 missed read = 0.001% sensitivity drop), and fast to run. Kept at 100K rather than 1M to avoid conflating database-configuration differences with the E-value scaling effect: at higher read counts `S_min` rises (because `m` = total nucleotide count), which can suppress sensitivity independently of the database being tested. Experiment 1 characterizes that scaling effect separately; Experiment 2 holds read count fixed so results reflect only the database configuration.
 - **Metric:** Sensitivity = detected / total (aggregate across all rRNA types)
 
-Simulate Illumina rRNA reads from non-seed cluster members at each clustering threshold, then run SortMeRNA against the matched database configuration:
+Run SortMeRNA for each Set against its matched database configuration (rRNA reads produced in Phase 1 - see rRNA Test Sets):
 
-```bash
-export RRNA_SIM_DIR=$WORK_DIR/data/rrna_sim
-
-bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh \
-    $RRNA_SIM_DIR \
-    4 \
-    --clustered-dir $CLUSTERED_DIR
-```
-
-This produces three pooled FASTA files and an HTML summary report:
-
-| Output | Source members | Matched database |
-|---|---|---|
-| `set1_rrna_reads.fasta` | 97% non-seeds (all types) | `smr_v${SMR_VERSION}_sensitive_db` |
-| `set2_rrna_reads.fasta` | bacteria SSU 90%, others 95%, Rfam 97% | `smr_v${SMR_VERSION}_default_db` |
-| `set3_rrna_reads.fasta` | bacteria SSU 85%, others 90%, Rfam 97% | `smr_v${SMR_VERSION}_fast_db` |
-
-- rRNA read simulation summary: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/rrna_sim/rrna_simulation_summary.html" target="_blank">rrna_simulation_summary.html</a>
+*(benchmarking scripts coming soon)*
 
 #### Real Benchmark Datasets (PacBio)
 Sensitivity test using real PacBio long-read amplicon data:
