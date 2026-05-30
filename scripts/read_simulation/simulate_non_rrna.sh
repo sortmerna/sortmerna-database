@@ -312,15 +312,17 @@ if [[ -f "${T2T_CMSEARCH_BED}" ]] && [[ -f "${T2T_GFF3_BED}" ]]; then
     EXTRA_BP=$(bedtools subtract -a "${T2T_CMSEARCH_BED}" -b "${T2T_GFF3_BED}" \
         | awk '{sum+=$3-$2} END{print sum+0}')
 
-    for cm_id in RF01960 RF02543 RF00001 RF00002; do
+    for cm_id in RF01960 RF02543 RF00001 RF00002 RF00177 RF02541; do
         extra_bed="${T2T_DIR}/${cm_id}_extra_vs_gff3.bed"
-        n_extra=0
-        [[ -f "${extra_bed}" ]] && n_extra=$(wc -l < "${extra_bed}")
+        [[ ! -f "${extra_bed}" ]] && continue
+        n_extra=$(wc -l < "${extra_bed}")
         case "${cm_id}" in
-            RF01960) cm_name="18S SSU rRNA" ;;
-            RF02543) cm_name="28S LSU rRNA" ;;
-            RF00001) cm_name="5S rRNA"      ;;
-            RF00002) cm_name="5.8S rRNA"    ;;
+            RF01960) cm_name="18S SSU rRNA"  ;;
+            RF02543) cm_name="28S LSU rRNA"  ;;
+            RF00001) cm_name="5S rRNA"       ;;
+            RF00002) cm_name="5.8S rRNA"     ;;
+            RF00177) cm_name="12S mt-rRNA"   ;;
+            RF02541) cm_name="16S mt-rRNA"   ;;
         esac
         cms_family_rows="${cms_family_rows}      <tr><td>${cm_name}</td><td>${cm_id}</td><td>${n_extra}</td></tr>\n"
     done

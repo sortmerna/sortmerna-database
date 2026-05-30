@@ -316,7 +316,7 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 
 **Preparation (T2T):**
 1. Download CHM13v2.0 genome and RefSeq GFF3 annotation
-2. Optionally supplement the GFF3 with Infernal cmsearch (RF01960, RF02543, RF00001, RF00002) to find rRNA copies not individually annotated in RefSeq (see below)
+2. Supplement the GFF3 with Infernal cmsearch (RF01960, RF02543, RF00001, RF00002 against the full genome; RF00177 and RF02541 against chrM only) to find rRNA copies not individually annotated in RefSeq (see below)
 3. Mask rRNA loci with bedtools maskfasta
 4. Simulate 10M 150bp PE reads with InSilicoSeq (NovaSeq error model)
 
@@ -326,6 +326,8 @@ The T2T-CHM13v2.0 assembly resolves the Nucleolar Organizer Regions (NORs) on th
 BLAST analysis of the RF01960 (18S) regions not covered by GFF3 shows that the large majority are rRNA-derived: the most common top hits are 45S pre-ribosomal RNA entries, followed by 18S ribosomal pseudogene entries. All are included in the masking BED - if a sequence is annotated as a ribosomal pseudogene it is rRNA-derived and SortMeRNA, which operates purely on sequence content, would correctly flag reads from it.
 
 Note: RF00001 (5S rRNA) hits include 5S pseudogenes distributed across many chromosomes in addition to functional copies - BLAST analysis confirms these are RNA5SP* pseudogene entries. These are included in the masking BED for the same reason.
+
+Note: The mitochondrial 12S rRNA (homologue of the SSU rRNA: RF00177) and 16S rRNA (homologue of the LSU rRNA: RF02541) were identified by running cmsearch against chrM only and added to the masking BED. The two mt-rRNA genes are separated by ~70 bp and merge into a single BED region after adding the 100 bp margin. Without this step, reads simulated from mitochondrial rRNA loci would not be masked and could contribute artifactual alignments that inflate apparent false-positive signal.
 
 **Preparation (Rfam):**
 1. Download 10 non-rRNA families (tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs)
