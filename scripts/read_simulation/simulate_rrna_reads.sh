@@ -368,7 +368,7 @@ silva_unsorted="${scalability_dir}/silva_combined_unsorted.fasta"
 silva_fa="${scalability_dir}/silva_combined.fasta"
 rfam_direct="${scalability_dir}/rfam_direct.fasta"
 iss_prefix="${scalability_dir}/iss"
-scalability_out="${OUTPUT_DIR}/set2_rrna_reads_scalability.fasta"
+scalability_out="${OUTPUT_DIR}/rRNA_test_10M.fasta"
 
 # SILVA types: strip gaps and fix IUPAC codes before ISS
 echo "  Collecting Set 2 SILVA sources..."
@@ -454,7 +454,7 @@ printf "%s" "${n_combined}"            > "${scalability_dir}/.n_combined.tmp"
 printf "%s" "${n_rfam}"                > "${scalability_dir}/.n_rfam.tmp"
 
 if [[ -f "${scalability_out}" ]] && [[ "${FORCE}" == false ]]; then
-    echo "  Already exists: set2_rrna_reads_scalability.fasta - skipping ISS (use --force to re-run)"
+    echo "  Already exists: rRNA_test_10M.fasta - skipping ISS (use --force to re-run)"
     n_out=$(seqkit stats -T "${scalability_out}" | tail -1 | cut -f4)
 else
     silva_n_reads=$(( SCALABILITY_N_READS - n_rfam ))
@@ -476,7 +476,7 @@ else
         | seqkit seq -w 0 \
         > "${scalability_out}"
     n_out=$(seqkit stats -T "${scalability_out}" | tail -1 | cut -f4)
-    echo "  Saved: set2_rrna_reads_scalability.fasta (${n_out} reads)"
+    echo "  Saved: rRNA_test_10M.fasta (${n_out} reads)"
 fi
 printf "%s" "${n_out}" > "${scalability_dir}/.n_reads.tmp"
 
@@ -574,7 +574,7 @@ ISS generates {scalability_n} - n_rfam reads so the final combined pool is exact
 {sc_rows}    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td>{sc_n_comb}</td><td>100%</td><td></td></tr>
   </tbody>
 </table></div>
-<p>Output: <code>set2_rrna_reads_scalability.fasta</code> ({sc_n_reads} reads)</p>
+<p>Output: <code>rRNA_test_10M.fasta</code> ({sc_n_reads} reads)</p>
 </section>
 """
 
@@ -624,13 +624,13 @@ for sn in 1 2 3; do
     f="${OUTPUT_DIR}/set${sn}_rrna_reads.fasta"
     [[ -f "${f}" ]] && echo "  Set ${sn}: ${f}"
 done
-echo "  Scalability pool: ${OUTPUT_DIR}/set2_rrna_reads_scalability.fasta"
+echo "  Scalability pool: ${OUTPUT_DIR}/rRNA_test_10M.fasta"
 echo "  HTML summary: ${OUTPUT_DIR}/rrna_simulation_summary.html"
 echo ""
 echo "Next steps:"
 echo "  Experiment 1 - scalability (rRNA sensitivity at scale):"
 echo "    bash \$SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \\"
-echo "        ${OUTPUT_DIR}/set2_rrna_reads_scalability.fasta \\"
+echo "        ${OUTPUT_DIR}/rRNA_test_10M.fasta \\"
 echo "        ${OUTPUT_DIR}/scalability_rrna \\"
 echo "        ${THREADS} \\"
 echo "        --index-dir \$INDEX_DIR"
