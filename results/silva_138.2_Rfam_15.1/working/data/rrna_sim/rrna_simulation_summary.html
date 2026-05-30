@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>rRNA Read Simulation Summary</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+  h1   { color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; }
+  h2   { color: #34495e; margin-top: 32px; }
+  .description { background: #f8f9fa; border-left: 4px solid #3498db; padding: 10px 16px; margin: 12px 0; }
+  .table-wrap  { overflow-x: auto; margin: 16px 0; }
+  table  { border-collapse: collapse; min-width: 600px; }
+  th, td { border: 1px solid #ddd; padding: 8px 14px; text-align: left; }
+  th     { background: #2c3e50; color: #fff; }
+  tr:nth-child(even) { background: #f2f2f2; }
+  .meta   { font-size: 0.9em; color: #666; margin-top: 4px; }
+  .footer { font-size: 0.8em; color: #999; margin-top: 40px; border-top: 1px solid #ddd; padding-top: 8px; }
+</style>
+</head>
+<body>
+<h1>rRNA Read Simulation Summary</h1>
+<p class="meta">Generated: 2026-05-30 10:38:08</p>
+
+<section>
+<h2>Set 1 - sensitive db (97% threshold for all types)</h2>
+<div class="description">
+<p>Source: non-seed cluster members at the matched threshold. Reads simulated with InSilicoSeq
+(NovaSeq model, 150 bp paired-end, seed 42). Target: 12500 reads per rRNA type (R1+R2 combined).
+Sequences shorter than the ISS read length are pre-filtered; types with too few long-enough sequences
+(e.g. Rfam 5S, avg 117 bp) fall back to using sequences as-is without simulation.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead>
+    <tr><th>rRNA type</th><th>Source sequences</th><th>Source file</th><th>Reads simulated</th></tr>
+  </thead>
+  <tbody>
+      <tr><td>silva ssu bacteria</td><td>272209</td><td>silva_ssu_bacteria_97_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva ssu archaea</td><td>12021</td><td>silva_ssu_archaea_97_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva ssu eukaryota</td><td>31756</td><td>silva_ssu_eukaryota_97_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva lsu bacteria</td><td>67964</td><td>silva_lsu_bacteria_97_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva lsu archaea</td><td>512</td><td>silva_lsu_archaea_97_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva lsu eukaryota</td><td>6379</td><td>silva_lsu_eukaryota_97_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>rfam 5 8s</td><td>9409</td><td>rfam_5_8s_97_test_members.fasta</td><td>9409</td></tr>
+      <tr><td>rfam 5s</td><td>297799</td><td>rfam_5s_97_test_members.fasta</td><td>15591</td></tr>
+    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td></td><td>100000</td></tr>
+  </tbody>
+</table></div>
+<p>Output: <code>set1_rrna_reads.fasta</code></p>
+</section>
+
+<section>
+<h2>Set 2 - default db (bacteria SSU 90%, others 95%, Rfam 97%)</h2>
+<div class="description">
+<p>Source: non-seed cluster members at the matched threshold. Reads simulated with InSilicoSeq
+(NovaSeq model, 150 bp paired-end, seed 42). Target: 12500 reads per rRNA type (R1+R2 combined).
+Sequences shorter than the ISS read length are pre-filtered; types with too few long-enough sequences
+(e.g. Rfam 5S, avg 117 bp) fall back to using sequences as-is without simulation.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead>
+    <tr><th>rRNA type</th><th>Source sequences</th><th>Source file</th><th>Reads simulated</th></tr>
+  </thead>
+  <tbody>
+      <tr><td>silva ssu bacteria</td><td>399690</td><td>silva_ssu_bacteria_90_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva ssu archaea</td><td>15450</td><td>silva_ssu_archaea_95_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva ssu eukaryota</td><td>41416</td><td>silva_ssu_eukaryota_95_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva lsu bacteria</td><td>70635</td><td>silva_lsu_bacteria_95_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva lsu archaea</td><td>597</td><td>silva_lsu_archaea_95_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva lsu eukaryota</td><td>8786</td><td>silva_lsu_eukaryota_95_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>rfam 5 8s</td><td>9409</td><td>rfam_5_8s_97_test_members.fasta</td><td>9409</td></tr>
+      <tr><td>rfam 5s</td><td>297799</td><td>rfam_5s_97_test_members.fasta</td><td>15591</td></tr>
+    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td></td><td>100000</td></tr>
+  </tbody>
+</table></div>
+<p>Output: <code>set2_rrna_reads.fasta</code></p>
+</section>
+
+<section>
+<h2>Set 3 - fast db (bacteria SSU 85%, others 90%, Rfam 97%)</h2>
+<div class="description">
+<p>Source: non-seed cluster members at the matched threshold. Reads simulated with InSilicoSeq
+(NovaSeq model, 150 bp paired-end, seed 42). Target: 12500 reads per rRNA type (R1+R2 combined).
+Sequences shorter than the ISS read length are pre-filtered; types with too few long-enough sequences
+(e.g. Rfam 5S, avg 117 bp) fall back to using sequences as-is without simulation.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead>
+    <tr><th>rRNA type</th><th>Source sequences</th><th>Source file</th><th>Reads simulated</th></tr>
+  </thead>
+  <tbody>
+      <tr><td>silva ssu bacteria</td><td>421054</td><td>silva_ssu_bacteria_85_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva ssu archaea</td><td>18660</td><td>silva_ssu_archaea_90_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva ssu eukaryota</td><td>51244</td><td>silva_ssu_eukaryota_90_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva lsu bacteria</td><td>74040</td><td>silva_lsu_bacteria_90_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva lsu archaea</td><td>715</td><td>silva_lsu_archaea_90_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>silva lsu eukaryota</td><td>12006</td><td>silva_lsu_eukaryota_90_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>rfam 5 8s</td><td>9409</td><td>rfam_5_8s_97_test_members.fasta</td><td>9409</td></tr>
+      <tr><td>rfam 5s</td><td>297799</td><td>rfam_5s_97_test_members.fasta</td><td>15591</td></tr>
+    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td></td><td>100000</td></tr>
+  </tbody>
+</table></div>
+<p>Output: <code>set3_rrna_reads.fasta</code></p>
+</section>
+
+<section>
+<h2>Scalability Pool - Set 2 combined (Experiment 1)</h2>
+<div class="description">
+<p>SILVA types (SSU and LSU, 6 types) are IUPAC-cleaned and run through ISS (NovaSeq model,
+150 bp paired-end, seed 42). Rfam 5S (avg 117 bp) and 5.8S
+(avg 150 bp) are shorter than or at the ISS read length and cannot
+be reliably simulated; they are included directly as-is (IUPAC-cleaned, no length filter) so
+that short rRNA - the hardest sequences to detect at scale - are represented in the pool.
+ISS generates 10000000 - n_rfam reads so the final combined pool is exactly
+10000000 reads total. The pool is large enough to cover all scalability scale points
+(10K, 100K, 1M, 10M) via subsampling in run_scalability.sh.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead>
+    <tr><th>rRNA type</th><th>Source file</th><th>Sequences</th><th>Fraction of pool</th><th>Method</th></tr>
+  </thead>
+  <tbody>
+      <tr><td>silva ssu bacteria</td><td>silva_ssu_bacteria_90_test_members.fasta</td><td>399690</td><td>47.4%</td><td>ISS</td></tr>
+      <tr><td>silva ssu archaea</td><td>silva_ssu_archaea_95_test_members.fasta</td><td>15450</td><td>1.8%</td><td>ISS</td></tr>
+      <tr><td>silva ssu eukaryota</td><td>silva_ssu_eukaryota_95_test_members.fasta</td><td>41416</td><td>4.9%</td><td>ISS</td></tr>
+      <tr><td>silva lsu bacteria</td><td>silva_lsu_bacteria_95_test_members.fasta</td><td>70635</td><td>8.4%</td><td>ISS</td></tr>
+      <tr><td>silva lsu archaea</td><td>silva_lsu_archaea_95_test_members.fasta</td><td>597</td><td>0.1%</td><td>ISS</td></tr>
+      <tr><td>silva lsu eukaryota</td><td>silva_lsu_eukaryota_95_test_members.fasta</td><td>8786</td><td>1.0%</td><td>ISS</td></tr>
+      <tr><td>rfam 5 8s</td><td>rfam_5_8s_97_test_members.fasta</td><td>9409</td><td>1.1%</td><td>direct</td></tr>
+      <tr><td>rfam 5s</td><td>rfam_5s_97_test_members.fasta</td><td>297799</td><td>35.3%</td><td>direct</td></tr>
+    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td>843782</td><td>100%</td><td></td></tr>
+  </tbody>
+</table></div>
+<p>Output: <code>rRNA_test_10M.fasta</code> (10000000 reads)</p>
+</section>
+
+<p class="footer">Generated by simulate_rrna_reads.sh - SortMeRNA database pipeline</p>
+</body>
+</html>
