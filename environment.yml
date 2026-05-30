@@ -4,7 +4,8 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  # Core tools (sortmerna installed separately from GitHub release)
+  # Core tools
+  - sortmerna=6.0.1
   - vsearch>=2.22
   - seqkit>=2.5
   - barrnap>=0.9

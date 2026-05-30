@@ -44,7 +44,7 @@ This repository contains code and workflows to:
 ### Requirements
 
 **Core tools:**
-- [SortMeRNA](https://github.com/sortmerna/sortmerna) v5.0.1 - rRNA filtering (installed separately, see below)
+- [SortMeRNA](https://github.com/sortmerna/sortmerna) v6.0.1 - rRNA filtering
 - [VSEARCH](https://github.com/torognes/vsearch) >= 2.22 - sequence clustering
 - [Infernal](http://eddylab.org/infernal/) >= 1.1.4 - covariance model search (cmsearch, cmpress)
 - [SeqKit](https://bioinf.shenwei.me/seqkit/) >= 2.5 - sequence statistics
@@ -67,16 +67,9 @@ This repository contains code and workflows to:
 git clone https://github.com/sortmerna/sortmerna-database.git
 cd sortmerna-database
 
-# Create conda environment
+# Create conda environment (includes SortMeRNA 6.0.1)
 conda env create -f environment.yml
 conda activate sortmerna-bench
-
-# Install SortMeRNA
-conda config --add channels conda-forge
-conda create --name sortmerna_${SMR_VERSION}
-conda activate sortmerna_${SMR_VERSION}
-conda install sortmerna=${SMR_VERSION}
-# binary: /home/ubuntu/miniconda3/envs/sortmerna_${SMR_VERSION}/bin/sortmerna
 ```
 
 ## Phase 1: Database Construction
@@ -146,8 +139,8 @@ export T2T_GCF_BASE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/${T
 export RFAM_NON_RRNA_FTP=https://ftp.ebi.ac.uk/pub/databases/Rfam/$RFAM_VERSION/fasta_files
 
 # SortMeRNA binary - full path
-export SMR_VERSION=6.0.1
-export SMR_BIN=/home/ubuntu/miniconda3/envs/sortmerna_${SMR_VERSION}/bin/sortmerna
+export SMR_BIN=/home/ubuntu/miniconda3/envs/sortmerna-bench/bin/sortmerna
+export SMR_VERSION=$("${SMR_BIN}" --version 2>&1 | grep "^SortMeRNA version" | awk '{print $3}')
 
 ```
 
