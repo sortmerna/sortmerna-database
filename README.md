@@ -70,15 +70,13 @@ cd sortmerna-database
 # Create conda environment
 conda env create -f environment.yml
 conda activate sortmerna-bench
-```
 
-**Install SortMeRNA separately:**
-
-```bash
-export SMR_VERSION=5.0.1
-wget https://github.com/sortmerna/sortmerna/releases/download/v${SMR_VERSION}/sortmerna-${SMR_VERSION}-Linux.tar.gz
-tar -xzf sortmerna-${SMR_VERSION}-Linux.tar.gz -C /home/ubuntu/
-# binary: /home/ubuntu/sortmerna-${SMR_VERSION}-Linux/bin/sortmerna
+# Install SortMeRNA
+conda config --add channels conda-forge
+conda create --name sortmerna_${SMR_VERSION}
+conda activate sortmerna_${SMR_VERSION}
+conda install sortmerna=${SMR_VERSION}
+# binary: /home/ubuntu/miniconda3/envs/sortmerna_${SMR_VERSION}/bin/sortmerna
 ```
 
 ## Phase 1: Database Construction
@@ -148,8 +146,8 @@ export T2T_GCF_BASE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/${T
 export RFAM_NON_RRNA_FTP=https://ftp.ebi.ac.uk/pub/databases/Rfam/$RFAM_VERSION/fasta_files
 
 # SortMeRNA binary - full path
-export SMR_VERSION=5.0.1
-export SMR_BIN=/home/ubuntu/sortmerna-${SMR_VERSION}-Linux/bin/sortmerna
+export SMR_VERSION=6.0.1
+export SMR_BIN=/home/ubuntu/miniconda3/envs/sortmerna_${SMR_VERSION}/bin/sortmerna
 
 ```
 
