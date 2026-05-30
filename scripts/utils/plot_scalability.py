@@ -6,7 +6,7 @@ by run_scalability.sh, then writes figures to --output-dir:
 
   <label>_summary.png        % aligned, runtime, S_min, peak RSS vs. read count
   <label>_evalue_dist.png    E-value distributions (one panel per scale point)
-  <label>_identity_dist.png  % identity distributions (overlaid, all scale points)
+  <label>_identity_coverage.png  2D identity vs. query coverage (one panel per scale)
   <label>_roc.png            ROC plot - one (FPR, TPR) point per scale (requires
                              both --rrna-dirs and --nonrrna-dirs)
 
@@ -54,20 +54,21 @@ def parse_log(log_path):
 
 
 def parse_blast(blast_path):
-    """Return DataFrame with pident and evalue columns from a BLAST tabular file."""
+    """Return DataFrame with pident, qcov_bp, and evalue columns from a BLAST tabular file."""
     cols = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen',
             'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore']
     chunks = []
     try:
         for chunk in pd.read_csv(
             blast_path, sep='\t', header=None, names=cols,
-            chunksize=_BLAST_CHUNKSIZE, usecols=['pident', 'evalue']
+            chunksize=_BLAST_CHUNKSIZE, usecols=['pident', 'qstart', 'qend', 'evalue']
         ):
-            chunks.append(chunk)
+            chunk['qcov_bp'] = chunk['qend'] - chunk['qstart'] + 1
+            chunks.append(chunk.drop(columns=['qstart', 'qend']))
     except Exception as exc:
         print(f'  WARNING: could not parse {blast_path}: {exc}', file=sys.stderr)
-        return pd.DataFrame(columns=['pident', 'evalue'])
-    return pd.concat(chunks, ignore_index=True) if chunks else pd.DataFrame(columns=['pident', 'evalue'])
+        return pd.DataFrame(columns=['pident', 'qcov_bp', 'evalue'])
+    return pd.concat(chunks, ignore_index=True) if chunks else pd.DataFrame(columns=['pident', 'qcov_bp', 'evalue'])
 
 
 def write_top_hits(blast_path, out_path, top_n=20):
@@ -248,27 +249,40 @@ def plot_roc(rrna_stats, nonrrna_stats, label, out_dir):
     print(f'  Saved: {out_path}')
 
 
-def plot_identity_dist(stats, label, out_dir):
-    """% identity distribution for aligned reads, all scale points overlaid."""
-    plt = _plt()
-    np  = _np()
-    fig, ax = plt.subplots(figsize=(8, 4))
-    colors = plt.cm.viridis(np.linspace(0.15, 0.85, len(stats)))
+def plot_identity_coverage(stats, label, out_dir):
+    """2D hexbin of % identity vs. query coverage, one panel per scale point.
 
-    for s, color in zip(stats, colors):
+    Query coverage = aligned query bases / mean read length. This separates
+    genuine rRNA alignments (high identity, high coverage) from short conserved
+    motif matches (high identity, low coverage) and diverged pseudogene hits
+    (lower identity, high coverage).
+    """
+    plt = _plt()
+    n_panels = len(stats)
+    fig, axes = plt.subplots(1, n_panels, figsize=(4 * n_panels, 4))
+    if n_panels == 1:
+        axes = [axes]
+
+    for ax, s in zip(axes, stats):
         df = s['blast']
         if df.empty:
+            ax.text(0.5, 0.5, 'no alignments', ha='center', va='center',
+                    transform=ax.transAxes)
+            ax.set_title(f'N = {s["n"]:,}')
             continue
-        ax.hist(df['pident'], bins=50, alpha=0.55, color=color,
-                label=f'N={s["n"]:,}', edgecolor='none', density=True)
+        mean_len = s['log'].get('mean_len') or 150
+        qcov = (df['qcov_bp'] / mean_len * 100).clip(upper=100)
+        hb = ax.hexbin(df['pident'], qcov, gridsize=40, cmap='Blues',
+                       mincnt=1, linewidths=0.2)
+        fig.colorbar(hb, ax=ax, label='Read count')
+        ax.set_xlabel('% Identity')
+        ax.set_ylabel('Query coverage (%)')
+        ax.set_title(f'N = {s["n"]:,}  ({len(df):,} aligned)')
+        ax.grid(True, alpha=0.3)
 
-    ax.set_xlabel('% Identity')
-    ax.set_ylabel('Density')
-    ax.set_title(f'{label} - Identity distribution (aligned reads)')
-    ax.legend(fontsize=8, title='Scale point')
-    ax.grid(True, alpha=0.3)
+    fig.suptitle(f'{label} - Identity vs. query coverage (aligned reads)', fontsize=11)
     plt.tight_layout()
-    out_path = out_dir / f'{label}_identity_dist.png'
+    out_path = out_dir / f'{label}_identity_coverage.png'
     plt.savefig(out_path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f'  Saved: {out_path}')
@@ -350,7 +364,7 @@ def main():
             sys.exit(1)
         plot_summary(stats, args.label, args.output_dir)
         plot_evalue_dist(stats, args.label, args.output_dir)
-        plot_identity_dist(stats, args.label, args.output_dir)
+        plot_identity_coverage(stats, args.label, args.output_dir)
 
     if args.rrna_dirs and args.nonrrna_dirs:
         print('Loading rRNA stats...')
