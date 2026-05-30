@@ -287,7 +287,9 @@ echo "Clustering complete!"
 echo "============================================"
 
 TABLE_FILE="${CLUSTERED_DIR}/clustering_summary.html"
-python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}" --silva-version "${SILVA_SSU_VERSION}" --rfam-version "${RFAM_VERSION}"
+smr_ver_arg=()
+[[ -n "${SMR_VERSION:-}" ]] && smr_ver_arg=(--smr-version "${SMR_VERSION}")
+python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}" --silva-version "${SILVA_SSU_VERSION}" --rfam-version "${RFAM_VERSION}" "${smr_ver_arg[@]}"
 
 echo ""
 echo "Summary table written to: ${TABLE_FILE}"

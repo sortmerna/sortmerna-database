@@ -10,13 +10,17 @@
 #   threads        Number of SortMeRNA threads (default: 4)
 #
 # Options:
-#   --scale INT,...  Comma-separated read counts to test (default: 10000,100000,1000000,10000000)
-#   --label STR      Label used in plot titles and output filenames
-#                    (default: basename of reads.fasta without extension)
-#   --config STR     SortMeRNA database config name under INDEX_DIR (default: smr_v5.0.0_default_db)
-#   --index-dir DIR  Directory containing SortMeRNA index subdirectories
-#                    (overrides INDEX_DIR env var if set)
-#   --seed INT       Random seed for seqkit subsampling (default: 42)
+#   --scale INT,...   Comma-separated read counts to test (default: 10000,100000,1000000,10000000)
+#   --label STR       Label used in plot titles and output filenames
+#                     (default: basename of reads.fasta without extension)
+#   --config STR      SortMeRNA database config name under INDEX_DIR (default: smr_v<version>_default_db,
+#                     where <version> is read from SMR_BIN at runtime)
+#   --index-dir DIR   Directory containing SortMeRNA index subdirectories
+#                     (overrides INDEX_DIR env var if set)
+#   --seed INT        Random seed for seqkit subsampling (default: 42)
+#   --score-split     Pass --score_split to SortMeRNA: compute S_min from per-thread chunk
+#                     size rather than total dataset size, making the E-value threshold
+#                     less dependent on total read count. Off by default (standard behavior).
 #
 # Required env vars (can be overridden with the matching option above):
 #   SMR_BIN          Full path to SortMeRNA binary
@@ -28,6 +32,7 @@
 #   scale_<N>/smr_out/out/aligned.log   SortMeRNA summary log
 #   scale_<N>/smr_out/out/aligned.blast BLAST-format alignments (--blast 1)
 #   scale_<N>/runtime_seconds.txt       Wall-clock runtime in seconds
+#   scale_<N>/peak_rss_mb.txt          Peak resident set size in MB
 #   plots/                              Generated figures (PNG)
 
 set -euo pipefail
@@ -38,18 +43,20 @@ THREADS="${3:-4}"
 
 SCALE_POINTS_CSV="10000,100000,1000000,10000000"
 RAND_SEED=42
-DB_CONFIG="${DB_CONFIG:-smr_v5.0.0_default_db}"
+DB_CONFIG="${DB_CONFIG:-}"
 LABEL=""
 INDEX_DIR_OPT=""
+SCORE_SPLIT=false
 
 shift 3 || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --scale)     SCALE_POINTS_CSV="$2"; shift 2 ;;
-        --label)     LABEL="$2";            shift 2 ;;
-        --config)    DB_CONFIG="$2";        shift 2 ;;
-        --index-dir) INDEX_DIR_OPT="$2";    shift 2 ;;
-        --seed)      RAND_SEED="$2";        shift 2 ;;
+        --scale)       SCALE_POINTS_CSV="$2"; shift 2 ;;
+        --label)       LABEL="$2";            shift 2 ;;
+        --config)      DB_CONFIG="$2";        shift 2 ;;
+        --index-dir)   INDEX_DIR_OPT="$2";    shift 2 ;;
+        --seed)        RAND_SEED="$2";        shift 2 ;;
+        --score-split) SCORE_SPLIT=true;      shift   ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
@@ -60,6 +67,11 @@ done
 : "${SMR_BIN:?SMR_BIN env var not set}"
 : "${INDEX_DIR:?INDEX_DIR not set - pass --index-dir or export INDEX_DIR}"
 : "${SMR_DB_ROOT_DIR:?SMR_DB_ROOT_DIR env var not set}"
+
+if [[ -z "${DB_CONFIG}" ]]; then
+    SMR_VERSION=$("${SMR_BIN}" --version 2>&1 | grep "^SortMeRNA version" | awk '{print $3}')
+    DB_CONFIG="smr_v${SMR_VERSION}_default_db"
+fi
 
 UTILS_DIR="${SMR_DB_ROOT_DIR}/scripts/utils"
 DB_FASTA="${INDEX_DIR}/${DB_CONFIG}/${DB_CONFIG}.fasta"
@@ -76,6 +88,7 @@ echo "  Scale points: ${SCALE_POINTS_CSV}"
 echo "  DB config:   ${DB_CONFIG}"
 echo "  Threads:     ${THREADS}"
 echo "  Seed:        ${RAND_SEED}"
+echo "  Score split: ${SCORE_SPLIT}"
 echo ""
 
 mkdir -p "${OUTPUT_DIR}"
@@ -106,17 +119,30 @@ for n in "${SCALE_POINTS[@]}"; do
     if [[ ! -f "${aligned_log}" ]]; then
         echo "  Running SortMeRNA..."
         start=$(date +%s)
-        "${SMR_BIN}" \
-            --ref "${DB_FASTA}" \
-            --reads "${subset_fa}" \
-            --idx-dir "${DB_IDX}" \
-            --workdir "${smr_workdir}" \
-            --fastx --blast 1 \
+        smr_args=(
+            --ref     "${DB_FASTA}"
+            --reads   "${subset_fa}"
+            --idx-dir "${DB_IDX}"
+            --workdir "${smr_workdir}"
+            --fastx --blast 1
             --threads "${THREADS}"
+        )
+        [[ "${SCORE_SPLIT}" == true ]] && smr_args+=(--score_split)
+        "${SMR_BIN}" "${smr_args[@]}" &
+        smr_pid=$!
+        peak_rss_mb=0
+        while kill -0 "${smr_pid}" 2>/dev/null; do
+            rss=$(ps -p "${smr_pid}" -o rss --no-headers 2>/dev/null || echo 0)
+            rss_mb=$(( (rss + 0) / 1024 ))
+            if (( rss_mb > peak_rss_mb )); then peak_rss_mb=${rss_mb}; fi
+            sleep 5
+        done
+        wait "${smr_pid}" || { echo "  ERROR: sortmerna failed"; exit 1; }
         end=$(date +%s)
         runtime=$(( end - start ))
         echo "${runtime}" > "${scale_dir}/runtime_seconds.txt"
-        echo "  Done: ${runtime}s"
+        echo "${peak_rss_mb}" > "${scale_dir}/peak_rss_mb.txt"
+        echo "  Done: ${runtime}s - peak RSS: ${peak_rss_mb} MB"
     else
         echo "  Already exists: aligned.log"
     fi

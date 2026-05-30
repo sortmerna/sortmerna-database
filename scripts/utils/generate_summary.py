@@ -212,8 +212,10 @@ def generate_html_table(data, thresholds):
   )
 
 
-def generate_config_table(data):
+def generate_config_table(data, configs=None):
   """Table 2: recommended per-domain thresholds and counts for each database configuration."""
+  if configs is None:
+    configs = TABLE2_CONFIGS
 
   # Drop columns where every config row has no data
   active_indices = []
@@ -221,14 +223,14 @@ def generate_config_table(data):
     has_data = any(
       col_specs[i] is not None and
       find_value(data, col_specs[i][0], col_specs[i][1], col_specs[i][2], col_specs[i][3])[1] is not None
-      for _, col_specs in TABLE2_CONFIGS
+      for _, col_specs in configs
     )
     if has_data:
       active_indices.append(i)
 
   active_cols2  = [TABLE2_COLS[i]   for i in active_indices]
-  active_specs  = [[col_specs[i] for i in active_indices] for _, col_specs in TABLE2_CONFIGS]
-  config_labels = [label for label, _ in TABLE2_CONFIGS]
+  active_specs  = [[col_specs[i] for i in active_indices] for _, col_specs in configs]
+  config_labels = [label for label, _ in configs]
 
   rows = []
 
@@ -287,6 +289,8 @@ def main():
                       help="SILVA release version (e.g. 138.2)")
   parser.add_argument("--rfam-version", default=None, metavar="VER",
                       help="Rfam release version (e.g. 15.1)")
+  parser.add_argument("--smr-version", default=None, metavar="VER",
+                      help="SortMeRNA version for configuration labels (e.g. 5.0.1)")
   args = parser.parse_args()
 
   try:
@@ -295,8 +299,15 @@ def main():
     print(f"ERROR: {e}", file=sys.stderr)
     sys.exit(1)
 
+  configs = TABLE2_CONFIGS
+  if args.smr_version:
+    configs = [
+      (label.replace("4.7", args.smr_version), col_specs)
+      for label, col_specs in TABLE2_CONFIGS
+    ]
+
   table1 = generate_html_table(data, args.thresholds)
-  table2 = generate_config_table(data)
+  table2 = generate_config_table(data, configs)
 
   db_versions = []
   if args.silva_version:
