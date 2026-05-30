@@ -43,7 +43,7 @@ This repository contains code and workflows to:
 ### Requirements
 
 **Core tools:**
-- [SortMeRNA](https://github.com/sortmerna/sortmerna) v5.0.0 - rRNA filtering (installed separately, see below)
+- [SortMeRNA](https://github.com/sortmerna/sortmerna) v5.0.1 - rRNA filtering (installed separately, see below)
 - [VSEARCH](https://github.com/torognes/vsearch) >= 2.22 - sequence clustering
 - [Infernal](http://eddylab.org/infernal/) >= 1.1.4 - covariance model search (cmsearch, cmpress)
 - [SeqKit](https://bioinf.shenwei.me/seqkit/) >= 2.5 - sequence statistics
@@ -74,7 +74,7 @@ conda activate sortmerna-bench
 **Install SortMeRNA separately:**
 
 ```bash
-export SMR_VERSION=5.0.0
+export SMR_VERSION=5.0.1
 wget https://github.com/sortmerna/sortmerna/releases/download/v${SMR_VERSION}/sortmerna-${SMR_VERSION}-Linux.tar.gz
 tar -xzf sortmerna-${SMR_VERSION}-Linux.tar.gz -C /home/ubuntu/
 # binary: /home/ubuntu/sortmerna-${SMR_VERSION}-Linux/bin/sortmerna
@@ -146,7 +146,7 @@ export T2T_GCF_BASE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/${T
 export RFAM_NON_RRNA_FTP=https://ftp.ebi.ac.uk/pub/databases/Rfam/$RFAM_VERSION/fasta_files
 
 # SortMeRNA binary - full path
-export SMR_VERSION=5.0.0
+export SMR_VERSION=5.0.1
 export SMR_BIN=/home/ubuntu/sortmerna-${SMR_VERSION}-Linux/bin/sortmerna
 
 ```
@@ -402,7 +402,7 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
     $NON_RRNA_DIR/scalability_t2t \
     4 \
     --index-dir $INDEX_DIR \
-    --config smr_v5.0.0_default_db
+    --config smr_v5.0.1_default_db
 ```
 
 Run for rRNA reads (sensitivity at scale). Requires Set 2 non-seed rRNA reads simulated from 90-95% identity members (see Step 2 for how to generate them):
@@ -413,7 +413,7 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
     $RRNA_SIM_DIR/scalability_rrna \
     4 \
     --index-dir $INDEX_DIR \
-    --config smr_v5.0.0_default_db
+    --config smr_v5.0.1_default_db
 ```
 
 #### Experiment 2: Sensitivity across database configurations
