@@ -469,6 +469,16 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
     --score-split
 ```
 
+Generate the ROC plot once both the rRNA and T2T non-rRNA scalability runs are complete. Each point on the curve is one scale level (10K, 100K, 1M, 10M), showing sensitivity vs. false positive rate at that scale:
+
+```bash
+python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_scalability.py \
+    --output-dir $RRNA_SIM_DIR/scalability_plots \
+    --label smr_default_db \
+    --rrna-dirs    $RRNA_SIM_DIR/scalability_rrna/scale_{10000,100000,1000000,10000000} \
+    --nonrrna-dirs $NON_RRNA_DIR/scalability_t2t/scale_{10000,100000,1000000,10000000}
+```
+
 #### Experiment 2: Sensitivity across database configurations
 
 **Goal:** Does SortMeRNA correctly identify rRNA reads as divergence increases between the read set and the database?
@@ -487,18 +497,74 @@ Run SortMeRNA for each Set against its matched database configuration (rRNA read
 
 #### Real Benchmark Datasets (PacBio)
 Sensitivity test using real PacBio long-read amplicon data:
-- **Source**: [Karst et al. (2021, *Nature Methods*)](https://doi.org/10.1038/s41592-020-01041-y) - 253,089 high-quality, 
-  full-length bacterial rRNA operon sequences (~4,500 bp, 16S+ITS+23S) from 70 
-  AGP human fecal samples, generated using PacBio Sequel II UMI amplicon 
+- **Source**: [Karst et al. (2021, *Nature Methods*)](https://doi.org/10.1038/s41592-020-01041-y) - 253,089 high-quality,
+  full-length bacterial rRNA operon sequences (~4,500 bp, 16S+ITS+23S) from 70
+  AGP human fecal samples, generated using PacBio Sequel II UMI amplicon
   sequencing
-- **Rationale**: Every read is a guaranteed true positive by virtue of PCR 
+- **Rationale**: Every read is a guaranteed true positive by virtue of PCR
   amplification with 27F/2490R primers. Tests SortMeRNA's ability to handle ~4,500 bp long reads.
-- **Non-rRNA source**: PBSIM3 simulated reads from `non_rRNA_test_10M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` - tested separately
+- **Non-rRNA source**: PBSIM3 simulated reads from the masked T2T genome and Rfam non-rRNA family sequences - tested separately
 - **Experiments**:
-  - **Sensitivity**: Run all 253,089 operon sequences through SortMeRNA; 
+  - **Sensitivity**: Run all 253,089 operon sequences through SortMeRNA;
     expected classification rate = 100% per database configuration
-  - **Specificity**: Run PBSIM3-simulated non-rRNA reads through SortMeRNA; 
+  - **Specificity**: Run PBSIM3-simulated non-rRNA reads through SortMeRNA;
     measure false positive rate per database configuration
+
+#### PacBio Parameter Optimisation Sweep
+
+SortMeRNA's default seeding parameters (`--passes 18,9,3`, `--num_seeds 2`) were
+designed for Illumina and 454 reads in the 100-500 bp range. For ~4,500 bp
+PacBio HiFi reads the seed window length (`--L 18`) and Levenshtein distance (1)
+remain appropriate, but the pass strides can be made much sparser - reducing the
+number of seed lookups per read from ~1,495 (default) down to ~90 - without
+sacrificing sensitivity.
+
+**Parameter grid** (4 x 4 = 16 combinations):
+
+| `--passes` | Approx. stride ratio vs default | P1 windows / read | Total windows / read |
+|---|---|---|---|
+| `18,9,3`    | 1x (default)  | 250 | 1,495 |
+| `100,50,10` | ~6x           |  45 |   449 |
+| `200,100,20`| ~12x          |  23 |   225 |
+| `500,200,50`| ~28x          |   9 |    90 |
+
+`--num_seeds` tested: **2** (default), **5**, **10**, **25**
+
+> **Degenerate combinations**: `--passes 500,200,50 --num_seeds 25` - P1 yields
+> only ~9 windows so the seed threshold cannot be met in Pass 1; the code always
+> cascades through all three passes. Such combinations appear in the grid to
+> confirm they offer no speed benefit over the default.
+
+**Metrics collected per run:**
+- **Sensitivity** = aligned reads / 253,089 (expected ~100% for all combos - any drop is a regression)
+- **Wall-clock time** - primary signal for selecting the winner
+- **Mean SW alignment score** - proxy for alignment quality; should be stable across sparse-seeding combos
+
+**Parameter sweep script:**
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_sweep.sh \
+    /path/to/karst2021_253k.fastq \
+    /path/to/pbsim3_nonrrna_253k.fastq \
+    $WORK_DIR/results/pacbio_sweep \
+    4
+```
+
+**Expected results table** (`sweep_results.tsv`):
+
+```
+passes        num_seeds  total   aligned  sensitivity  wall_sec
+18,9,3        2          253089  ...      ...          ...
+18,9,3        5          253089  ...      ...          ...
+...
+500,200,50    25         253089  ...      ...          ...
+```
+
+**Interpreting results**: sensitivity should remain flat at ~1.0000 across all
+combinations (HiFi error rate ~0.1% means sparse seeds still land in error-free
+stretches). The winning combination is the sparsest `--passes` / highest
+`--num_seeds` pair that maintains full sensitivity - expect this to be around
+`--passes 200,100,20 --num_seeds 5` based on the window-count analysis above.
 
 #### Performance Metrics
 - **Sensitivity**: True positives / (True positives + False negatives)

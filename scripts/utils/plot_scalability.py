@@ -2,14 +2,18 @@
 """Generate scalability plots from SortMeRNA runs at multiple read volumes.
 
 Parses aligned.log and aligned.blast from each scale-point directory produced
-by run_scalability.sh, then writes three figures to --output-dir:
+by run_scalability.sh, then writes figures to --output-dir:
 
-  <label>_summary.png      % aligned, runtime, S_min vs. read count
-  <label>_evalue_dist.png  E-value distributions (one panel per scale point)
+  <label>_summary.png        % aligned, runtime, S_min, peak RSS vs. read count
+  <label>_evalue_dist.png    E-value distributions (one panel per scale point)
   <label>_identity_dist.png  % identity distributions (overlaid, all scale points)
+  <label>_roc.png            ROC plot - one (FPR, TPR) point per scale (requires
+                             both --rrna-dirs and --nonrrna-dirs)
 
 Usage:
   python plot_scalability.py --output-dir DIR --scale-dirs DIR [DIR ...] --label STR
+  python plot_scalability.py --output-dir DIR --label STR \\
+      --rrna-dirs DIR [DIR ...] --nonrrna-dirs DIR [DIR ...]
 """
 
 import argparse
@@ -19,6 +23,7 @@ from pathlib import Path
 
 import pandas as pd
 
+_BLAST_CHUNKSIZE = 500_000
 
 # ---------------------------------------------------------------------------
 # Parsers
@@ -56,7 +61,7 @@ def parse_blast(blast_path):
     try:
         for chunk in pd.read_csv(
             blast_path, sep='\t', header=None, names=cols,
-            chunksize=500_000, usecols=['pident', 'evalue']
+            chunksize=_BLAST_CHUNKSIZE, usecols=['pident', 'evalue']
         ):
             chunks.append(chunk)
     except Exception as exc:
@@ -76,7 +81,7 @@ def write_top_hits(blast_path, out_path, top_n=20):
     try:
         for chunk in pd.read_csv(
             blast_path, sep='\t', header=None, names=cols,
-            chunksize=500_000, usecols=['sseqid']
+            chunksize=_BLAST_CHUNKSIZE, usecols=['sseqid']
         ):
             for ref, cnt in chunk['sseqid'].value_counts().items():
                 counts[ref] = counts.get(ref, 0) + cnt
@@ -117,15 +122,19 @@ def _np():
     return np
 
 
-def plot_summary(stats, label, out_dir):
-    """3-panel figure: % aligned, runtime, S_min vs. read count."""
-    plt = _plt()
-    ns       = [s['n'] for s in stats]
-    pct      = [s['log']['aligned'] / s['log']['total_reads'] * 100 for s in stats]
-    runtimes = [s['runtime'] for s in stats]
-    s_mins   = [s['log']['s_min'] for s in stats]
+_PURPLE = '#7b2d8b'
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+
+def plot_summary(stats, label, out_dir):
+    """4-panel figure: % aligned, runtime, S_min, peak RSS vs. read count."""
+    plt = _plt()
+    ns        = [s['n'] for s in stats]
+    pct       = [s['log']['aligned'] / s['log']['total_reads'] * 100 for s in stats]
+    runtimes  = [s['runtime'] for s in stats]
+    s_mins    = [s['log']['s_min'] for s in stats]
+    peak_rss  = [s['peak_rss'] for s in stats]
+
+    fig, axes = plt.subplots(1, 4, figsize=(18, 4))
     fig.suptitle(label, fontsize=12, y=1.01)
 
     ax = axes[0]
@@ -151,6 +160,14 @@ def plot_summary(stats, label, out_dir):
     ax.set_xlabel('Read count')
     ax.set_ylabel('S_min (SW score units)')
     ax.set_title('Score threshold vs. scale')
+    ax.grid(True, alpha=0.3)
+
+    ax = axes[3]
+    ax.plot(ns, peak_rss, 'o-', color=_PURPLE)
+    ax.set_xscale('log')
+    ax.set_xlabel('Read count')
+    ax.set_ylabel('Peak RSS (MB)')
+    ax.set_title('Peak memory vs. scale')
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
@@ -191,6 +208,46 @@ def plot_evalue_dist(stats, label, out_dir):
     print(f'  Saved: {out_path}')
 
 
+def plot_roc(rrna_stats, nonrrna_stats, label, out_dir):
+    """ROC plot: one (FPR, TPR) point per matched scale point."""
+    plt = _plt()
+
+    rrna_by_n    = {s['n']: s for s in rrna_stats}
+    nonrrna_by_n = {s['n']: s for s in nonrrna_stats}
+    common_ns = sorted(set(rrna_by_n) & set(nonrrna_by_n))
+
+    if not common_ns:
+        print('  WARNING: no matching scale points between rRNA and non-rRNA runs',
+              file=sys.stderr)
+        return
+
+    fprs, tprs = [], []
+    for n in common_ns:
+        r  = rrna_by_n[n]
+        nr = nonrrna_by_n[n]
+        tprs.append(r['log']['aligned']  / r['log']['total_reads'])
+        fprs.append(nr['log']['aligned'] / nr['log']['total_reads'])
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.plot(fprs, tprs, 'o-', color=_BLUE)
+    for fpr, tpr, n in zip(fprs, tprs, common_ns):
+        ax.annotate(f'{n:,}', (fpr, tpr), textcoords='offset points',
+                    xytext=(6, 4), fontsize=9)
+    ax.plot([0, 1], [0, 1], '--', color='gray', linewidth=0.8)
+    x_max = max(fprs) * 1.4 if fprs else 0.1
+    ax.set_xlim(-0.002, x_max)
+    ax.set_ylim(max(0.0, min(tprs) - 0.05), 1.01)
+    ax.set_xlabel('False positive rate')
+    ax.set_ylabel('Sensitivity (TPR)')
+    ax.set_title(f'{label} - ROC by scale')
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    out_path = out_dir / f'{label}_roc.png'
+    plt.savefig(out_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f'  Saved: {out_path}')
+
+
 def plot_identity_dist(stats, label, out_dir):
     """% identity distribution for aligned reads, all scale points overlaid."""
     plt = _plt()
@@ -221,24 +278,10 @@ def plot_identity_dist(stats, label, out_dir):
 # Main
 # ---------------------------------------------------------------------------
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--output-dir', required=True, type=Path,
-                    help='Directory for output PNG files')
-    ap.add_argument('--scale-dirs', nargs='+', required=True, type=Path,
-                    help='Scale-point directories (each produced by run_scalability.sh)')
-    ap.add_argument('--label', default='sortmerna_scalability',
-                    help='Label for plot titles and output filenames')
-    ap.add_argument('--n-reads', nargs='+', type=int,
-                    help='Read counts matching --scale-dirs order; inferred from '
-                         'directory name (scale_<N>) if omitted')
-    args = ap.parse_args()
-
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-
+def load_stats(dirs, n_reads_override, output_dir, label):
+    """Load log/blast/runtime data from a list of scale-point directories."""
     stats = []
-    for i, d in enumerate(args.scale_dirs):
+    for i, d in enumerate(dirs):
         log_path   = d / 'smr_out' / 'out' / 'aligned.log'
         blast_path = d / 'smr_out' / 'out' / 'aligned.blast'
         rt_path    = d / 'runtime_seconds.txt'
@@ -247,8 +290,8 @@ def main():
             print(f'  WARNING: missing {log_path}, skipping', file=sys.stderr)
             continue
 
-        if args.n_reads:
-            n = args.n_reads[i]
+        if n_reads_override:
+            n = n_reads_override[i]
         else:
             m = re.search(r'scale_(\d+)', d.name)
             if not m:
@@ -257,29 +300,64 @@ def main():
                 continue
             n = int(m.group(1))
 
-        runtime = int(rt_path.read_text().strip()) if rt_path.exists() else 0
-        log     = parse_log(log_path)
-        blast   = parse_blast(blast_path) if blast_path.exists() else \
-                  pd.DataFrame(columns=['pident', 'evalue'])
-        if blast_path.exists():
-            write_top_hits(blast_path,
-                           args.output_dir / f'{args.label}_top_hits_{n}.txt')
+        rss_path = d / 'peak_rss_mb.txt'
+        runtime  = int(rt_path.read_text().strip())  if rt_path.exists()  else 0
+        peak_rss = int(rss_path.read_text().strip()) if rss_path.exists() else 0
+        log      = parse_log(log_path)
+        blast    = parse_blast(blast_path) if blast_path.exists() else \
+                   pd.DataFrame(columns=['pident', 'evalue'])
+        if blast_path.exists() and output_dir and label:
+            write_top_hits(blast_path, output_dir / f'{label}_top_hits_{n}.txt')
 
         aligned = log['aligned'] or 0
         total   = log['total_reads'] or 1
         print(f'  {n:>12,} reads: {aligned:,} aligned '
-              f'({aligned / total * 100:.2f}%), {runtime}s')
-        stats.append({'n': n, 'log': log, 'runtime': runtime, 'blast': blast})
-
-    if not stats:
-        print('No valid scale directories found.', file=sys.stderr)
-        sys.exit(1)
-
+              f'({aligned / total * 100:.2f}%), {runtime}s, {peak_rss} MB peak RSS')
+        stats.append({'n': n, 'log': log, 'runtime': runtime,
+                      'peak_rss': peak_rss, 'blast': blast})
     stats.sort(key=lambda s: s['n'])
+    return stats
 
-    plot_summary(stats, args.label, args.output_dir)
-    plot_evalue_dist(stats, args.label, args.output_dir)
-    plot_identity_dist(stats, args.label, args.output_dir)
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--output-dir', required=True, type=Path,
+                    help='Directory for output PNG files')
+    ap.add_argument('--scale-dirs', nargs='*', default=[], type=Path,
+                    help='Scale-point directories for per-run plots (run_scalability.sh output)')
+    ap.add_argument('--rrna-dirs', nargs='*', default=[], type=Path,
+                    help='rRNA scale-point directories for ROC plot')
+    ap.add_argument('--nonrrna-dirs', nargs='*', default=[], type=Path,
+                    help='Non-rRNA scale-point directories for ROC plot')
+    ap.add_argument('--label', default='sortmerna_scalability',
+                    help='Label for plot titles and output filenames')
+    ap.add_argument('--n-reads', nargs='+', type=int,
+                    help='Read counts matching --scale-dirs order; inferred from '
+                         'directory name (scale_<N>) if omitted')
+    args = ap.parse_args()
+
+    if not args.scale_dirs and not (args.rrna_dirs and args.nonrrna_dirs):
+        ap.error('provide --scale-dirs for per-run plots, '
+                 'or both --rrna-dirs and --nonrrna-dirs for a ROC plot')
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.scale_dirs:
+        stats = load_stats(args.scale_dirs, args.n_reads, args.output_dir, args.label)
+        if not stats:
+            print('No valid scale directories found.', file=sys.stderr)
+            sys.exit(1)
+        plot_summary(stats, args.label, args.output_dir)
+        plot_evalue_dist(stats, args.label, args.output_dir)
+        plot_identity_dist(stats, args.label, args.output_dir)
+
+    if args.rrna_dirs and args.nonrrna_dirs:
+        print('Loading rRNA stats...')
+        rrna_stats = load_stats(args.rrna_dirs, None, None, None)
+        print('Loading non-rRNA stats...')
+        nonrrna_stats = load_stats(args.nonrrna_dirs, None, None, None)
+        plot_roc(rrna_stats, nonrrna_stats, args.label, args.output_dir)
 
     print(f'\nPlots written to: {args.output_dir}')
 

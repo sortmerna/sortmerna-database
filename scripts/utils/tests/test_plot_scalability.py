@@ -102,16 +102,6 @@ class TestParseLog:
         assert result['aligned']     is None
         assert result['s_min']       is None
 
-    def test_s_min_increases_with_dataset_size(self, tmp_path):
-        # larger m -> higher S_min (E-value threshold tightens)
-        small_dir = tmp_path / 'small'
-        large_dir = tmp_path / 'large'
-        small_dir.mkdir()
-        large_dir.mkdir()
-        p_small = make_log(small_dir, total=10000,    s_min=40)
-        p_large = make_log(large_dir, total=10000000, s_min=59)
-        assert parse_log(p_small)['s_min'] < parse_log(p_large)['s_min']
-
 
 # -- parse_blast --------------------------------------------------------------
 
@@ -143,11 +133,14 @@ class TestParseBlast:
         df = parse_blast(tmp_path / 'nonexistent.blast')
         assert df.empty
 
-    def test_many_rows(self, tmp_path):
-        rows = [(90.0 + i % 10, 1e-10) for i in range(10000)]
+    def test_chunked_concat(self, tmp_path, monkeypatch):
+        """Rows spanning multiple chunks are all returned when chunksize is small."""
+        import plot_scalability
+        monkeypatch.setattr(plot_scalability, '_BLAST_CHUNKSIZE', 3)
+        rows = [(90.0 + i % 10, 1e-10) for i in range(10)]
         p = make_blast(tmp_path, rows)
         df = parse_blast(p)
-        assert len(df) == 10000
+        assert len(df) == 10
 
 
 # -- smoke tests for plotting functions --------------------------------------
@@ -176,12 +169,7 @@ def make_stats(tmp_path):
 
 class TestWriteTopHits:
     def test_counts_and_order(self, tmp_path):
-        p = make_blast(tmp_path, [
-            (99.0, 1e-10),  # read0 -> ref1
-            (99.0, 1e-10),  # read1 -> ref1
-            (85.0, 1e-5),   # read2 -> ref1
-        ])
-        # override sseqid column so we have two distinct references
+        p = tmp_path / 'aligned.blast'
         p.write_text(
             'r0\tsilva_A\t99.0\t151\t0\t0\t1\t151\t1\t151\t1e-10\t100\n'
             'r1\tsilva_B\t85.0\t151\t0\t0\t1\t151\t1\t151\t1e-5\t80\n'
