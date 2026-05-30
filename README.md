@@ -31,7 +31,8 @@ This repository contains code and workflows to:
 ### Phase 2: Validation and Benchmarking
 - [x] Simulate Illumina 150bp rRNA using non-seed cluster members and non-rRNA reads using T2T genome + Rfam non-rRNA families (InSilicoSeq)
 - [x] Experiment 1: Scalability - run SortMeRNA on T2T non-rRNA and rRNA reads at 10K, 100K, 1M, 10M scale points; generate runtime, FP rate, sensitivity, and E-value plots
-- [ ] Experiment 2: Sensitivity across database configurations - simulate rRNA reads from non-seed members at each clustering threshold; run SortMeRNA against matched database configuration
+- [x] Experiment 2: Simulate rRNA reads from non-seed members at each clustering threshold (simulate_rrna_reads.sh)
+- [ ] Experiment 2: Run SortMeRNA against matched database configuration and measure sensitivity
 - [ ] Download real Illumina metatranscriptomics data
 - [ ] Download real PacBio amplicon data (Karst et al. 2021)
 - [ ] Download real PacBio metagenomics data
@@ -374,7 +375,7 @@ SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`
 
 **Distinction from BLAST**: in BLAST, `m` is the length of the individual query sequence, giving a per-query E-value. In SortMeRNA, `m` is the total nucleotide count across all reads in the dataset. This means `S_min` sets a run-level threshold: the expected number of spurious alignments across all reads against the database is <= E, not <= E per read. The effective per-read E-value is therefore `E / total_reads` - with 1M reads and E=1.0, the per-read threshold is 0.000001, far stricter than BLAST's default. A consequence is that the threshold is dataset-size dependent: adding more reads makes filtering more stringent, and short reads face the same absolute score threshold as long reads regardless of their length.
 
-This design is also motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~124M total bases (~69K sequences), roughly 10,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
+This design is also motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~124M total bases (~69K sequences), roughly 10,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) (July 2023) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
 
 **Parallelism and `--score_split`**: SortMeRNA processes reads in parallel by dividing the input file into per-thread byte-range chunks - no physical splitting of the reads file occurs. By default, `m` is the total nucleotide count across all reads regardless of thread count, so `S_min` is identical across threads and the run-level threshold holds. The `--score_split` option changes this: it divides `m` by the number of threads, computing `S_min` as if each thread's chunk were an independent dataset. This lowers `S_min` (more lenient threshold), with an effect equivalent to increasing the E-value. It is off by default and should be used with care, as it makes the threshold dependent on the number of threads rather than the size of the dataset.
 
@@ -384,7 +385,7 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
 
 - **Design:** Fixed configuration (SMR default db) across increasing read volumes, run separately for rRNA reads and T2T non-rRNA reads
 - **Read volumes:** 10,000 -> 100,000 -> 1,000,000 -> 10,000,000 reads
-- **rRNA reads:** Subsampled from Set 2 non-seeds (90-95% identity members) - tests sensitivity and the E-value threshold scaling effect (`S_min` increases with total read count, so sensitivity may shift across scale points)
+- **rRNA reads:** Subsampled from Set 2 non-seeds (90-95% identity members: default db) - tests sensitivity and the E-value threshold scaling effect (`S_min` increases with total read count, so sensitivity may shift across scale points)
 - **Non-rRNA reads:** Subsampled from `non_rRNA_test_10M_T2T.fasta` (10M reads simulated upfront from the masked T2T genome to cover all scale points without re-running InSilicoSeq) - tests false positive rate at scale. The Rfam non-rRNA sequences were not used here because the T2T genome provides a much larger pool to sample from, and InSilicoSeq can generate consistent 150bp paired-end reads at any volume. Rfam families have limited sequence counts and many members are shorter than 150bp, making it impractical to simulate uniform-length reads at the scales needed for this experiment.
 - **Rationale for default db:** The configuration most users would deploy in practice; runtime numbers are directly interpretable for real-world use
 - **Metrics:**
@@ -393,6 +394,7 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
   - Sensitivity (rRNA runs) and false positive rate (T2T runs) at each scale point
   - S_min (score threshold) vs. read count - illustrates the E-value scaling effect
   - E-value and % identity distributions of aligned reads at each scale point
+- **`--score_split` comparison:** Re-run at each scale point with `--score_split` enabled. This option computes `S_min` from the per-thread chunk size rather than the total dataset size, making the threshold less sensitive to total read count. Comparing the two runs directly shows how much sensitivity and false positive rate shift when the E-value threshold is decoupled from dataset scale.
 
 Run for T2T non-rRNA reads (false positive rate at scale). Requires `non_rRNA_test_10M_T2T.fasta` from `simulate_non_rrna.sh`:
 
@@ -402,10 +404,19 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
     $NON_RRNA_DIR/scalability_t2t \
     4 \
     --index-dir $INDEX_DIR \
-    --config smr_v5.0.1_default_db
+    --config smr_v${SMR_VERSION}_default_db
+
+# Re-run with --score_split for comparison
+bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
+    $NON_RRNA_DIR/non_rRNA_test_10M_T2T.fasta \
+    $NON_RRNA_DIR/scalability_t2t_score_split \
+    4 \
+    --index-dir $INDEX_DIR \
+    --config smr_v${SMR_VERSION}_default_db \
+    --score-split
 ```
 
-Run for rRNA reads (sensitivity at scale). Requires Set 2 non-seed rRNA reads simulated from 90-95% identity members (see Step 2 for how to generate them):
+Run for rRNA reads (sensitivity at scale). Requires Set 2 non-seed rRNA reads from `simulate_rrna_reads.sh`:
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
@@ -413,7 +424,16 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
     $RRNA_SIM_DIR/scalability_rrna \
     4 \
     --index-dir $INDEX_DIR \
-    --config smr_v5.0.1_default_db
+    --config smr_v${SMR_VERSION}_default_db
+
+# Re-run with --score_split for comparison
+bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
+    $RRNA_SIM_DIR/set2_rrna_reads.fasta \
+    $RRNA_SIM_DIR/scalability_rrna_score_split \
+    4 \
+    --index-dir $INDEX_DIR \
+    --config smr_v${SMR_VERSION}_default_db \
+    --score-split
 ```
 
 #### Experiment 2: Sensitivity across database configurations
@@ -425,12 +445,29 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
   - Set 1: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 97% non-seed members -> tested against SMR sensitive db (97%)
   - Set 2: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 90-95% non-seed members -> tested against SMR default db (90-95%)
   - Set 3: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 85-90% non-seed members -> tested against SMR fast db (85-90%)
-- **Rationale for 100,000 reads per Set:** Round number that is easy to interpret (1 missed read = 0.001% sensitivity drop), aligns naturally with the first data point of the scalability experiment, and is fast to run
+- **Rationale for 100,000 reads per Set:** Round number that is easy to interpret (1 missed read = 0.001% sensitivity drop), and fast to run. Kept at 100K rather than 1M to avoid conflating database-configuration differences with the E-value scaling effect: at higher read counts `S_min` rises (because `m` = total nucleotide count), which can suppress sensitivity independently of the database being tested. Experiment 1 characterizes that scaling effect separately; Experiment 2 holds read count fixed so results reflect only the database configuration.
 - **Metric:** Sensitivity = detected / total (aggregate across all rRNA types)
 
 Simulate Illumina rRNA reads from non-seed cluster members at each clustering threshold, then run SortMeRNA against the matched database configuration:
 
-*(coming soon - rRNA read simulation script)*
+```bash
+export RRNA_SIM_DIR=$WORK_DIR/data/rrna_sim
+
+bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh \
+    $RRNA_SIM_DIR \
+    4 \
+    --clustered-dir $CLUSTERED_DIR
+```
+
+This produces three pooled FASTA files and an HTML summary report:
+
+| Output | Source members | Matched database |
+|---|---|---|
+| `set1_rrna_reads.fasta` | 97% non-seeds (all types) | `smr_v${SMR_VERSION}_sensitive_db` |
+| `set2_rrna_reads.fasta` | bacteria SSU 90%, others 95%, Rfam 97% | `smr_v${SMR_VERSION}_default_db` |
+| `set3_rrna_reads.fasta` | bacteria SSU 85%, others 90%, Rfam 97% | `smr_v${SMR_VERSION}_fast_db` |
+
+- rRNA read simulation summary: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/rrna_sim/rrna_simulation_summary.html" target="_blank">rrna_simulation_summary.html</a>
 
 #### Real Benchmark Datasets (PacBio)
 Sensitivity test using real PacBio long-read amplicon data:

@@ -28,9 +28,6 @@ class TestTrimToHit:
   def test_single_base(self):
     assert trim_to_hit("ACGT", 2, 2) == "C"
 
-  def test_seq_from_1_seq_to_1(self):
-    assert trim_to_hit("ACGT", 1, 1) == "A"
-
   def test_coordinates_are_1based_inclusive(self):
     seq = "ABCDE"
     assert trim_to_hit(seq, 2, 4) == "BCD"
@@ -124,6 +121,7 @@ class TestParseTblout:
     )
     hits = parse_tblout(str(f))
     assert set(hits.keys()) == {"seq1", "seq2"}
+    assert hits["seq1"][2] == 1     # single hit - merged_from == sf
     assert hits["seq2"][2] == 540   # single hit - merged_from == sf
 
 

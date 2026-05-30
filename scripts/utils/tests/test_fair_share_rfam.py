@@ -14,7 +14,6 @@ class TestFairShare:
         sizes = {"a": 200, "b": 200, "c": 200}
         allocs = fair_share(sizes, 300)
         assert allocs == {"a": 100, "b": 100, "c": 100}
-        assert sum(allocs.values()) == 300
 
     def test_one_small_family(self):
         # "a" has only 30, so its 30 are taken and the remaining 270 go to b and c
@@ -22,21 +21,18 @@ class TestFairShare:
         allocs = fair_share(sizes, 300)
         assert allocs["a"] == 30
         assert allocs["b"] + allocs["c"] == 270
-        assert sum(allocs.values()) == 300
 
     def test_all_families_small(self):
         # total available < target -> take everything
         sizes = {"a": 50, "b": 60, "c": 40}
         allocs = fair_share(sizes, 500)
         assert allocs == {"a": 50, "b": 60, "c": 40}
-        assert sum(allocs.values()) == 150
 
     def test_exact_total(self):
         # target exactly equals sum of all families
         sizes = {"a": 100, "b": 200, "c": 300}
         allocs = fair_share(sizes, 600)
         assert allocs == {"a": 100, "b": 200, "c": 300}
-        assert sum(allocs.values()) == 600
 
     def test_rounding_remainder_distributed(self):
         # 10 target, 3 families of 100 -> 3+3+4 or 3+3+3 with remainder 1
@@ -91,9 +87,13 @@ class TestFairShare:
                      "RF00010_RNaseP_bacterial", "RF00015_U4_spliceosomal",
                      "RF00020_U5_spliceosomal", "RF00023_tmRNA"]:
             assert allocs[name] == sizes[name]
-        # large families must each receive more than any small family
+        # large families must each receive more than any small family that was exhausted
+        small_exhausted = ["RF00003_U1_spliceosomal", "RF00009_RNaseP_eukaryotic",
+                           "RF00010_RNaseP_bacterial", "RF00015_U4_spliceosomal",
+                           "RF00020_U5_spliceosomal", "RF00023_tmRNA"]
+        max_small = max(allocs[n] for n in small_exhausted)
         for name in ["RF00005_tRNA", "RF00017_SRP_RNA", "RF00026_U6_spliceosomal"]:
-            assert allocs[name] > 0
+            assert allocs[name] > max_small
             assert allocs[name] <= sizes[name]
 
     def test_sorted_order_determines_remainder(self):
