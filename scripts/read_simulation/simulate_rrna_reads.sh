@@ -34,6 +34,11 @@
 # Options:
 #   --reads-per-type INT  Target reads per rRNA type per Set (default: 12500)
 #   --model STR           InSilicoSeq error model: HiSeq, NovaSeq, MiSeq (default: NovaSeq)
+#   --min-seq-len INT     Minimum source sequence length for ISS simulation (default: 150).
+#                         Sequences shorter than this are filtered out before ISS; if fewer
+#                         than 10 long-enough sequences remain the type is used as-is without
+#                         ISS (same approach as non-rRNA Rfam sequences). Rfam 5S (~119 bp)
+#                         always falls into this case.
 #   --seed INT            Random seed (default: 42)
 #   --clustered-dir DIR   Directory containing *_test_members.fasta files
 #                         (overrides CLUSTERED_DIR env var)
@@ -57,6 +62,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POSITIONAL=()
 N_READS_PER_TYPE=12500
 ISS_MODEL=NovaSeq
+MIN_SEQ_LEN=150
 RAND_SEED=42
 CLUSTERED_DIR_OPT=""
 FORCE=false
@@ -70,6 +76,7 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --reads-per-type) N_READS_PER_TYPE="$2"; shift 2 ;;
         --model)          ISS_MODEL="$2";         shift 2 ;;
+        --min-seq-len)    MIN_SEQ_LEN="$2";       shift 2 ;;
         --seed)           RAND_SEED="$2";         shift 2 ;;
         --clustered-dir)  CLUSTERED_DIR_OPT="$2"; shift 2 ;;
         --force)          FORCE=true;             shift   ;;
@@ -92,6 +99,7 @@ echo "Clustered dir:    ${CLUSTERED_DIR}"
 echo "Output directory: ${OUTPUT_DIR}"
 echo "Reads per type:   ${N_READS_PER_TYPE}"
 echo "ISS model:        ${ISS_MODEL}"
+echo "Min seq length:   ${MIN_SEQ_LEN} bp (shorter sequences used as-is)"
 echo "Random seed:      ${RAND_SEED}"
 echo "Threads:          ${THREADS}"
 echo "Force re-run:     ${FORCE}"
@@ -201,23 +209,36 @@ simulate_type() {
 
     mkdir -p "${type_dir}"
 
-    echo "  Simulating ${N_READS_PER_TYPE} reads from ${n_source} ${type_name} members..." >&2
-
-    local iss_prefix="${type_dir}/iss"
-    iss generate \
-        --genomes  "${source}" \
-        --model    "${ISS_MODEL}" \
-        --n_reads  "${N_READS_PER_TYPE}" \
-        --cpus     "${THREADS}" \
-        --seed     "${RAND_SEED}" \
-        --output   "${iss_prefix}"
-
-    cat "${iss_prefix}_R1.fastq" "${iss_prefix}_R2.fastq" \
-        | seqkit fq2fa \
-        | seqkit seq -w 0 \
-        > "${out_fasta}"
+    # Filter to sequences >= MIN_SEQ_LEN so ISS does not skip short sequences.
+    # Rfam 5S (~119 bp) falls below 150 bp and would produce no reads from ISS.
+    local long_fa="${type_dir}/source_long.fasta"
+    seqkit seq --min-len "${MIN_SEQ_LEN}" "${source}" | seqkit seq -w 0 > "${long_fa}"
+    local n_long
+    n_long=$(seqkit stats -T "${long_fa}" | tail -1 | cut -f4)
 
     local n_reads
+    if (( n_long >= MIN_SOURCE_SEQS )); then
+        echo "  Simulating ${N_READS_PER_TYPE} reads from ${n_long}/${n_source} ${type_name} members (>= ${MIN_SEQ_LEN} bp)..." >&2
+        local iss_prefix="${type_dir}/iss"
+        iss generate \
+            --genomes  "${long_fa}" \
+            --model    "${ISS_MODEL}" \
+            --n_reads  "${N_READS_PER_TYPE}" \
+            --cpus     "${THREADS}" \
+            --seed     "${RAND_SEED}" \
+            --output   "${iss_prefix}"
+        cat "${iss_prefix}_R1.fastq" "${iss_prefix}_R2.fastq" \
+            | seqkit fq2fa \
+            | seqkit seq -w 0 \
+            > "${out_fasta}"
+    else
+        # Too few long sequences - use all source sequences as-is (no ISS).
+        # Consistent with how non-rRNA Rfam sequences are handled.
+        echo "  WARNING: only ${n_long}/${n_source} ${type_name} members >= ${MIN_SEQ_LEN} bp - using sequences as-is (no ISS)" >&2
+        seqkit seq -w 0 "${source}" > "${out_fasta}"
+    fi
+    rm -f "${long_fa}"
+
     n_reads=$(seqkit stats -T "${out_fasta}" | tail -1 | cut -f4)
     echo "    Saved: ${type_name}/reads.fasta (${n_reads} reads)" >&2
     printf "%s\t%s" "${n_source}" "${n_reads}"
@@ -320,7 +341,8 @@ for sn in ["1", "2", "3"]:
 <div class="description">
 <p>Source: non-seed cluster members at the matched threshold. Reads simulated with InSilicoSeq
 ({iss_model} model, 150 bp paired-end, seed {rand_seed}). Target: {n_per_type} reads per rRNA type (R1+R2 combined).
-Types with fewer than 10 source sequences are skipped.</p>
+Sequences shorter than the ISS read length are pre-filtered; types with too few long-enough sequences
+(e.g. Rfam 5S at ~119 bp) fall back to using sequences as-is without simulation.</p>
 </div>
 <div class="table-wrap"><table>
   <thead>

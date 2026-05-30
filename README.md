@@ -122,6 +122,7 @@ export VERIFIED_RFAM_DIR=$DATA_DIR/verified_rfam
 export CLUSTERED_DIR=$DATA_DIR/clustered
 export INDEX_DIR=$DATA_DIR/index
 export NON_RRNA_DIR=$DATA_DIR/non_rrna
+export RRNA_SIM_DIR=$DATA_DIR/rrna_sim
 
 # SILVA versions and full download URLs (update to use a different release or file type)
 export SILVA_SSU_VERSION=138.2
@@ -371,8 +372,6 @@ Rfam 5S and 5.8S use 97% non-seed members for all Sets because the default and f
 3. Pool all types per Set into a single FASTA
 
 ```bash
-export RRNA_SIM_DIR=$WORK_DIR/data/rrna_sim
-
 bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh \
     $RRNA_SIM_DIR \
     4 \
