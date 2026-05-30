@@ -124,8 +124,8 @@ RRNA_TYPES=(
     silva_lsu_bacteria
     silva_lsu_archaea
     silva_lsu_eukaryota
-    rfam_5s
     rfam_5_8s
+    rfam_5s     # last: absorbs shortfall from other types to hit n_types * N_READS_PER_TYPE
 )
 
 # Minimum source sequences required to run ISS; types below this are skipped
@@ -182,6 +182,7 @@ simulate_type() {
     local type_dir="$1"
     local type_name="$2"
     local source="$3"
+    local target="${4:-${N_READS_PER_TYPE}}"
 
     local out_fasta="${type_dir}/reads.fasta"
 
@@ -226,28 +227,28 @@ simulate_type() {
 
     local n_reads
     if (( n_long >= MIN_SOURCE_SEQS )); then
-        echo "  Simulating ${N_READS_PER_TYPE} reads from ${n_long}/${n_source} ${type_name} members (>= ${MIN_SEQ_LEN} bp)..." >&2
+        echo "  Simulating ${target} reads from ${n_long}/${n_source} ${type_name} members (>= ${MIN_SEQ_LEN} bp)..." >&2
         local iss_prefix="${type_dir}/iss"
         iss generate \
             --genomes  "${long_fa}" \
             --model    "${ISS_MODEL}" \
-            --n_reads  "${N_READS_PER_TYPE}" \
+            --n_reads  "${target}" \
             --cpus     "${THREADS}" \
             --seed     "${RAND_SEED}" \
             --output   "${iss_prefix}"
         cat "${iss_prefix}_R1.fastq" "${iss_prefix}_R2.fastq" \
             | seqkit fq2fa \
+            | seqkit head -n "${target}" \
             | seqkit seq -w 0 \
             > "${out_fasta}"
     else
         # Too few long sequences - use source sequences as-is (no ISS), capped at
-        # N_READS_PER_TYPE so the fallback does not produce far more reads than
-        # the ISS path (e.g. Rfam 5S has ~300K members but target is 12500).
+        # target so the fallback does not produce far more reads than intended.
         echo "  WARNING: only ${n_long}/${n_source} ${type_name} members >= ${MIN_SEQ_LEN} bp - using sequences as-is (no ISS)" >&2
-        if (( n_source > N_READS_PER_TYPE )); then
+        if (( n_source > target )); then
             seqkit seq -g -w 0 "${source}" \
                 | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
-                | seqkit sample -n "${N_READS_PER_TYPE}" --rand-seed "${RAND_SEED}" \
+                | seqkit sample -n "${target}" --rand-seed "${RAND_SEED}" \
                 | seqkit seq -w 0 \
                 > "${out_fasta}"
         else
@@ -283,7 +284,12 @@ process_set() {
     local html_rows=""
     local total_reads=0
 
+    # Process all types except rfam_5s; rfam_5s runs last and absorbs any shortfall
+    # (e.g. rfam_5_8s only has ~9400 sequences) so the pooled total equals
+    # n_types * N_READS_PER_TYPE exactly.
     for type_name in "${RRNA_TYPES[@]}"; do
+        [[ "${type_name}" == "rfam_5s" ]] && continue
+
         local source
         source=$(set_source "${set_num}" "${type_name}")
 
@@ -301,6 +307,30 @@ process_set() {
         total_reads=$(( total_reads + n_reads ))
         html_rows="${html_rows}      <tr><td>${type_name//_/ }</td><td>${n_source}</td><td>$(basename "${source}")</td><td>${n_reads}</td></tr>\n"
     done
+
+    # rfam_5s: target = remaining quota to hit n_types * N_READS_PER_TYPE exactly
+    local n_types=${#RRNA_TYPES[@]}
+    local rfam5s_target=$(( n_types * N_READS_PER_TYPE - total_reads ))
+    (( rfam5s_target < 0 )) && rfam5s_target=0
+    local rfam5s_deficit=$(( rfam5s_target - N_READS_PER_TYPE ))
+    echo "  rfam_5s target: ${rfam5s_target} reads (base ${N_READS_PER_TYPE} + ${rfam5s_deficit} deficit from other types)" >&2
+
+    local rfam5s_source
+    rfam5s_source=$(set_source "${set_num}" "rfam_5s")
+
+    local rfam5s_counts
+    rfam5s_counts=$(simulate_type "${set_dir}/rfam_5s" "rfam_5s" "${rfam5s_source}" "${rfam5s_target}")
+    local rfam5s_n_source rfam5s_n_reads
+    rfam5s_n_source=$(echo "${rfam5s_counts}" | cut -f1)
+    rfam5s_n_reads=$(echo "${rfam5s_counts}" | cut -f2)
+
+    local rfam5s_fasta="${set_dir}/rfam_5s/reads.fasta"
+    if [[ -f "${rfam5s_fasta}" ]] && [[ -s "${rfam5s_fasta}" ]]; then
+        cat "${rfam5s_fasta}" >> "${pooled}"
+    fi
+
+    total_reads=$(( total_reads + rfam5s_n_reads ))
+    html_rows="${html_rows}      <tr><td>rfam 5s</td><td>${rfam5s_n_source}</td><td>$(basename "${rfam5s_source}")</td><td>${rfam5s_n_reads}</td></tr>\n"
 
     local n_pooled
     n_pooled=$(seqkit stats -T "${pooled}" | tail -1 | cut -f4)
