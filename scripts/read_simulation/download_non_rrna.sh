@@ -40,7 +40,8 @@
 # Note: genome FASTA is from GCA (GenBank accession names, e.g. CP068277.2);
 #       rRNA annotation GFF3 is from GCF (RefSeq, NC_ accession names).
 #       The assembly report maps NC_ names to GenBank accession names to match the FASTA.
-#       cmsearch uses RF01960 (18S), RF02543 (28S), RF00001 (5S), RF00002 (5.8S).
+#       cmsearch uses RF01960 (18S), RF02543 (28S), RF00001 (5S), RF00002 (5.8S);
+#       RF00177 (mt-12S) and RF02541 (mt-16S) are searched against chrM only.
 #
 # Outputs:
 #   t2t/${T2T_VERSION}.fa.gz                    - T2T genome (input for ISS simulation)
@@ -182,7 +183,7 @@ if [[ ! -f "${T2T_RRNA_BED}" ]] || [[ ! -s "${T2T_RRNA_BED}" ]]; then
 
         echo ""
         echo "============================================"
-        echo "Running cmsearch for rRNA loci (RF01960, RF02543, RF00001, RF00002)"
+        echo "Running cmsearch for rRNA loci (RF01960, RF02543, RF00001, RF00002, RF00177, RF02541)"
         echo "============================================"
 
         for cm in RF01960 RF02543 RF00001 RF00002; do
@@ -202,6 +203,38 @@ if [[ ! -f "${T2T_RRNA_BED}" ]] || [[ ! -s "${T2T_RRNA_BED}" ]]; then
             fi
         done
 
+        # Mitochondrial rRNA (12S = RF00177, 16S = RF02541) - search chrM only
+        chrM_acc=$(awk -F'\t' '$3 == "MT" {print $5}' "${T2T_ASSEMBLY_REPORT}")
+        CHRM_FA="${T2T_DIR}/chrM.fa"
+        if [[ -n "${chrM_acc}" ]]; then
+            if [[ ! -f "${CHRM_FA}" ]]; then
+                echo "Extracting chrM (${chrM_acc}) for mt-rRNA cmsearch..."
+                seqkit grep -p "${chrM_acc}" "${T2T_FA}" -w 0 > "${CHRM_FA}"
+            fi
+            for cm in RF00177 RF02541; do
+                tblout="${T2T_DIR}/${cm}_hits.tbl"
+                if [[ ! -f "${tblout}" ]]; then
+                    echo "Running cmsearch ${cm} (mt-rRNA, chrM only)..."
+                    cmsearch --cut_ga --cpu "${THREADS}" \
+                        --tblout "${tblout}" \
+                        "${CMS_DIR}/${cm}.cm" "${CHRM_FA}" > /dev/null
+                    echo "  Saved: $(basename "${tblout}")"
+                else
+                    echo "Already exists: ${cm}_hits.tbl"
+                fi
+            done
+        else
+            echo "Warning: chrM accession not found in assembly report - skipping mt-rRNA masking"
+        fi
+
+        cms_tblouts=(
+            "${T2T_DIR}/RF01960_hits.tbl" "${T2T_DIR}/RF02543_hits.tbl"
+            "${T2T_DIR}/RF00001_hits.tbl" "${T2T_DIR}/RF00002_hits.tbl"
+        )
+        for cm in RF00177 RF02541; do
+            [[ -f "${T2T_DIR}/${cm}_hits.tbl" ]] && cms_tblouts+=("${T2T_DIR}/${cm}_hits.tbl")
+        done
+
         awk -v margin="${RNA_LOCI_MARGIN}" '
             /^#/ { next }
             $17 != "!" { next }
@@ -211,8 +244,7 @@ if [[ ! -f "${T2T_RRNA_BED}" ]] || [[ ! -s "${T2T_RRNA_BED}" ]]; then
                 start = (s - 1 - margin < 0) ? 0 : s - 1 - margin
                 print $1 "\t" start "\t" (e + margin)
             }
-        ' "${T2T_DIR}/RF01960_hits.tbl" "${T2T_DIR}/RF02543_hits.tbl" \
-          "${T2T_DIR}/RF00001_hits.tbl" "${T2T_DIR}/RF00002_hits.tbl" \
+        ' "${cms_tblouts[@]}" \
         | sort -k1,1 -k2,2n \
         | bedtools merge \
         > "${T2T_CMSEARCH_BED}"
@@ -226,8 +258,9 @@ if [[ ! -f "${T2T_RRNA_BED}" ]] || [[ ! -s "${T2T_RRNA_BED}" ]]; then
 
         echo ""
         echo "Extracting per-family sequences found by cmsearch but not in GFF3..."
-        for cm in RF01960 RF02543 RF00001 RF00002; do
+        for cm in RF01960 RF02543 RF00001 RF00002 RF00177 RF02541; do
             tblout="${T2T_DIR}/${cm}_hits.tbl"
+            [[ ! -f "${tblout}" ]] && continue
             extra_bed="${T2T_DIR}/${cm}_extra_vs_gff3.bed"
             extra_fa="${T2T_DIR}/${cm}_extra_vs_gff3.fasta"
             awk -v margin="${RNA_LOCI_MARGIN}" '
