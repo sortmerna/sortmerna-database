@@ -380,6 +380,12 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh \
 
 - rRNA read simulation summary: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/rrna_sim/rrna_simulation_summary.html" target="_blank">rrna_simulation_summary.html</a>
 
+**Scalability pool (Experiment 1):** `simulate_rrna_reads.sh` automatically produces a second output, `set2_rrna_reads_scalability.fasta`, alongside the three sensitivity sets. No separate invocation is needed. The pool combines two sources:
+- **SILVA types (6 types, SSU + LSU):** IUPAC-cleaned and run through ISS (NovaSeq model, 150bp PE). ISS generates `10,000,000 - n_rfam` reads so the total pool is exactly 10M after combining.
+- **Rfam 5S (avg 117bp) and 5.8S (avg 150bp):** included directly as-is (IUPAC-cleaned, no min-length filter). These sequences are shorter than the ISS read length and cannot be reliably simulated; including them directly ensures short rRNA - the hardest sequences to detect as S_min rises with read count - are represented in the scalability pool.
+
+The SILVA ISS reads and Rfam direct sequences are shuffled together before output.
+
 ## Phase 2: Validation and Benchmarking
 
 Evaluate the databases built in Phase 1 for sensitivity (rRNA detection) and specificity (false positive rate), and benchmark the latest SortMeRNA against v2.1b. Simulated Illumina reads from non-seed cluster members test sensitivity at each clustering threshold; non-rRNA reads from the T2T genome and Rfam test specificity. Real PacBio amplicon data provides an independent validation.
@@ -443,11 +449,11 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
     --score-split
 ```
 
-Run for rRNA reads (sensitivity at scale). Requires Set 2 non-seed rRNA reads from `simulate_rrna_reads.sh`:
+Run for rRNA reads (sensitivity at scale). Requires `set2_rrna_reads_scalability.fasta` produced by `simulate_rrna_reads.sh`:
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
-    $RRNA_SIM_DIR/set2_rrna_reads.fasta \
+    $RRNA_SIM_DIR/set2_rrna_reads_scalability.fasta \
     $RRNA_SIM_DIR/scalability_rrna \
     4 \
     --index-dir $INDEX_DIR \
@@ -455,7 +461,7 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
 
 # Re-run with --score_split for comparison
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
-    $RRNA_SIM_DIR/set2_rrna_reads.fasta \
+    $RRNA_SIM_DIR/set2_rrna_reads_scalability.fasta \
     $RRNA_SIM_DIR/scalability_rrna_score_split \
     4 \
     --index-dir $INDEX_DIR \

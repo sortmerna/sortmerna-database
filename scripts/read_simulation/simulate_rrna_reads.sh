@@ -40,7 +40,7 @@
 #                         and avoids warnings from sequences that are exactly at the boundary
 #                         after gap removal. If fewer than 10 sequences meet this threshold the
 #                         type falls back to using sequences as-is without ISS (same approach
-#                         as non-rRNA Rfam sequences). Rfam 5S (~119 bp) always falls into
+#                         as non-rRNA Rfam sequences). Rfam 5S (avg 117 bp) always falls into
 #                         this case.
 #   --seed INT            Random seed (default: 42)
 #   --clustered-dir DIR   Directory containing *_test_members.fasta files
@@ -217,7 +217,7 @@ simulate_type() {
     # filter to sequences >= MIN_SEQ_LEN so ISS does not skip short sequences.
     # Replace IUPAC ambiguity codes (R, Y, K, W, S, M, D, H, B, V) with N so
     # ISS receives only unambiguous bases.
-    # Rfam 5S (~119 bp) falls below 150 bp and would produce no reads from ISS.
+    # Rfam 5S (avg 117 bp) falls below 150 bp and would produce no reads from ISS.
     local long_fa="${type_dir}/source_long.fasta"
     seqkit seq -g --min-len "${MIN_SEQ_LEN}" "${source}" \
         | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
@@ -346,6 +346,141 @@ process_set 2
 process_set 3
 
 ################################################################################
+# SCALABILITY POOL: ISS on SILVA types + Rfam 5S/5.8S included directly.
+# SILVA SSU/LSU types are IUPAC-cleaned and passed to ISS. Rfam 5S (avg 117 bp)
+# and 5.8S (avg 150 bp) are shorter than or at the ISS read length and cannot be
+# reliably simulated; they are included directly as-is (IUPAC-cleaned). ISS
+# n_reads is set to SCALABILITY_N_READS - n_rfam so the final combined pool is
+# exactly SCALABILITY_N_READS reads. Set 2 (default db) is used because the
+# scalability experiment runs against the default configuration.
+################################################################################
+
+SCALABILITY_N_READS=10000000
+
+echo ""
+echo "============================================"
+echo "Scalability pool: Set 2 combined (${SCALABILITY_N_READS} reads)"
+echo "============================================"
+
+scalability_dir="${OUTPUT_DIR}/set2_scalability"
+mkdir -p "${scalability_dir}"
+silva_unsorted="${scalability_dir}/silva_combined_unsorted.fasta"
+silva_fa="${scalability_dir}/silva_combined.fasta"
+rfam_direct="${scalability_dir}/rfam_direct.fasta"
+iss_prefix="${scalability_dir}/iss"
+scalability_out="${OUTPUT_DIR}/set2_rrna_reads_scalability.fasta"
+
+# SILVA types: strip gaps and fix IUPAC codes before ISS
+echo "  Collecting Set 2 SILVA sources..."
+type_names_sc=()
+type_counts_sc=()
+type_sources_sc=()
+type_methods_sc=()
+n_silva=0
+> "${silva_unsorted}"
+
+for type_name in "${RRNA_TYPES[@]}"; do
+    [[ "${type_name}" == rfam_* ]] && continue
+    src=$(set_source 2 "${type_name}")
+    [[ -n "${src}" ]] && [[ -f "${src}" ]] || continue
+
+    type_tmp="${scalability_dir}/${type_name}_filtered.fasta"
+    seqkit seq -g -w 0 "${src}" \
+        | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
+        | seqkit seq -w 0 \
+        > "${type_tmp}"
+    n_type=$(seqkit stats -T "${type_tmp}" | tail -1 | cut -f4)
+    if (( n_type > 0 )); then
+        cat "${type_tmp}" >> "${silva_unsorted}"
+        type_names_sc+=("${type_name}")
+        type_counts_sc+=("${n_type}")
+        type_sources_sc+=("$(basename "${src}")")
+        type_methods_sc+=("ISS")
+        n_silva=$(( n_silva + n_type ))
+        echo "  ${type_name}: ${n_type} sequences"
+    else
+        echo "  ${type_name}: 0 sequences (skipped)"
+    fi
+    rm -f "${type_tmp}"
+done
+
+# Rfam types: included directly - too short for ISS at 150 bp read length
+echo "  Collecting Rfam sources directly (no ISS - shorter than read length)..."
+> "${rfam_direct}"
+n_rfam=0
+
+for type_name in rfam_5_8s rfam_5s; do
+    src=$(set_source 2 "${type_name}")
+    [[ -n "${src}" ]] && [[ -f "${src}" ]] || continue
+
+    type_tmp="${scalability_dir}/${type_name}_direct.fasta"
+    seqkit seq -g -w 0 "${src}" \
+        | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
+        | seqkit seq -w 0 \
+        > "${type_tmp}"
+    n_type=$(seqkit stats -T "${type_tmp}" | tail -1 | cut -f4)
+    if (( n_type > 0 )); then
+        cat "${type_tmp}" >> "${rfam_direct}"
+        type_names_sc+=("${type_name}")
+        type_counts_sc+=("${n_type}")
+        type_sources_sc+=("$(basename "${src}")")
+        type_methods_sc+=("direct")
+        n_rfam=$(( n_rfam + n_type ))
+        echo "  ${type_name}: ${n_type} sequences (included as-is)"
+    fi
+    rm -f "${type_tmp}"
+done
+
+n_combined=$(( n_silva + n_rfam ))
+echo "  SILVA: ${n_silva} sequences (ISS), Rfam: ${n_rfam} sequences (direct), total: ${n_combined}"
+
+# Shuffle SILVA sequences before passing to ISS
+echo "  Shuffling SILVA sequences with seed ${RAND_SEED}..."
+seqkit shuffle -s "${RAND_SEED}" "${silva_unsorted}" \
+    | seqkit seq -w 0 \
+    > "${silva_fa}"
+rm -f "${silva_unsorted}"
+
+# Build per-type fraction rows for HTML report
+scalability_html_rows=""
+for i in "${!type_names_sc[@]}"; do
+    n="${type_counts_sc[$i]}"
+    pct=$(awk "BEGIN {printf \"%.1f\", ${n}/${n_combined}*100}")
+    method="${type_methods_sc[$i]}"
+    scalability_html_rows+="      <tr><td>${type_names_sc[$i]//_/ }</td><td>${type_sources_sc[$i]}</td><td>${n}</td><td>${pct}%</td><td>${method}</td></tr>\n"
+done
+printf "%s" "${scalability_html_rows}" > "${scalability_dir}/.html_rows.tmp"
+printf "%s" "${n_combined}"            > "${scalability_dir}/.n_combined.tmp"
+printf "%s" "${n_rfam}"                > "${scalability_dir}/.n_rfam.tmp"
+
+if [[ -f "${scalability_out}" ]] && [[ "${FORCE}" == false ]]; then
+    echo "  Already exists: set2_rrna_reads_scalability.fasta - skipping ISS (use --force to re-run)"
+    n_out=$(seqkit stats -T "${scalability_out}" | tail -1 | cut -f4)
+else
+    silva_n_reads=$(( SCALABILITY_N_READS - n_rfam ))
+    echo "  Running ISS: ${silva_n_reads} reads from ${n_silva} SILVA sequences..."
+    iss generate \
+        --genomes  "${silva_fa}" \
+        --model    "${ISS_MODEL}" \
+        --n_reads  "${silva_n_reads}" \
+        --cpus     "${THREADS}" \
+        --seed     "${RAND_SEED}" \
+        --output   "${iss_prefix}"
+    echo "  Combining ISS output with Rfam direct sequences and shuffling final pool..."
+    cat <(cat "${iss_prefix}_R1.fastq" "${iss_prefix}_R2.fastq" \
+              | seqkit fq2fa \
+              | seqkit head -n "${silva_n_reads}" \
+              | seqkit seq -w 0) \
+        "${rfam_direct}" \
+        | seqkit shuffle -s "${RAND_SEED}" \
+        | seqkit seq -w 0 \
+        > "${scalability_out}"
+    n_out=$(seqkit stats -T "${scalability_out}" | tail -1 | cut -f4)
+    echo "  Saved: set2_rrna_reads_scalability.fasta (${n_out} reads)"
+fi
+printf "%s" "${n_out}" > "${scalability_dir}/.n_reads.tmp"
+
+################################################################################
 # HTML SUMMARY REPORT
 ################################################################################
 
@@ -359,6 +494,8 @@ OUTPUT_HTML="${OUTPUT_DIR}/rrna_simulation_summary.html"
 N_READS_PER_TYPE="${N_READS_PER_TYPE}" \
 ISS_MODEL="${ISS_MODEL}" \
 RAND_SEED="${RAND_SEED}" \
+MIN_SEQ_LEN="${MIN_SEQ_LEN}" \
+SCALABILITY_N_READS="${SCALABILITY_N_READS}" \
 OUTPUT_HTML="${OUTPUT_HTML}" \
 python3 - "${OUTPUT_DIR}" <<'PYEOF'
 import sys, os, datetime
@@ -366,10 +503,12 @@ from pathlib import Path
 
 output_dir = Path(sys.argv[1])
 e = os.environ
-n_per_type = e['N_READS_PER_TYPE']
-iss_model  = e['ISS_MODEL']
-rand_seed  = e['RAND_SEED']
-date_str   = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+n_per_type    = e['N_READS_PER_TYPE']
+iss_model     = e['ISS_MODEL']
+rand_seed     = e['RAND_SEED']
+min_seq_len   = e['MIN_SEQ_LEN']
+scalability_n = e['SCALABILITY_N_READS']
+date_str      = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 set_labels = {
     "1": "Set 1 - sensitive db (97% threshold for all types)",
@@ -392,7 +531,7 @@ for sn in ["1", "2", "3"]:
 <p>Source: non-seed cluster members at the matched threshold. Reads simulated with InSilicoSeq
 ({iss_model} model, 150 bp paired-end, seed {rand_seed}). Target: {n_per_type} reads per rRNA type (R1+R2 combined).
 Sequences shorter than the ISS read length are pre-filtered; types with too few long-enough sequences
-(e.g. Rfam 5S at ~119 bp) fall back to using sequences as-is without simulation.</p>
+(e.g. Rfam 5S, avg 117 bp) fall back to using sequences as-is without simulation.</p>
 </div>
 <div class="table-wrap"><table>
   <thead>
@@ -403,6 +542,39 @@ Sequences shorter than the ISS read length are pre-filtered; types with too few 
   </tbody>
 </table></div>
 <p>Output: <code>set{sn}_rrna_reads.fasta</code></p>
+</section>
+"""
+
+sc_dir          = output_dir / "set2_scalability"
+sc_rows_file    = sc_dir / ".html_rows.tmp"
+sc_n_comb_file  = sc_dir / ".n_combined.tmp"
+sc_n_reads_file = sc_dir / ".n_reads.tmp"
+if sc_rows_file.exists():
+    sc_rows    = sc_rows_file.read_text().replace('\\n', '\n')
+    sc_n_comb  = sc_n_comb_file.read_text().strip()  if sc_n_comb_file.exists()  else "?"
+    sc_n_reads = sc_n_reads_file.read_text().strip() if sc_n_reads_file.exists() else "?"
+    sections += f"""
+<section>
+<h2>Scalability Pool - Set 2 combined (Experiment 1)</h2>
+<div class="description">
+<p>SILVA types (SSU and LSU, 6 types) are IUPAC-cleaned and run through ISS ({iss_model} model,
+150 bp paired-end, seed {rand_seed}). Rfam 5S (avg 117 bp) and 5.8S
+(avg 150 bp) are shorter than or at the ISS read length and cannot
+be reliably simulated; they are included directly as-is (IUPAC-cleaned, no length filter) so
+that short rRNA - the hardest sequences to detect at scale - are represented in the pool.
+ISS generates {scalability_n} - n_rfam reads so the final combined pool is exactly
+{scalability_n} reads total. The pool is large enough to cover all scalability scale points
+(10K, 100K, 1M, 10M) via subsampling in run_scalability.sh.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead>
+    <tr><th>rRNA type</th><th>Source file</th><th>Sequences</th><th>Fraction of pool</th><th>Method</th></tr>
+  </thead>
+  <tbody>
+{sc_rows}    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td>{sc_n_comb}</td><td>100%</td><td></td></tr>
+  </tbody>
+</table></div>
+<p>Output: <code>set2_rrna_reads_scalability.fasta</code> ({sc_n_reads} reads)</p>
 </section>
 """
 
@@ -438,7 +610,9 @@ print(f"  Done - {e['OUTPUT_HTML']}")
 PYEOF
 
 # Clean up temp files
-rm -f "${OUTPUT_DIR}"/set*/.html_rows.tmp "${OUTPUT_DIR}"/set*/.total.tmp
+rm -f "${OUTPUT_DIR}"/set*/.html_rows.tmp "${OUTPUT_DIR}"/set*/.total.tmp \
+      "${scalability_dir}"/.html_rows.tmp "${scalability_dir}"/.n_combined.tmp \
+      "${scalability_dir}"/.n_rfam.tmp "${scalability_dir}"/.n_reads.tmp
 
 echo ""
 echo "============================================"
@@ -450,12 +624,13 @@ for sn in 1 2 3; do
     f="${OUTPUT_DIR}/set${sn}_rrna_reads.fasta"
     [[ -f "${f}" ]] && echo "  Set ${sn}: ${f}"
 done
+echo "  Scalability pool: ${OUTPUT_DIR}/set2_rrna_reads_scalability.fasta"
 echo "  HTML summary: ${OUTPUT_DIR}/rrna_simulation_summary.html"
 echo ""
 echo "Next steps:"
 echo "  Experiment 1 - scalability (rRNA sensitivity at scale):"
 echo "    bash \$SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \\"
-echo "        ${OUTPUT_DIR}/set2_rrna_reads.fasta \\"
+echo "        ${OUTPUT_DIR}/set2_rrna_reads_scalability.fasta \\"
 echo "        ${OUTPUT_DIR}/scalability_rrna \\"
 echo "        ${THREADS} \\"
 echo "        --index-dir \$INDEX_DIR"
