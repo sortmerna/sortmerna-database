@@ -240,12 +240,22 @@ simulate_type() {
             | seqkit seq -w 0 \
             > "${out_fasta}"
     else
-        # Too few long sequences - use all source sequences as-is (no ISS).
-        # Consistent with how non-rRNA Rfam sequences are handled.
+        # Too few long sequences - use source sequences as-is (no ISS), capped at
+        # N_READS_PER_TYPE so the fallback does not produce far more reads than
+        # the ISS path (e.g. Rfam 5S has ~300K members but target is 12500).
         echo "  WARNING: only ${n_long}/${n_source} ${type_name} members >= ${MIN_SEQ_LEN} bp - using sequences as-is (no ISS)" >&2
-        seqkit seq -g -w 0 "${source}" \
-            | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
-            > "${out_fasta}"
+        if (( n_source > N_READS_PER_TYPE )); then
+            seqkit seq -g -w 0 "${source}" \
+                | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
+                | seqkit sample -n "${N_READS_PER_TYPE}" --rand-seed "${RAND_SEED}" \
+                | seqkit seq -w 0 \
+                > "${out_fasta}"
+        else
+            seqkit seq -g -w 0 "${source}" \
+                | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
+                | seqkit seq -w 0 \
+                > "${out_fasta}"
+        fi
     fi
     rm -f "${long_fa}"
 
