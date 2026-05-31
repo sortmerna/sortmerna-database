@@ -78,6 +78,16 @@ get_seq_stats() {
   fi
 }
 
+# Return the path to base or base.gz, whichever exists; empty string if neither
+find_fasta() {
+  local base="$1"
+  if [[ -f "${base}" ]]; then
+    echo "${base}"
+  elif [[ -f "${base}.gz" ]]; then
+    echo "${base}.gz"
+  fi
+}
+
 # Function to add result row to TSV
 add_result() {
   local ref_db="$1"
@@ -159,8 +169,8 @@ echo "Processing SILVA SSU sequences"
 echo "============================================"
 
 for domain in bacteria archaea eukaryota; do
-  kingdom_file="${VERIFIED_DIR}/verified_ssu_${domain}.fasta"
-  if [[ ! -f "${kingdom_file}" ]] || [[ ! -s "${kingdom_file}" ]]; then continue; fi
+  kingdom_file=$(find_fasta "${VERIFIED_DIR}/verified_ssu_${domain}.fasta")
+  [[ -z "${kingdom_file}" ]] && continue
 
   stats=$(get_seq_stats "${kingdom_file}")
   num_seqs=$(echo "${stats}" | cut -f1)
@@ -186,8 +196,8 @@ echo "Processing SILVA LSU sequences"
 echo "============================================"
 
 for domain in bacteria archaea eukaryota; do
-  kingdom_file="${VERIFIED_DIR}/verified_lsu_${domain}.fasta"
-  if [[ ! -f "${kingdom_file}" ]] || [[ ! -s "${kingdom_file}" ]]; then continue; fi
+  kingdom_file=$(find_fasta "${VERIFIED_DIR}/verified_lsu_${domain}.fasta")
+  [[ -z "${kingdom_file}" ]] && continue
 
   stats=$(get_seq_stats "${kingdom_file}")
   num_seqs=$(echo "${stats}" | cut -f1)
@@ -212,11 +222,11 @@ echo "============================================"
 echo "Processing Rfam 5S sequences"
 echo "============================================"
 
-RFAM_5S_FULL="${VERIFIED_RFAM_DIR}/verified_5s_full.fasta"
-RFAM_5S_SEED="${VERIFIED_RFAM_DIR}/verified_5s_seed.fasta"
+RFAM_5S_FULL=$(find_fasta "${VERIFIED_RFAM_DIR}/verified_5s_full.fasta")
+RFAM_5S_SEED=$(find_fasta "${VERIFIED_RFAM_DIR}/verified_5s_seed.fasta")
 
 # 5S seed sequences
-if [[ -n "${RFAM_5S_SEED}" && -f "${RFAM_5S_SEED}" ]]; then
+if [[ -n "${RFAM_5S_SEED}" ]]; then
   stats=$(get_seq_stats "${RFAM_5S_SEED}")
   num_seqs=$(echo "${stats}" | cut -f1)
   total_nt=$(echo "${stats}" | cut -f2)
@@ -224,7 +234,7 @@ if [[ -n "${RFAM_5S_SEED}" && -f "${RFAM_5S_SEED}" ]]; then
 fi
 
 # 5S full sequences
-if [[ -n "${RFAM_5S_FULL}" && -f "${RFAM_5S_FULL}" ]]; then
+if [[ -n "${RFAM_5S_FULL}" ]]; then
   stats=$(get_seq_stats "${RFAM_5S_FULL}")
   num_seqs=$(echo "${stats}" | cut -f1)
   total_nt=$(echo "${stats}" | cut -f2)
@@ -249,11 +259,11 @@ echo "============================================"
 echo "Processing Rfam 5.8S sequences"
 echo "============================================"
 
-RFAM_5_8S_FULL="${VERIFIED_RFAM_DIR}/verified_5.8s_full.fasta"
-RFAM_5_8S_SEED="${VERIFIED_RFAM_DIR}/verified_5.8s_seed.fasta"
+RFAM_5_8S_FULL=$(find_fasta "${VERIFIED_RFAM_DIR}/verified_5.8s_full.fasta")
+RFAM_5_8S_SEED=$(find_fasta "${VERIFIED_RFAM_DIR}/verified_5.8s_seed.fasta")
 
 # 5.8S seed sequences
-if [[ -n "${RFAM_5_8S_SEED}" && -f "${RFAM_5_8S_SEED}" ]]; then
+if [[ -n "${RFAM_5_8S_SEED}" ]]; then
   stats=$(get_seq_stats "${RFAM_5_8S_SEED}")
   num_seqs=$(echo "${stats}" | cut -f1)
   total_nt=$(echo "${stats}" | cut -f2)
@@ -261,7 +271,7 @@ if [[ -n "${RFAM_5_8S_SEED}" && -f "${RFAM_5_8S_SEED}" ]]; then
 fi
 
 # 5.8S full sequences
-if [[ -n "${RFAM_5_8S_FULL}" && -f "${RFAM_5_8S_FULL}" ]]; then
+if [[ -n "${RFAM_5_8S_FULL}" ]]; then
   stats=$(get_seq_stats "${RFAM_5_8S_FULL}")
   num_seqs=$(echo "${stats}" | cut -f1)
   total_nt=$(echo "${stats}" | cut -f2)

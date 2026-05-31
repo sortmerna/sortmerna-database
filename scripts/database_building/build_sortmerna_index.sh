@@ -22,7 +22,6 @@ done
 
 INPUT_DIR="${POSITIONAL[0]:-data}"
 OUTPUT_DIR="${POSITIONAL[1]:-data/index}"
-THREADS="${POSITIONAL[2]:-4}"
 
 CLUSTERED_DIR="${CLUSTERED_DIR:-${INPUT_DIR}/clustered}"
 VERIFIED_RFAM_DIR="${VERIFIED_RFAM_DIR:-${INPUT_DIR}/verified_rfam}"
@@ -32,7 +31,6 @@ echo "SortMeRNA Index Building Script"
 echo "Clustered dir:    ${CLUSTERED_DIR}"
 echo "Verified Rfam dir: ${VERIFIED_RFAM_DIR}"
 echo "Output directory: ${OUTPUT_DIR}"
-echo "Threads:          ${THREADS}"
 echo "Force rebuild:    ${FORCE}"
 echo "============================================"
 
@@ -137,7 +135,6 @@ build_time_sec:  ${duration}
 index_size:      ${index_size}
 peak_cpu_pct:    ${peak_cpu}
 peak_rss_mb:     ${peak_rss_mb}
-threads:         ${THREADS}
 build_date:      $(date -Iseconds)
 sortmerna:       ${SMR_VERSION}
 EOF

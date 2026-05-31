@@ -303,8 +303,7 @@ The sensitive database maximises recall; the default and fast databases trade a 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh \
     $WORK_DIR/data \
-    $INDEX_DIR \
-    4
+    $INDEX_DIR
 ```
 
 - Per-configuration index build report (sequence count, build time, index size, peak CPU%, peak RAM): <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
@@ -314,8 +313,7 @@ Pass `--force` to rebuild an index that already exists:
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh \
     --force $WORK_DIR/data \
-    $INDEX_DIR \
-    4
+    $INDEX_DIR
 ```
 
 For each configuration the script produces:
