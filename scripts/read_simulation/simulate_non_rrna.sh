@@ -101,6 +101,11 @@ elif (( N_T2T % 1000    == 0 )); then N_T2T_LABEL="$(( N_T2T / 1000 ))K"
 else                                   N_T2T_LABEL="${N_T2T}"
 fi
 T2T_OUTPUT="${OUTPUT_DIR}/non_rRNA_test_${N_T2T_LABEL}_T2T.fasta"
+
+# Simulate 5% more reads than needed to absorb N-heavy reads removed by the ambiguity filter.
+# Round up to the nearest even number (ISS splits --n_reads evenly between R1 and R2).
+N_T2T_SIM=$(( N_T2T + N_T2T / 20 ))
+(( N_T2T_SIM % 2 != 0 )) && (( N_T2T_SIM++ ))
 RFAM_OUTPUT="${OUTPUT_DIR}/non_rRNA_test_Rfam.fasta"
 OUTPUT_HTML="${OUTPUT_DIR}/non_rrna_test_set_summary.html"
 
@@ -116,7 +121,7 @@ echo "Threads:          ${THREADS}"
 echo "============================================"
 echo ""
 
-for tool in bedtools iss seqkit; do
+for tool in bedtools iss seqkit fastp; do
     if ! command -v "${tool}" &> /dev/null; then
         echo "Error: ${tool} not found. Install via: conda env create -f environment.yml"
         exit 1
@@ -211,18 +216,64 @@ ISS_R1="${ISS_PREFIX}_R1.fastq"
 ISS_R2="${ISS_PREFIX}_R2.fastq"
 
 if [[ ! -f "${ISS_R1}" ]] || [[ ! -f "${ISS_R2}" ]]; then
-    echo "Generating ${N_T2T} reads (${N_T2T}/2 per R1/R2) with InSilicoSeq..."
+    echo "Generating ${N_T2T_SIM} reads (${N_T2T} target + 5% buffer) with InSilicoSeq..."
     iss generate \
         --genomes "${T2T_MASKED}" \
         --model "${ISS_MODEL}" \
-        --n_reads "${N_T2T}" \
+        --n_reads "${N_T2T_SIM}" \
         --cpus "${THREADS}" \
         --seed "${RAND_SEED}" \
+        --gc_bias \
         --output "${ISS_PREFIX}"
     echo "  Saved: $(basename "${ISS_R1}"), $(basename "${ISS_R2}")"
 else
     echo "Already exists: InSilicoSeq output files"
 fi
+
+################################################################################
+# 3b. FILTER AND QC WITH FASTP
+################################################################################
+
+echo ""
+echo "============================================"
+echo "Step 3b: Filter reads with fastp"
+echo "============================================"
+
+FASTP_R1="${ISS_DIR}/t2t_filtered_R1.fastq"
+FASTP_R2="${ISS_DIR}/t2t_filtered_R2.fastq"
+FASTP_JSON="${ISS_DIR}/fastp.json"
+
+fastp \
+    --in1 "${ISS_R1}" --in2 "${ISS_R2}" \
+    --out1 "${FASTP_R1}" --out2 "${FASTP_R2}" \
+    --n_base_limit 10 \
+    --disable_adapter_trimming \
+    --json "${FASTP_JSON}" \
+    --disable_failed_output \
+    --thread "${THREADS}"
+
+read -r FASTP_READS_BEFORE FASTP_READS_AFTER FASTP_REMOVED_N FASTP_REMOVED_Q \
+         FASTP_AVG_LEN FASTP_Q20 FASTP_Q30 FASTP_GC \
+    < <(python3 - "${FASTP_JSON}" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1]))
+bf = d['summary']['before_filtering']
+fr = d['filtering_result']
+print(
+    bf['total_reads'],
+    fr['passed_filter_reads'],
+    fr['too_many_N_reads'],
+    fr['low_quality_reads'],
+    round(bf['total_bases'] / bf['total_reads'], 1),
+    round(bf['q20_rate'] * 100, 2),
+    round(bf['q30_rate'] * 100, 2),
+    round(bf['gc_content'] * 100, 2),
+)
+PYEOF
+)
+echo "  Before: ${FASTP_READS_BEFORE}  After: ${FASTP_READS_AFTER}"
+echo "  Removed - N content: ${FASTP_REMOVED_N}  Low quality: ${FASTP_REMOVED_Q}"
+echo "  Q20: ${FASTP_Q20}%  Q30: ${FASTP_Q30}%  GC: ${FASTP_GC}%"
 
 ################################################################################
 # 4. CONVERT T2T READS TO FASTA
@@ -233,9 +284,17 @@ echo "============================================"
 echo "Step 4: Convert T2T reads to FASTA"
 echo "============================================"
 
-echo "Converting ISS FASTQ to FASTA..."
-cat "${ISS_R1}" "${ISS_R2}" | seqkit fq2fa > "${T2T_OUTPUT}"
+ISS_FILTERED_FA="${ISS_DIR}/t2t_filtered.fasta"
+echo "Converting filtered FASTQ to FASTA..."
+cat "${FASTP_R1}" "${FASTP_R2}" | seqkit fq2fa > "${ISS_FILTERED_FA}"
 
+if (( FASTP_READS_AFTER < N_T2T )); then
+    echo "Error: only ${FASTP_READS_AFTER} reads after filtering, need ${N_T2T}. Increase buffer."
+    exit 1
+fi
+
+echo "Sampling ${N_T2T} reads..."
+seqkit sample -n "${N_T2T}" --rand-seed "${RAND_SEED}" "${ISS_FILTERED_FA}" -o "${T2T_OUTPUT}"
 n_t2t=$(seqkit stats -T "${T2T_OUTPUT}" | tail -1 | cut -f4)
 echo "  Saved: $(basename "${T2T_OUTPUT}") (${n_t2t} reads)"
 
@@ -334,6 +393,13 @@ T2T_NAME="${T2T_NAME}" \
 T2T_VERSION="${T2T_VERSION}" \
 ISS_MODEL="${ISS_MODEL}" \
 RAND_SEED="${RAND_SEED}" \
+N_T2T_SIM="${FASTP_READS_BEFORE}" \
+FASTP_REMOVED_N="${FASTP_REMOVED_N}" \
+FASTP_REMOVED_Q="${FASTP_REMOVED_Q}" \
+FASTP_AVG_LEN="${FASTP_AVG_LEN}" \
+FASTP_Q20="${FASTP_Q20}" \
+FASTP_Q30="${FASTP_Q30}" \
+FASTP_GC="${FASTP_GC}" \
 N_T2T="${n_t2t}" \
 N_T2T_LABEL="${N_T2T_LABEL}" \
 N_LOCI="${n_loci}" \
@@ -436,8 +502,28 @@ happens to span an rRNA region.</p>
     <tr><td>Error model</td><td>{iss_model}</td></tr>
     <tr><td>Read length</td><td>150 bp (paired-end)</td></tr>
     <tr><td>Random seed</td><td>{rand_seed}</td></tr>
-    <tr><td>Reads generated</td><td>{n_t2t}</td></tr>
+    <tr><td>Reads simulated (with 5% buffer)</td><td>{n_t2t_sim}</td></tr>
+    <tr><td>Reads removed (>10 N bases)</td><td>{fastp_removed_n}</td></tr>
+    <tr><td>Reads removed (low quality)</td><td>{fastp_removed_q}</td></tr>
+    <tr><td>Reads in test set</td><td>{n_t2t}</td></tr>
     <tr><td>Output file</td><td>non_rRNA_test_{n_t2t_label}_T2T.fasta</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<section>
+<h2>Read Quality (fastp, before filtering)</h2>
+<div class="description">
+<p>Quality statistics from fastp computed on R1+R2 before filtering. fastp filters read pairs
+where either read has &gt;10 ambiguous bases or fails quality thresholds.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Average read length (bp)</td><td>{fastp_avg_len}</td></tr>
+    <tr><td>Q20 bases (%)</td><td>{fastp_q20}</td></tr>
+    <tr><td>Q30 bases (%)</td><td>{fastp_q30}</td></tr>
+    <tr><td>GC content (%)</td><td>{fastp_gc}</td></tr>
   </tbody>
 </table></div>
 </section>
@@ -478,6 +564,13 @@ correctly rejects structurally complex non-rRNA sequences.</p>
     masked_bp=e['MASKED_BP'],
     iss_model=e['ISS_MODEL'],
     rand_seed=e['RAND_SEED'],
+    n_t2t_sim=e['N_T2T_SIM'],
+    fastp_removed_n=e['FASTP_REMOVED_N'],
+    fastp_removed_q=e['FASTP_REMOVED_Q'],
+    fastp_avg_len=e['FASTP_AVG_LEN'],
+    fastp_q20=e['FASTP_Q20'],
+    fastp_q30=e['FASTP_Q30'],
+    fastp_gc=e['FASTP_GC'],
     n_t2t=e['N_T2T'],
     n_t2t_label=e['N_T2T_LABEL'],
     n_rfam_reads=e['N_RFAM_READS'],
