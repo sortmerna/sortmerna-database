@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from plot_scalability import parse_log, parse_blast, write_top_hits, plot_summary, plot_evalue_dist, plot_identity_dist
+from plot_scalability import parse_log, parse_blast, write_top_hits, plot_summary, plot_evalue_dist, plot_identity_coverage
 
 
 # Matches the real SortMeRNA aligned.log format from summary.cpp
@@ -109,7 +109,7 @@ class TestParseBlast:
     def test_basic_columns(self, tmp_path):
         p = make_blast(tmp_path, [(99.5, 1e-10), (85.0, 1e-5)])
         df = parse_blast(p)
-        assert list(df.columns) == ['pident', 'evalue']
+        assert list(df.columns) == ['pident', 'evalue', 'qcov_bp']
         assert len(df) == 2
 
     def test_pident_values(self, tmp_path):
@@ -127,7 +127,7 @@ class TestParseBlast:
         p.write_text('')
         df = parse_blast(p)
         assert df.empty
-        assert set(df.columns) == {'pident', 'evalue'}
+        assert set(df.columns) == {'pident', 'evalue', 'qcov_bp'}
 
     def test_missing_file_returns_empty_dataframe(self, tmp_path):
         df = parse_blast(tmp_path / 'nonexistent.blast')
@@ -224,9 +224,9 @@ class TestPlotFunctions:
         plot_evalue_dist(make_stats(tmp_path), 'test', tmp_path)
         assert (tmp_path / 'test_evalue_dist.png').exists()
 
-    def test_plot_identity_dist_creates_file(self, tmp_path):
-        plot_identity_dist(make_stats(tmp_path), 'test', tmp_path)
-        assert (tmp_path / 'test_identity_dist.png').exists()
+    def test_plot_identity_coverage_creates_file(self, tmp_path):
+        plot_identity_coverage(make_stats(tmp_path), 'test', tmp_path)
+        assert (tmp_path / 'test_identity_coverage.png').exists()
 
     def test_plot_evalue_dist_empty_blast(self, tmp_path):
         stats = make_stats(tmp_path)
