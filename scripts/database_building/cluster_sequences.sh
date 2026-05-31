@@ -126,7 +126,7 @@ cluster_sequences() {
   else
   local log_file="${output%.fasta}.log"
   echo "  Clustering at ${threshold}%: $(basename "${output}")"
-  echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${output} --uc ${uc_file} --log ${log_file} --threads ${THREADS} --strand both --notrunclabels --sizeout --randseed 42 --quiet"
+  echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${output} --uc ${uc_file} --log ${log_file} --threads ${THREADS} --strand both --notrunclabels --sizeout --quiet"
 
   vsearch \
     --cluster_fast "${input}" \
@@ -138,7 +138,6 @@ cluster_sequences() {
     --strand both \
     --notrunclabels \
     --sizeout \
-    --randseed 42 \
     --quiet
   fi
 
