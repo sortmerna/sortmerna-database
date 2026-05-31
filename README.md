@@ -400,8 +400,8 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh \
 
 - rRNA read simulation summary: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/rrna_sim/rrna_simulation_summary.html" target="_blank">rrna_simulation_summary.html</a>
 
-**Scalability pool (Experiment 1):** `simulate_rrna_reads.sh` automatically produces a second output, `rRNA_test_10M.fasta`, alongside the three sensitivity sets. No separate invocation is needed. The pool is built from Set 2 non-seed sources (default database, 90-95% clustering thresholds) and combines two source types:
-- **SILVA types (6 types, SSU + LSU):** IUPAC-cleaned and run through ISS (NovaSeq model, 150bp PE). ISS generates `10,000,000 - n_rfam` reads so the total pool is exactly 10M after combining.
+**Scalability pool (Experiment 1):** `simulate_rrna_reads.sh` also produces `rRNA_test_10M.fasta` alongside the three sensitivity sets. The pool is built from Set 2 non-seed sources (default database, 90-95% clustering thresholds) and combines two source types:
+- **SILVA types (6 types, SSU + LSU):** IUPAC-cleaned and run through ISS (NovaSeq model, 150bp PE). ISS generates 10M reads.
 - **Rfam 5S (avg 117bp) and 5.8S (avg 150bp):** included directly as-is (IUPAC-cleaned, no min-length filter). These sequences are shorter than the ISS read length and cannot be reliably simulated; including them directly ensures short rRNA - the hardest sequences to detect as `S_min` rises with read count - are represented in the scalability pool.
 
 The SILVA ISS reads and Rfam direct sequences are shuffled together before output.
@@ -439,7 +439,7 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
 - **Design:** Fixed configuration (SMR default db) across increasing read volumes, run separately for rRNA reads and T2T non-rRNA reads
 - **Read volumes:** 10,000 -> 100,000 -> 1,000,000 -> 10,000,000 reads
 - **rRNA reads:** Subsampled from Set 2 non-seeds (90-95% identity members: default db) - tests sensitivity and the E-value threshold scaling effect (`S_min` increases with total read count, so sensitivity may shift across scale points)
-- **Non-rRNA reads:** Subsampled from `non_rRNA_test_10M_T2T.fasta` (10M reads simulated upfront from the masked T2T genome to cover all scale points without re-running InSilicoSeq) - tests false positive rate at scale. The Rfam non-rRNA sequences were not used here because the T2T genome provides a much larger pool to sample from, and InSilicoSeq can generate consistent 150bp paired-end reads at any volume. Rfam families have limited sequence counts and many members are shorter than 150bp, making it impractical to simulate uniform-length reads at the scales needed for this experiment.
+- **Non-rRNA reads:** Subsampled from `non_rRNA_test_10M_T2T.fasta` (10M reads simulated from the masked T2T genome to cover all scale points without re-running InSilicoSeq) - tests false positive rate at scale. The Rfam non-rRNA sequences were not used here because the T2T genome provides a much larger pool to sample from, and InSilicoSeq can generate consistent 150bp paired-end reads at any volume. Rfam families have limited sequence counts and many members are shorter than 150bp, making it impractical to simulate uniform-length reads at the scales needed for this experiment.
 - **Rationale for default db:** The configuration most users would deploy in practice; runtime numbers are directly interpretable for real-world use
 - **Metrics:**
   - Wall-clock runtime at each scale point
