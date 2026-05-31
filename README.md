@@ -44,7 +44,7 @@ This repository contains code and workflows to:
 ### Requirements
 
 **Core tools:**
-- [SortMeRNA](https://github.com/sortmerna/sortmerna) v6.0.1 - rRNA filtering
+- [SortMeRNA](https://github.com/sortmerna/sortmerna) v6.0.1 - rRNA filtering (installed from source, see Quick Start)
 - [VSEARCH](https://github.com/torognes/vsearch) >= 2.22 - sequence clustering
 - [Infernal](http://eddylab.org/infernal/) >= 1.1.4 - covariance model search (cmsearch, cmpress)
 - [SeqKit](https://bioinf.shenwei.me/seqkit/) >= 2.5 - sequence statistics
@@ -62,12 +62,39 @@ This repository contains code and workflows to:
 
 ### Quick Start
 
+**Install SortMeRNA from source**
+
+```bash
+export SMR_VERSION=6.0.1
+
+# Download and extract
+wget https://github.com/sortmerna/sortmerna/archive/refs/tags/v${SMR_VERSION}.tar.gz
+tar xvf v${SMR_VERSION}.tar.gz && cd sortmerna-${SMR_VERSION}
+
+# Pin GCC 11
+sudo apt install -y gcc-11 g++-11
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
+
+# Create a build environment and install Python build dependencies
+conda create -n sortmerna_${SMR_VERSION} -c conda-forge -y python pyyaml jinja2 requests ninja cmake
+conda activate sortmerna_${SMR_VERSION}
+
+python setup.py all
+
+conda deactivate
+```
+
+The binary is at `dist/bin/sortmerna` inside the source directory.
+
+**Install benchmarking dependencies:**
+
 ```bash
 # Clone repository
 git clone https://github.com/sortmerna/sortmerna-database.git
 cd sortmerna-database
 
-# Create conda environment (includes SortMeRNA 6.0.1)
+# Create conda environment
 conda env create -f environment.yml
 conda activate sortmerna-bench
 ```
@@ -95,6 +122,10 @@ Download and verify rRNA sequences from SILVA and Rfam, cluster them at multiple
 ### Set paths & create working directory
 
 ```bash
+# SortMeRNA version and binary - update when upgrading
+export SMR_VERSION=6.0.1
+export SMR_BIN=$HOME/sortmerna-${SMR_VERSION}/dist/bin/sortmerna
+
 # Path to the cloned sortmerna-database repository
 export SMR_DB_ROOT_DIR=$HOME/sortmerna-database
 export UTILS_DIR=$SMR_DB_ROOT_DIR/scripts/utils
@@ -137,10 +168,6 @@ export T2T_GCF_BASE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/${T
 
 # Rfam non-rRNA families FTP (tied to RFAM_VERSION; change to CURRENT to always pull the latest)
 export RFAM_NON_RRNA_FTP=https://ftp.ebi.ac.uk/pub/databases/Rfam/$RFAM_VERSION/fasta_files
-
-# SortMeRNA binary - full path
-export SMR_BIN=/home/ubuntu/miniconda3/envs/sortmerna-bench/bin/sortmerna
-export SMR_VERSION=$("${SMR_BIN}" --version 2>&1 | grep "^SortMeRNA version" | awk '{print $3}')
 
 ```
 
