@@ -196,6 +196,10 @@ def plot_evalue_dist(stats, label, out_dir):
             continue
         log_ev = np.log10(df['evalue'].clip(lower=1e-300))
         ax.hist(log_ev, bins=50, color=_BLUE, edgecolor='none', alpha=0.85)
+        for ev, ls in [(1, '-'), (0.05, '--'), (0.01, '-.'), (0.001, ':')]:
+            ax.axvline(np.log10(ev), color='red', linewidth=0.8, linestyle=ls,
+                       label=f'E={ev}')
+        ax.legend(fontsize=6, loc='upper left')
         ax.set_xlabel('log$_{10}$(E-value)')
         ax.set_ylabel('Count')
         ax.set_title(f'N = {s["n"]:,}  ({len(df):,} aligned)')
