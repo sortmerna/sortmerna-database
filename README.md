@@ -447,7 +447,7 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
   - E-value and % identity distributions of aligned reads at each scale point
 - **`--score_split` comparison:** Re-run at each scale point with `--score_split` enabled. This option computes `S_min` from the per-thread chunk size rather than the total dataset size, making the threshold less sensitive to total read count. Comparing the two runs directly shows how much sensitivity and false positive rate shift when the E-value threshold is decoupled from dataset scale.
 
-Run for T2T non-rRNA reads (false positive rate at scale) and rRNA reads (sensitivity at scale) across four E-value thresholds. E-value 1 is SortMeRNA's default. Requires `non_rRNA_test_10M_T2T.fasta` from `simulate_non_rrna.sh` and `rRNA_test_10M.fasta` from `simulate_rrna_reads.sh`:
+Run for T2T non-rRNA reads (false positive rate at scale), Rfam non-rRNA reads (hardest specificity test - structurally similar to rRNA), and rRNA reads (sensitivity at scale) across four E-value thresholds. E-value 1 is SortMeRNA's default. Requires `non_rRNA_test_10M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` from `simulate_non_rrna.sh` and `rRNA_test_10M.fasta` from `simulate_rrna_reads.sh`. The Rfam non-rRNA set has 500K reads so its scale points are capped at 500K:
 
 ```bash
 for ev in 1 0.1 0.05 0.01; do
@@ -460,6 +460,15 @@ for ev in 1 0.1 0.05 0.01; do
         --evalue ${ev}
 
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
+        $NON_RRNA_DIR/non_rRNA_test_Rfam.fasta \
+        $NON_RRNA_DIR/scalability_rfam_ev${ev} \
+        4 \
+        --index-dir $INDEX_DIR \
+        --config smr_v${SMR_VERSION}_default_db \
+        --scale 10000,100000,500000 \
+        --evalue ${ev}
+
+    bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
         $RRNA_SIM_DIR/rRNA_test_10M.fasta \
         $RRNA_SIM_DIR/scalability_rrna_ev${ev} \
         4 \
@@ -469,7 +478,7 @@ for ev in 1 0.1 0.05 0.01; do
 done
 ```
 
-Generate the ROC plot once all E-value runs are complete. Each point on the curve is one E-value threshold at the 10M scale, showing the sensitivity vs. false positive rate tradeoff. Repeat `--rrna-dirs`, `--nonrrna-dirs`, and `--series-labels` once per series to overlay multiple versions or database configurations:
+Generate the ROC plot once all E-value runs are complete. Each point on the curve is one E-value threshold, showing the sensitivity vs. false positive rate tradeoff. T2T and Rfam non-rRNA appear as separate series - both use the same rRNA runs for TPR but differ in what non-rRNA reads are used for FPR:
 
 ```bash
 python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
@@ -486,7 +495,18 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
         $NON_RRNA_DIR/scalability_t2t_ev0.1 \
         $NON_RRNA_DIR/scalability_t2t_ev0.05 \
         $NON_RRNA_DIR/scalability_t2t_ev0.01 \
-    --series-labels "smr_v${SMR_VERSION} default_db"
+    --series-labels "T2T non-rRNA" \
+    --rrna-dirs \
+        $RRNA_SIM_DIR/scalability_rrna_ev1 \
+        $RRNA_SIM_DIR/scalability_rrna_ev0.1 \
+        $RRNA_SIM_DIR/scalability_rrna_ev0.05 \
+        $RRNA_SIM_DIR/scalability_rrna_ev0.01 \
+    --nonrrna-dirs \
+        $NON_RRNA_DIR/scalability_rfam_ev1 \
+        $NON_RRNA_DIR/scalability_rfam_ev0.1 \
+        $NON_RRNA_DIR/scalability_rfam_ev0.05 \
+        $NON_RRNA_DIR/scalability_rfam_ev0.01 \
+    --series-labels "Rfam non-rRNA"
 ```
 
 #### Experiment 2: Sensitivity across database configurations

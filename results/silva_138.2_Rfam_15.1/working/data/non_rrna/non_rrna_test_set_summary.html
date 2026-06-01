@@ -20,7 +20,7 @@
 </head>
 <body>
 <h1>Non-rRNA Reference Sources Summary for Reads Simulation</h1>
-<p class="meta">Generated: 2026-05-30 20:47:16</p>
+<p class="meta">Generated: 2026-06-01 11:12:20</p>
 
 <section>
 <h2>T2T Genome (Human CHM13v2.0)</h2>
@@ -42,8 +42,28 @@ happens to span an rRNA region.</p>
     <tr><td>Error model</td><td>NovaSeq</td></tr>
     <tr><td>Read length</td><td>150 bp (paired-end)</td></tr>
     <tr><td>Random seed</td><td>42</td></tr>
-    <tr><td>Reads generated</td><td>10000000</td></tr>
+    <tr><td>Reads simulated (with 5% buffer)</td><td>10500000</td></tr>
+    <tr><td>Reads removed (>10 N bases)</td><td>53784</td></tr>
+    <tr><td>Reads removed (low quality)</td><td>0</td></tr>
+    <tr><td>Reads in test set</td><td>10000000</td></tr>
     <tr><td>Output file</td><td>non_rRNA_test_10M_T2T.fasta</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<section>
+<h2>Read Quality (fastp, before filtering)</h2>
+<div class="description">
+<p>Quality statistics from fastp computed on R1+R2 before filtering. fastp filters read pairs
+where either read has &gt;10 ambiguous bases or fails quality thresholds.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Average read length (bp)</td><td>151.0</td></tr>
+    <tr><td>Q20 bases (%)</td><td>98.31</td></tr>
+    <tr><td>Q30 bases (%)</td><td>94.04</td></tr>
+    <tr><td>GC content (%)</td><td>40.4</td></tr>
   </tbody>
 </table></div>
 </section>
