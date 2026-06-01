@@ -145,6 +145,7 @@ export CLUSTERED_DIR=$DATA_DIR/clustered
 export INDEX_DIR=$DATA_DIR/index
 export NON_RRNA_DIR=$DATA_DIR/non_rrna
 export RRNA_SIM_DIR=$DATA_DIR/rrna_sim
+export SCALABILITY_DIR=$DATA_DIR/scalability_test
 
 # SILVA versions and full download URLs (update to use a different release or file type)
 export SILVA_SSU_VERSION=138.2
@@ -453,7 +454,7 @@ Run for T2T non-rRNA reads (false positive rate at scale), Rfam non-rRNA reads (
 for ev in 1 0.1 0.05 0.01; do
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
         $NON_RRNA_DIR/non_rRNA_test_10M_T2T.fasta \
-        $NON_RRNA_DIR/scalability_t2t_ev${ev} \
+        $SCALABILITY_DIR/scalability_t2t_ev${ev} \
         4 \
         --index-dir $INDEX_DIR \
         --config smr_v${SMR_VERSION}_default_db \
@@ -461,7 +462,7 @@ for ev in 1 0.1 0.05 0.01; do
 
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
         $NON_RRNA_DIR/non_rRNA_test_Rfam.fasta \
-        $NON_RRNA_DIR/scalability_rfam_ev${ev} \
+        $SCALABILITY_DIR/scalability_rfam_ev${ev} \
         4 \
         --index-dir $INDEX_DIR \
         --config smr_v${SMR_VERSION}_default_db \
@@ -470,7 +471,7 @@ for ev in 1 0.1 0.05 0.01; do
 
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
         $RRNA_SIM_DIR/rRNA_test_10M.fasta \
-        $RRNA_SIM_DIR/scalability_rrna_ev${ev} \
+        $SCALABILITY_DIR/scalability_rrna_ev${ev} \
         4 \
         --index-dir $INDEX_DIR \
         --config smr_v${SMR_VERSION}_default_db \
@@ -482,30 +483,30 @@ Generate the ROC plot once all E-value runs are complete. Each point on the curv
 
 ```bash
 python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
-    --output-dir $RRNA_SIM_DIR/scalability_plots \
+    --output-dir $SCALABILITY_DIR/plots \
     --label smr_default_db \
     --evalues 1 0.1 0.05 0.01 \
     --rrna-dirs \
-        $RRNA_SIM_DIR/scalability_rrna_ev1 \
-        $RRNA_SIM_DIR/scalability_rrna_ev0.1 \
-        $RRNA_SIM_DIR/scalability_rrna_ev0.05 \
-        $RRNA_SIM_DIR/scalability_rrna_ev0.01 \
+        $SCALABILITY_DIR/scalability_rrna_ev1 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.1 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.05 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.01 \
     --nonrrna-dirs \
-        $NON_RRNA_DIR/scalability_t2t_ev1 \
-        $NON_RRNA_DIR/scalability_t2t_ev0.1 \
-        $NON_RRNA_DIR/scalability_t2t_ev0.05 \
-        $NON_RRNA_DIR/scalability_t2t_ev0.01 \
+        $SCALABILITY_DIR/scalability_t2t_ev1 \
+        $SCALABILITY_DIR/scalability_t2t_ev0.1 \
+        $SCALABILITY_DIR/scalability_t2t_ev0.05 \
+        $SCALABILITY_DIR/scalability_t2t_ev0.01 \
     --series-labels "T2T non-rRNA" \
     --rrna-dirs \
-        $RRNA_SIM_DIR/scalability_rrna_ev1 \
-        $RRNA_SIM_DIR/scalability_rrna_ev0.1 \
-        $RRNA_SIM_DIR/scalability_rrna_ev0.05 \
-        $RRNA_SIM_DIR/scalability_rrna_ev0.01 \
+        $SCALABILITY_DIR/scalability_rrna_ev1 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.1 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.05 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.01 \
     --nonrrna-dirs \
-        $NON_RRNA_DIR/scalability_rfam_ev1 \
-        $NON_RRNA_DIR/scalability_rfam_ev0.1 \
-        $NON_RRNA_DIR/scalability_rfam_ev0.05 \
-        $NON_RRNA_DIR/scalability_rfam_ev0.01 \
+        $SCALABILITY_DIR/scalability_rfam_ev1 \
+        $SCALABILITY_DIR/scalability_rfam_ev0.1 \
+        $SCALABILITY_DIR/scalability_rfam_ev0.05 \
+        $SCALABILITY_DIR/scalability_rfam_ev0.01 \
     --series-labels "Rfam non-rRNA"
 ```
 
