@@ -249,7 +249,6 @@ fastp \
     --n_base_limit 10 \
     --disable_adapter_trimming \
     --json "${FASTP_JSON}" \
-    --disable_failed_output \
     --thread "${THREADS}"
 
 read -r FASTP_READS_BEFORE FASTP_READS_AFTER FASTP_REMOVED_N FASTP_REMOVED_Q \

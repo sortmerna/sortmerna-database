@@ -47,6 +47,7 @@ DB_CONFIG="${DB_CONFIG:-}"
 LABEL=""
 INDEX_DIR_OPT=""
 SCORE_SPLIT=false
+EVALUE=""
 
 shift 3 || true
 while [[ $# -gt 0 ]]; do
@@ -57,6 +58,7 @@ while [[ $# -gt 0 ]]; do
         --index-dir)   INDEX_DIR_OPT="$2";    shift 2 ;;
         --seed)        RAND_SEED="$2";        shift 2 ;;
         --score-split) SCORE_SPLIT=true;      shift   ;;
+        --evalue)      EVALUE="$2";           shift 2 ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
@@ -89,6 +91,7 @@ echo "  DB config:   ${DB_CONFIG}"
 echo "  Threads:     ${THREADS}"
 echo "  Seed:        ${RAND_SEED}"
 echo "  Score split: ${SCORE_SPLIT}"
+echo "  E-value:     ${EVALUE:-default}"
 echo ""
 
 mkdir -p "${OUTPUT_DIR}"
@@ -128,6 +131,7 @@ for n in "${SCALE_POINTS[@]}"; do
             --threads "${THREADS}"
         )
         [[ "${SCORE_SPLIT}" == true ]] && smr_args+=(--score_split)
+        [[ -n "${EVALUE}" ]] && smr_args+=(--e_val "${EVALUE}")
         "${SMR_BIN}" "${smr_args[@]}" &
         smr_pid=$!
         peak_rss_mb=0
