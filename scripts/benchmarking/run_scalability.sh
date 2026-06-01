@@ -131,7 +131,7 @@ for n in "${SCALE_POINTS[@]}"; do
             --threads "${THREADS}"
         )
         [[ "${SCORE_SPLIT}" == true ]] && smr_args+=(--score_split)
-        [[ -n "${EVALUE}" ]] && smr_args+=(--e_val "${EVALUE}")
+        [[ -n "${EVALUE}" ]] && smr_args+=(-e "${EVALUE}")
         "${SMR_BIN}" "${smr_args[@]}" &
         smr_pid=$!
         peak_rss_mb=0
