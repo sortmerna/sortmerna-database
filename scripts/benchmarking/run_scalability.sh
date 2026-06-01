@@ -48,6 +48,7 @@ LABEL=""
 INDEX_DIR_OPT=""
 SCORE_SPLIT=false
 EVALUE=""
+READS_DIR=""
 
 shift 3 || true
 while [[ $# -gt 0 ]]; do
@@ -59,6 +60,7 @@ while [[ $# -gt 0 ]]; do
         --seed)        RAND_SEED="$2";        shift 2 ;;
         --score-split) SCORE_SPLIT=true;      shift   ;;
         --evalue)      EVALUE="$2";           shift 2 ;;
+        --reads-dir)   READS_DIR="$2";        shift 2 ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
@@ -92,6 +94,7 @@ echo "  Threads:     ${THREADS}"
 echo "  Seed:        ${RAND_SEED}"
 echo "  Score split: ${SCORE_SPLIT}"
 echo "  E-value:     ${EVALUE:-default}"
+echo "  Reads dir:   ${READS_DIR:-none (subsample from reads)}"
 echo ""
 
 mkdir -p "${OUTPUT_DIR}"
@@ -106,14 +109,22 @@ for n in "${SCALE_POINTS[@]}"; do
     echo "Scale point: ${n} reads"
     echo "--------------------------------------------"
 
-    subset_fa="${scale_dir}/reads_${n}.fasta"
-    if [[ ! -f "${subset_fa}" ]]; then
-        echo "  Subsampling ${n} reads..."
-        seqkit sample -n "${n}" --rand-seed "${RAND_SEED}" "${READS}" \
-            | seqkit seq -w 0 > "${subset_fa}"
-        echo "  Saved: $(basename "${subset_fa}")"
+    if [[ -n "${READS_DIR}" ]]; then
+        subset_fa="${READS_DIR}/scale_${n}/reads_${n}.fasta"
+        if [[ ! -f "${subset_fa}" ]]; then
+            echo "  ERROR: --reads-dir set but ${subset_fa} not found" >&2; exit 1
+        fi
+        echo "  Reusing reads: ${subset_fa}"
     else
-        echo "  Already exists: $(basename "${subset_fa}")"
+        subset_fa="${scale_dir}/reads_${n}.fasta"
+        if [[ ! -f "${subset_fa}" ]]; then
+            echo "  Subsampling ${n} reads..."
+            seqkit sample -n "${n}" --rand-seed "${RAND_SEED}" "${READS}" \
+                | seqkit seq -w 0 > "${subset_fa}"
+            echo "  Saved: $(basename "${subset_fa}")"
+        else
+            echo "  Already exists: $(basename "${subset_fa}")"
+        fi
     fi
 
     smr_workdir="${scale_dir}/smr_out"

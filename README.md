@@ -450,15 +450,21 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
 
 Run for T2T non-rRNA reads (false positive rate at scale), Rfam non-rRNA reads (hardest specificity test - structurally similar to rRNA), and rRNA reads (sensitivity at scale) across four E-value thresholds. E-value 1 is SortMeRNA's default. Requires `non_rRNA_test_10M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` from `simulate_non_rrna.sh` and `rRNA_test_10M.fasta` from `simulate_rrna_reads.sh`. The Rfam non-rRNA set has 500K reads so its scale points are capped at 500K:
 
+Subsample reads once at E-value 1 (the default), then reuse those reads for the remaining thresholds with `--reads-dir`:
+
 ```bash
 for ev in 1 0.1 0.05 0.01; do
+    reads_dir_t2t=$( [[ "${ev}" == "1" ]] && echo "" || echo "--reads-dir $SCALABILITY_DIR/scalability_t2t_ev1" )
+    reads_dir_rfam=$( [[ "${ev}" == "1" ]] && echo "" || echo "--reads-dir $SCALABILITY_DIR/scalability_rfam_ev1" )
+    reads_dir_rrna=$( [[ "${ev}" == "1" ]] && echo "" || echo "--reads-dir $SCALABILITY_DIR/scalability_rrna_ev1" )
+
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
         $NON_RRNA_DIR/non_rRNA_test_10M_T2T.fasta \
         $SCALABILITY_DIR/scalability_t2t_ev${ev} \
         4 \
         --index-dir $INDEX_DIR \
         --config smr_v${SMR_VERSION}_default_db \
-        --evalue ${ev}
+        --evalue ${ev} ${reads_dir_t2t}
 
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
         $NON_RRNA_DIR/non_rRNA_test_Rfam.fasta \
@@ -467,7 +473,7 @@ for ev in 1 0.1 0.05 0.01; do
         --index-dir $INDEX_DIR \
         --config smr_v${SMR_VERSION}_default_db \
         --scale 10000,100000,500000 \
-        --evalue ${ev}
+        --evalue ${ev} ${reads_dir_rfam}
 
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
         $RRNA_SIM_DIR/rRNA_test_10M.fasta \
@@ -475,7 +481,7 @@ for ev in 1 0.1 0.05 0.01; do
         4 \
         --index-dir $INDEX_DIR \
         --config smr_v${SMR_VERSION}_default_db \
-        --evalue ${ev}
+        --evalue ${ev} ${reads_dir_rrna}
 done
 ```
 
