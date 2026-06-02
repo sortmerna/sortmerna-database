@@ -80,6 +80,8 @@ build_config() {
     return 0
   fi
 
+  [[ "${FORCE}" == true ]] && rm -rf "${db_dir}/idx"
+
   # Assemble combined reference
   > "${combined}"
   local total=0
