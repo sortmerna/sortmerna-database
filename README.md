@@ -380,8 +380,8 @@ Three Sets of simulated Illumina rRNA reads, one per database configuration. Eac
 | Set | Source members | Matched database | Reads |
 |-----|---------------|-----------------|-------|
 | Set 1 | 97% non-seeds (all types) | `smr_v${SMR_VERSION}_sensitive_db` | 12,500 per rRNA type x 8 types = 100,000 |
-| Set 2 | bacteria SSU 90%, others 95%, Rfam 97% | `smr_v${SMR_VERSION}_default_db` | 12,500 per rRNA type x 8 types = 100,000 |
-| Set 3 | bacteria SSU 85%, others 90%, Rfam 97% | `smr_v${SMR_VERSION}_fast_db` | 12,500 per rRNA type x 8 types = 100,000 |
+| Set 2 | bacteria SSU 90%, others 95%, Rfam 90% | `smr_v${SMR_VERSION}_default_db` | 12,500 per rRNA type x 8 types = 100,000 |
+| Set 3 | bacteria SSU 85%, others 90%, Rfam 85% | `smr_v${SMR_VERSION}_fast_db` | 12,500 per rRNA type x 8 types = 100,000 |
 
 Rfam 5S and 5.8S use 97% non-seed members for all Sets because the default and fast databases use seed-only Rfam (no threshold-based clustering), so 97% members are absent from all three databases.
 

@@ -131,7 +131,7 @@ MIN_SOURCE_SEQS=10
 # Source file lookup: set_source <set_num> <type_name> -> prints path
 # Bacteria SSU uses a one-step lower threshold in default/fast to match
 # build_sortmerna_index.sh configuration.
-# Rfam uses 97% members for all Sets (see header comment).
+# Rfam uses the matching threshold per Set (97% for Set 1, 90% for Set 2, 85% for Set 3).
 # ---------------------------------------------------------------------------
 set_source() {
     local set_num="$1"
@@ -406,17 +406,23 @@ echo "  Collecting Rfam sources directly (no ISS - shorter than read length)..."
 n_rfam=0
 
 for type_name in rfam_5_8s rfam_5s; do
-    # Scalability pool always uses 97% Rfam non-seed members regardless of Set 2
-    # threshold, to keep Rfam contribution small and consistent across runs.
+    # Use 90% Rfam members (matching Set 2 threshold) subsampled to the 97% count
+    # so pool composition stays stable across runs.
     case "${type_name}" in
-        rfam_5_8s) src="${CLUSTERED_DIR}/rfam_5_8s_97_test_members.fasta" ;;
-        rfam_5s)   src="${CLUSTERED_DIR}/rfam_5s_97_test_members.fasta"   ;;
+        rfam_5_8s) src="${CLUSTERED_DIR}/rfam_5_8s_90_test_members.fasta"
+                   ref="${CLUSTERED_DIR}/rfam_5_8s_97_test_members.fasta" ;;
+        rfam_5s)   src="${CLUSTERED_DIR}/rfam_5s_90_test_members.fasta"
+                   ref="${CLUSTERED_DIR}/rfam_5s_97_test_members.fasta"   ;;
     esac
     [[ -n "${src}" ]] && [[ -f "${src}" ]] || continue
+
+    n_ref=$(seqkit stats -T "${ref}" | tail -1 | cut -f4)
 
     type_tmp="${scalability_dir}/${type_name}_direct.fasta"
     seqkit seq -g -w 0 "${src}" \
         | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
+        | seqkit seq -w 0 \
+        | seqkit sample -n "${n_ref}" --rand-seed "${RAND_SEED}" \
         | seqkit seq -w 0 \
         > "${type_tmp}"
     n_type=$(seqkit stats -T "${type_tmp}" | tail -1 | cut -f4)
@@ -530,8 +536,8 @@ date_str      = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 set_labels = {
     "1": "Set 1 - sensitive db (97% threshold for all types)",
-    "2": "Set 2 - default db (bacteria SSU 90%, others 95%, Rfam 97%)",
-    "3": "Set 3 - fast db (bacteria SSU 85%, others 90%, Rfam 97%)",
+    "2": "Set 2 - default db (bacteria SSU 90%, others 95%, Rfam 90%)",
+    "3": "Set 3 - fast db (bacteria SSU 85%, others 90%, Rfam 85%)",
 }
 
 sections = ""
