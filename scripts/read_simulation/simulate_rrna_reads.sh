@@ -406,7 +406,12 @@ echo "  Collecting Rfam sources directly (no ISS - shorter than read length)..."
 n_rfam=0
 
 for type_name in rfam_5_8s rfam_5s; do
-    src=$(set_source 2 "${type_name}")
+    # Scalability pool always uses 97% Rfam non-seed members regardless of Set 2
+    # threshold, to keep Rfam contribution small and consistent across runs.
+    case "${type_name}" in
+        rfam_5_8s) src="${CLUSTERED_DIR}/rfam_5_8s_97_test_members.fasta" ;;
+        rfam_5s)   src="${CLUSTERED_DIR}/rfam_5s_97_test_members.fasta"   ;;
+    esac
     [[ -n "${src}" ]] && [[ -f "${src}" ]] || continue
 
     type_tmp="${scalability_dir}/${type_name}_direct.fasta"
