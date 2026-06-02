@@ -75,8 +75,8 @@ TABLE2_CONFIGS = [
     ("SILVA", "LSU Ref NR 99", "archaea",   "95%"),
     ("SILVA", "LSU Ref NR 99", "bacteria",  "95%"),
     ("SILVA", "LSU Ref NR 99", "eukaryota", "95%"),
-    ("Rfam",  "5S seed",       "root",      "100%"),
-    ("Rfam",  "5.8S seed",     "eukaryota", "100%"),
+    ("Rfam",  "5S",            "root",      "90%"),
+    ("Rfam",  "5.8S",          "eukaryota", "90%"),
   ]),
   ("SMR v4.7 fast db", [
     ("SILVA", "SSU Ref NR 99", "archaea",   "90%"),
@@ -85,8 +85,8 @@ TABLE2_CONFIGS = [
     ("SILVA", "LSU Ref NR 99", "archaea",   "90%"),
     ("SILVA", "LSU Ref NR 99", "bacteria",  "90%"),
     ("SILVA", "LSU Ref NR 99", "eukaryota", "90%"),
-    ("Rfam",  "5S seed",       "root",      "100%"),
-    ("Rfam",  "5.8S seed",     "eukaryota", "100%"),
+    ("Rfam",  "5S",            "root",      "85%"),
+    ("Rfam",  "5.8S",          "eukaryota", "85%"),
   ]),
 ]
 
@@ -384,7 +384,7 @@ def main():
     "      <p>Recommended clustering threshold per gene/domain for each SortMeRNA database configuration,\n"
     "      with the resulting sequence count shown below each threshold label.\n"
     "      Bacteria SSU is clustered one threshold step lower than other SILVA domains.\n"
-    "      Rfam 5S and 5.8S use seed sequences for the default and fast configurations.\n"
+    "      Rfam 5S and 5.8S are clustered at 90% for the default and 85% for the fast configuration.\n"
     "      A dash (-) indicates the configuration does not apply to that source database.</p>\n"
     "    </div>\n"
     "    <div class=\"table-wrap\">\n"
