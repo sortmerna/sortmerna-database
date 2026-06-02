@@ -293,7 +293,7 @@ if (( FASTP_READS_AFTER < N_T2T )); then
 fi
 
 echo "Sampling ${N_T2T} reads..."
-seqkit sample -n "${N_T2T}" --rand-seed "${RAND_SEED}" "${ISS_FILTERED_FA}" -o "${T2T_OUTPUT}"
+seqkit sample -2 -n "${N_T2T}" --rand-seed "${RAND_SEED}" "${ISS_FILTERED_FA}" -o "${T2T_OUTPUT}"
 n_t2t=$(seqkit stats -T "${T2T_OUTPUT}" | tail -1 | cut -f4)
 echo "  Saved: $(basename "${T2T_OUTPUT}") (${n_t2t} reads)"
 
@@ -331,7 +331,7 @@ for fa in "${RFAM_DIR}"/RF*.fa; do
     max_len=$(echo "${stats}" | cut -f8)
 
     rfam_tmp=$(mktemp)
-    seqkit sample -n "${n_alloc}" --rand-seed "${RAND_SEED}" "${fa}" | seqkit seq -w 0 > "${rfam_tmp}"
+    seqkit sample -2 -n "${n_alloc}" --rand-seed "${RAND_SEED}" "${fa}" | seqkit seq -w 0 > "${rfam_tmp}"
     n_sampled=$(seqkit stats -T "${rfam_tmp}" | tail -1 | cut -f4)
     cat "${rfam_tmp}" >> "${RFAM_OUTPUT}"
     rm -f "${rfam_tmp}"

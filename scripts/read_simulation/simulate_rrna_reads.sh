@@ -244,7 +244,7 @@ simulate_type() {
         if (( n_source > target )); then
             seqkit seq -g -w 0 "${source}" \
                 | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
-                | seqkit sample -n "${target}" --rand-seed "${RAND_SEED}" \
+                | seqkit sample -2 -n "${target}" --rand-seed "${RAND_SEED}" \
                 | seqkit seq -w 0 \
                 > "${out_fasta}"
         else
@@ -422,7 +422,7 @@ for type_name in rfam_5_8s rfam_5s; do
     seqkit seq -g -w 0 "${src}" \
         | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
         | seqkit seq -w 0 \
-        | seqkit sample -n "${n_ref}" --rand-seed "${RAND_SEED}" \
+        | seqkit sample -2 -n "${n_ref}" --rand-seed "${RAND_SEED}" \
         | seqkit seq -w 0 \
         > "${type_tmp}"
     n_type=$(seqkit stats -T "${type_tmp}" | tail -1 | cut -f4)

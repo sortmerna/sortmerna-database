@@ -119,7 +119,7 @@ for n in "${SCALE_POINTS[@]}"; do
         subset_fa="${scale_dir}/reads_${n}.fasta"
         if [[ ! -f "${subset_fa}" ]]; then
             echo "  Subsampling ${n} reads..."
-            seqkit sample -n "${n}" --rand-seed "${RAND_SEED}" "${READS}" \
+            seqkit sample -2 -n "${n}" --rand-seed "${RAND_SEED}" "${READS}" \
                 | seqkit seq -w 0 > "${subset_fa}"
             echo "  Saved: $(basename "${subset_fa}")"
         else
