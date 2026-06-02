@@ -148,7 +148,7 @@ def resolve_family(read_id, family_map):
     """
     if read_id in family_map:
         return family_map[read_id]
-    m = re.match(r'^(.+)_\d+/[12]$', read_id)
+    m = re.match(r'^(.+)_\d+_\d+/[12]$', read_id)
     if m and m.group(1) in family_map:
         return family_map[m.group(1)]
     return 'unknown'
