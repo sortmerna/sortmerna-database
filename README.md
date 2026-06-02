@@ -32,7 +32,7 @@ This repository contains code and workflows to:
 - [x] Simulate Illumina 150bp rRNA using non-seed cluster members and non-rRNA reads using T2T genome + Rfam non-rRNA families (InSilicoSeq)
 - [x] Experiment 1: Scalability - run SortMeRNA on T2T non-rRNA and rRNA reads at 10K, 100K, 1M, 10M scale points; generate runtime, FP rate, sensitivity, and E-value plots
 - [x] Experiment 2: Simulate rRNA reads from non-seed members at each clustering threshold (simulate_rrna_reads.sh)
-- [ ] Experiment 2: Run SortMeRNA against matched database configuration and measure sensitivity
+- [x] Experiment 2: Run SortMeRNA against matched database configuration and measure sensitivity
 - [ ] Download real Illumina metatranscriptomics data
 - [ ] Download real PacBio amplicon data (Karst et al. 2021)
 - [ ] Download real PacBio metagenomics data
@@ -65,7 +65,7 @@ This repository contains code and workflows to:
 **Install SortMeRNA from source**
 
 ```bash
-export SMR_VERSION=6.0.1
+export SMR_VERSION=6.0.2
 
 # Download and extract
 wget https://github.com/sortmerna/sortmerna/archive/refs/tags/v${SMR_VERSION}.tar.gz
@@ -123,7 +123,7 @@ Download and verify rRNA sequences from SILVA and Rfam, cluster them at multiple
 
 ```bash
 # SortMeRNA version and binary - update when upgrading
-export SMR_VERSION=6.0.1
+export SMR_VERSION=6.0.2
 export SMR_BIN=$HOME/sortmerna-${SMR_VERSION}/dist/bin/sortmerna
 
 # Path to the cloned sortmerna-database repository
@@ -513,8 +513,11 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
         $SCALABILITY_DIR/scalability_rfam_ev0.1 \
         $SCALABILITY_DIR/scalability_rfam_ev0.05 \
         $SCALABILITY_DIR/scalability_rfam_ev0.01 \
-    --series-labels "Rfam non-rRNA"
+    --series-labels "Rfam non-rRNA" \
+    --rrna-family-tsv $RRNA_SIM_DIR/rRNA_test_10M_family.tsv
 ```
+
+The `--rrna-family-tsv` flag is optional. When provided, a `smr_default_db_family_breakdown.html` file is written alongside the ROC plot showing, per E-value and scale point, how many reads from each rRNA family (silva ssu bacteria, rfam 5s, etc.) were assigned to rRNA by SortMeRNA.
 
 #### Experiment 2: Sensitivity across database configurations
 

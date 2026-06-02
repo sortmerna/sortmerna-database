@@ -480,6 +480,23 @@ else
 fi
 printf "%s" "${n_out}" > "${scalability_dir}/.n_reads.tmp"
 
+# Write source sequence ID -> family mapping for plot_roc_evalue.py.
+# SILVA reads are ISS-generated as {source_seq_id}_{read_number}/{mate};
+# Rfam reads keep their source_seq_id as-is.
+# plot_roc_evalue.py uses this file (--rrna-family-tsv) to compute per-family sensitivity.
+family_tsv="${OUTPUT_DIR}/rRNA_test_10M_family.tsv"
+echo "  Writing family mapping to $(basename "${family_tsv}")..."
+{
+    for type_name in "${RRNA_TYPES[@]}"; do
+        src=$(set_source 2 "${type_name}")
+        [[ -z "${src}" ]] || [[ ! -f "${src}" ]] && continue
+        grep '^>' "${src}" | sed 's/^>//;s/ .*//' | while IFS= read -r seq_id; do
+            printf "%s\t%s\n" "${seq_id}" "${type_name}"
+        done
+    done
+} > "${family_tsv}"
+echo "  Family mapping: $(wc -l < "${family_tsv}") source sequences"
+
 ################################################################################
 # HTML SUMMARY REPORT
 ################################################################################
