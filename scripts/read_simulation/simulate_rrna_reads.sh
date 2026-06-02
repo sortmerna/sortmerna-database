@@ -11,12 +11,8 @@
 # simulated reads are real rRNA sequences absent from the database being tested:
 #
 #   Set 1 (sensitive, 97%):   all types at 97% non-seed members
-#   Set 2 (default, 90-95%):  bacteria SSU at 90%, all others at 95%; Rfam at 97%
-#   Set 3 (fast, 85-90%):     bacteria SSU at 85%, all others at 90%; Rfam at 97%
-#
-# Rfam 5S and 5.8S use 97% members for all three Sets because the default and fast
-# databases use seed-only Rfam (no threshold-based clustering), so 97% members are
-# absent from all three databases and serve as a consistent rRNA specificity signal.
+#   Set 2 (default, 90-95%):  bacteria SSU at 90%, all others at 95%; Rfam at 90%
+#   Set 3 (fast, 85-90%):     bacteria SSU at 85%, all others at 90%; Rfam at 85%
 #
 # Outputs (all under <output_dir>):
 #   set<N>/<type>/iss_R1.fastq   - InSilicoSeq R1 output
@@ -151,24 +147,24 @@ set_source() {
         1_silva_lsu_eukaryota) echo "${C}/silva_lsu_eukaryota_97_test_members.fasta" ;;
         1_rfam_5s)             echo "${C}/rfam_5s_97_test_members.fasta"    ;;
         1_rfam_5_8s)           echo "${C}/rfam_5_8s_97_test_members.fasta"  ;;
-        # Set 2 - default (bacteria SSU at 90%, others at 95%, Rfam at 97%)
+        # Set 2 - default (bacteria SSU at 90%, others at 95%, Rfam at 90%)
         2_silva_ssu_bacteria)  echo "${C}/silva_ssu_bacteria_90_test_members.fasta" ;;
         2_silva_ssu_archaea)   echo "${C}/silva_ssu_archaea_95_test_members.fasta"  ;;
         2_silva_ssu_eukaryota) echo "${C}/silva_ssu_eukaryota_95_test_members.fasta" ;;
         2_silva_lsu_bacteria)  echo "${C}/silva_lsu_bacteria_95_test_members.fasta" ;;
         2_silva_lsu_archaea)   echo "${C}/silva_lsu_archaea_95_test_members.fasta"  ;;
         2_silva_lsu_eukaryota) echo "${C}/silva_lsu_eukaryota_95_test_members.fasta" ;;
-        2_rfam_5s)             echo "${C}/rfam_5s_97_test_members.fasta"    ;;
-        2_rfam_5_8s)           echo "${C}/rfam_5_8s_97_test_members.fasta"  ;;
-        # Set 3 - fast (bacteria SSU at 85%, others at 90%, Rfam at 97%)
+        2_rfam_5s)             echo "${C}/rfam_5s_90_test_members.fasta"    ;;
+        2_rfam_5_8s)           echo "${C}/rfam_5_8s_90_test_members.fasta"  ;;
+        # Set 3 - fast (bacteria SSU at 85%, others at 90%, Rfam at 85%)
         3_silva_ssu_bacteria)  echo "${C}/silva_ssu_bacteria_85_test_members.fasta" ;;
         3_silva_ssu_archaea)   echo "${C}/silva_ssu_archaea_90_test_members.fasta"  ;;
         3_silva_ssu_eukaryota) echo "${C}/silva_ssu_eukaryota_90_test_members.fasta" ;;
         3_silva_lsu_bacteria)  echo "${C}/silva_lsu_bacteria_90_test_members.fasta" ;;
         3_silva_lsu_archaea)   echo "${C}/silva_lsu_archaea_90_test_members.fasta"  ;;
         3_silva_lsu_eukaryota) echo "${C}/silva_lsu_eukaryota_90_test_members.fasta" ;;
-        3_rfam_5s)             echo "${C}/rfam_5s_97_test_members.fasta"    ;;
-        3_rfam_5_8s)           echo "${C}/rfam_5_8s_97_test_members.fasta"  ;;
+        3_rfam_5s)             echo "${C}/rfam_5s_85_test_members.fasta"    ;;
+        3_rfam_5_8s)           echo "${C}/rfam_5_8s_85_test_members.fasta"  ;;
         *) echo "" ;;
     esac
 }

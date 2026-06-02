@@ -98,23 +98,32 @@ def plot_roc(all_series, output_dir, label):
     """Plot ROC curve with one point per E-value, one line per series."""
     fig, ax = plt.subplots(figsize=(7, 6))
 
-    all_fprs = []
-    for (series_label, points), color in zip(all_series, _COLORS):
+    # Label offsets cycle per series so annotations from different series don't overlap
+    _label_offsets = [(6, 3), (6, -10), (6, 16), (6, -17)]
+
+    all_fprs, all_tprs = [], []
+    for si, ((series_label, points), color) in enumerate(zip(all_series, _COLORS)):
         if not points:
             continue
         fprs = [p[1] for p in points]
         tprs = [p[2] for p in points]
         evalues = [p[0] for p in points]
         all_fprs.extend(fprs)
+        all_tprs.extend(tprs)
         ax.plot(fprs, tprs, 'o-', color=color, label=series_label, linewidth=1.5)
-        for fpr, tpr, ev in zip(fprs, tprs, evalues):
-            ax.annotate(f'E={ev:g}', (fpr, tpr),
-                        textcoords='offset points', xytext=(6, 3), fontsize=8,
-                        color=color)
+        # Only label the loosest and strictest E-value to avoid overlap
+        label_idx = {0, len(points) - 1}
+        base_xy = _label_offsets[si % len(_label_offsets)]
+        for i, (fpr, tpr, ev) in enumerate(zip(fprs, tprs, evalues)):
+            if i in label_idx:
+                ax.annotate(f'E={ev:g}', (fpr, tpr),
+                            textcoords='offset points', xytext=base_xy, fontsize=8,
+                            color=color)
 
-    ax.plot([0, 1], [0, 1], '--', color='gray', linewidth=0.8, label='random')
-    x_max = max(all_fprs) * 1.5 if all_fprs else 0.05
+    x_max = max(all_fprs) * 1.3 if all_fprs else 0.05
+    y_min = max(0.0, min(all_tprs) - 0.02) if all_tprs else 0.0
     ax.set_xlim(-x_max * 0.02, x_max)
+    ax.set_ylim(y_min, 1.01)
     ax.set_xlabel('False positive rate  (non-rRNA reads classified as rRNA)')
     ax.set_ylabel('Sensitivity / TPR  (rRNA reads correctly classified)')
     ax.set_title(f'{label} - ROC by E-value threshold')

@@ -6,8 +6,8 @@
 # and builds a SortMeRNA index for each:
 #
 #   smr_v<SMR_VERSION>_sensitive_db - all SILVA at 97%, Rfam full at 97%
-#   smr_v<SMR_VERSION>_default_db   - SILVA at 95% (bacteria SSU at 90%), Rfam seed
-#   smr_v<SMR_VERSION>_fast_db      - SILVA at 90% (bacteria SSU at 85%), Rfam seed
+#   smr_v<SMR_VERSION>_default_db   - SILVA at 95% (bacteria SSU at 90%), Rfam full at 90%
+#   smr_v<SMR_VERSION>_fast_db      - SILVA at 90% (bacteria SSU at 85%), Rfam full at 85%
 
 set -euo pipefail
 
@@ -154,7 +154,7 @@ build_config "${SMR_PREFIX}_sensitive_db" \
   "${CLUSTERED_DIR}/rfam_5s_97.fasta" \
   "${CLUSTERED_DIR}/rfam_5_8s_97.fasta"
 
-# default: SILVA at 95% (bacteria SSU at 90%), Rfam seed
+# default: SILVA at 95% (bacteria SSU at 90%), Rfam full at 90%
 build_config "${SMR_PREFIX}_default_db" \
   "${CLUSTERED_DIR}/silva_ssu_bacteria_90.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_archaea_95.fasta" \
@@ -162,10 +162,10 @@ build_config "${SMR_PREFIX}_default_db" \
   "${CLUSTERED_DIR}/silva_lsu_bacteria_95.fasta" \
   "${CLUSTERED_DIR}/silva_lsu_archaea_95.fasta" \
   "${CLUSTERED_DIR}/silva_lsu_eukaryota_95.fasta" \
-  "${VERIFIED_RFAM_DIR}/verified_5s_seed.fasta" \
-  "${VERIFIED_RFAM_DIR}/verified_5.8s_seed.fasta"
+  "${CLUSTERED_DIR}/rfam_5s_90.fasta" \
+  "${CLUSTERED_DIR}/rfam_5_8s_90.fasta"
 
-# fast: SILVA at 90% (bacteria SSU at 85%), Rfam seed
+# fast: SILVA at 90% (bacteria SSU at 85%), Rfam full at 85%
 build_config "${SMR_PREFIX}_fast_db" \
   "${CLUSTERED_DIR}/silva_ssu_bacteria_85.fasta" \
   "${CLUSTERED_DIR}/silva_ssu_archaea_90.fasta" \
@@ -173,8 +173,8 @@ build_config "${SMR_PREFIX}_fast_db" \
   "${CLUSTERED_DIR}/silva_lsu_bacteria_90.fasta" \
   "${CLUSTERED_DIR}/silva_lsu_archaea_90.fasta" \
   "${CLUSTERED_DIR}/silva_lsu_eukaryota_90.fasta" \
-  "${VERIFIED_RFAM_DIR}/verified_5s_seed.fasta" \
-  "${VERIFIED_RFAM_DIR}/verified_5.8s_seed.fasta"
+  "${CLUSTERED_DIR}/rfam_5s_85.fasta" \
+  "${CLUSTERED_DIR}/rfam_5_8s_85.fasta"
 
 echo ""
 echo "============================================"
