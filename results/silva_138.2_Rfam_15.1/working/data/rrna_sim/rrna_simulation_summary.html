@@ -19,7 +19,7 @@
 </head>
 <body>
 <h1>rRNA Read Simulation Summary</h1>
-<p class="meta">Generated: 2026-06-01 09:48:14</p>
+<p class="meta">Generated: 2026-06-02 08:48:09</p>
 
 <section>
 <h2>Set 1 - sensitive db (97% threshold for all types)</h2>
@@ -49,7 +49,7 @@ Sequences shorter than the ISS read length are pre-filtered; types with too few 
 </section>
 
 <section>
-<h2>Set 2 - default db (bacteria SSU 90%, others 95%, Rfam 97%)</h2>
+<h2>Set 2 - default db (bacteria SSU 90%, others 95%, Rfam 90%)</h2>
 <div class="description">
 <p>Source: non-seed cluster members at the matched threshold. Reads simulated with InSilicoSeq
 (NovaSeq model, 150 bp paired-end, seed 42). Target: 12500 reads per rRNA type (R1+R2 combined).
@@ -67,8 +67,8 @@ Sequences shorter than the ISS read length are pre-filtered; types with too few 
       <tr><td>silva lsu bacteria</td><td>70635</td><td>silva_lsu_bacteria_95_test_members.fasta</td><td>12500</td></tr>
       <tr><td>silva lsu archaea</td><td>597</td><td>silva_lsu_archaea_95_test_members.fasta</td><td>12500</td></tr>
       <tr><td>silva lsu eukaryota</td><td>8786</td><td>silva_lsu_eukaryota_95_test_members.fasta</td><td>12500</td></tr>
-      <tr><td>rfam 5 8s</td><td>9409</td><td>rfam_5_8s_97_test_members.fasta</td><td>9409</td></tr>
-      <tr><td>rfam 5s</td><td>297799</td><td>rfam_5s_97_test_members.fasta</td><td>15591</td></tr>
+      <tr><td>rfam 5 8s</td><td>12487</td><td>rfam_5_8s_90_test_members.fasta</td><td>12487</td></tr>
+      <tr><td>rfam 5s</td><td>423962</td><td>rfam_5s_90_test_members.fasta</td><td>12513</td></tr>
     <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td></td><td>100000</td></tr>
   </tbody>
 </table></div>
@@ -76,7 +76,7 @@ Sequences shorter than the ISS read length are pre-filtered; types with too few 
 </section>
 
 <section>
-<h2>Set 3 - fast db (bacteria SSU 85%, others 90%, Rfam 97%)</h2>
+<h2>Set 3 - fast db (bacteria SSU 85%, others 90%, Rfam 85%)</h2>
 <div class="description">
 <p>Source: non-seed cluster members at the matched threshold. Reads simulated with InSilicoSeq
 (NovaSeq model, 150 bp paired-end, seed 42). Target: 12500 reads per rRNA type (R1+R2 combined).
@@ -94,8 +94,8 @@ Sequences shorter than the ISS read length are pre-filtered; types with too few 
       <tr><td>silva lsu bacteria</td><td>74040</td><td>silva_lsu_bacteria_90_test_members.fasta</td><td>12500</td></tr>
       <tr><td>silva lsu archaea</td><td>715</td><td>silva_lsu_archaea_90_test_members.fasta</td><td>12500</td></tr>
       <tr><td>silva lsu eukaryota</td><td>12006</td><td>silva_lsu_eukaryota_90_test_members.fasta</td><td>12500</td></tr>
-      <tr><td>rfam 5 8s</td><td>9409</td><td>rfam_5_8s_97_test_members.fasta</td><td>9409</td></tr>
-      <tr><td>rfam 5s</td><td>297799</td><td>rfam_5s_97_test_members.fasta</td><td>15591</td></tr>
+      <tr><td>rfam 5 8s</td><td>13648</td><td>rfam_5_8s_85_test_members.fasta</td><td>12500</td></tr>
+      <tr><td>rfam 5s</td><td>484874</td><td>rfam_5s_85_test_members.fasta</td><td>12500</td></tr>
     <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td></td><td>100000</td></tr>
   </tbody>
 </table></div>
@@ -125,8 +125,8 @@ ISS generates 10000000 - n_rfam reads so the final combined pool is exactly
       <tr><td>silva lsu bacteria</td><td>silva_lsu_bacteria_95_test_members.fasta</td><td>70635</td><td>8.4%</td><td>ISS</td></tr>
       <tr><td>silva lsu archaea</td><td>silva_lsu_archaea_95_test_members.fasta</td><td>597</td><td>0.1%</td><td>ISS</td></tr>
       <tr><td>silva lsu eukaryota</td><td>silva_lsu_eukaryota_95_test_members.fasta</td><td>8786</td><td>1.0%</td><td>ISS</td></tr>
-      <tr><td>rfam 5 8s</td><td>rfam_5_8s_97_test_members.fasta</td><td>9409</td><td>1.1%</td><td>direct</td></tr>
-      <tr><td>rfam 5s</td><td>rfam_5s_97_test_members.fasta</td><td>297799</td><td>35.3%</td><td>direct</td></tr>
+      <tr><td>rfam 5 8s</td><td>rfam_5_8s_90_test_members.fasta</td><td>9409</td><td>1.1%</td><td>direct</td></tr>
+      <tr><td>rfam 5s</td><td>rfam_5s_90_test_members.fasta</td><td>297799</td><td>35.3%</td><td>direct</td></tr>
     <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td>843782</td><td>100%</td><td></td></tr>
   </tbody>
 </table></div>
