@@ -491,19 +491,23 @@ Generate the ROC plot once all E-value runs are complete. Each point on the curv
 python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
     --output-dir $SCALABILITY_DIR/plots \
     --label smr_default_db \
-    --evalues 1 0.1 0.05 0.01 0.001 0.0001 0.00001\
+    --evalues 1 0.1 0.05 0.01 0.001 0.0001 0.00001 \
     --rrna-dirs \
         $SCALABILITY_DIR/scalability_rrna_ev1 \
         $SCALABILITY_DIR/scalability_rrna_ev0.1 \
         $SCALABILITY_DIR/scalability_rrna_ev0.05 \
         $SCALABILITY_DIR/scalability_rrna_ev0.01 \
         $SCALABILITY_DIR/scalability_rrna_ev0.001 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.0001 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.00001 \
     --nonrrna-dirs \
         $SCALABILITY_DIR/scalability_t2t_ev1 \
         $SCALABILITY_DIR/scalability_t2t_ev0.1 \
         $SCALABILITY_DIR/scalability_t2t_ev0.05 \
         $SCALABILITY_DIR/scalability_t2t_ev0.01 \
         $SCALABILITY_DIR/scalability_t2t_ev0.001 \
+        $SCALABILITY_DIR/scalability_t2t_ev0.0001 \
+        $SCALABILITY_DIR/scalability_t2t_ev0.00001 \
     --series-labels "T2T non-rRNA" \
     --rrna-dirs \
         $SCALABILITY_DIR/scalability_rrna_ev1 \
@@ -511,12 +515,16 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
         $SCALABILITY_DIR/scalability_rrna_ev0.05 \
         $SCALABILITY_DIR/scalability_rrna_ev0.01 \
         $SCALABILITY_DIR/scalability_rrna_ev0.001 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.0001 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.00001 \
     --nonrrna-dirs \
         $SCALABILITY_DIR/scalability_rfam_ev1 \
         $SCALABILITY_DIR/scalability_rfam_ev0.1 \
         $SCALABILITY_DIR/scalability_rfam_ev0.05 \
         $SCALABILITY_DIR/scalability_rfam_ev0.01 \
         $SCALABILITY_DIR/scalability_rfam_ev0.001 \
+        $SCALABILITY_DIR/scalability_rfam_ev0.0001 \
+        $SCALABILITY_DIR/scalability_rfam_ev0.00001 \
     --series-labels "Rfam non-rRNA" \
     --rrna-family-tsv $RRNA_SIM_DIR/rRNA_test_10M_family.tsv
 ```
