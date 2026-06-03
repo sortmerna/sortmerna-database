@@ -23,6 +23,8 @@ Usage:
 """
 
 import argparse
+import base64
+import io
 import re
 import sys
 from collections import defaultdict
@@ -131,10 +133,15 @@ def plot_roc(all_series, output_dir, label):
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    out_path = Path(output_dir) / f'{label}_roc_evalue.png'
-    plt.savefig(out_path, dpi=150, bbox_inches='tight')
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+    buf.seek(0)
+    b64 = base64.b64encode(buf.read()).decode()
     plt.close()
+    out_path = Path(output_dir) / f'{label}_roc_evalue.png'
+    out_path.write_bytes(base64.b64decode(b64))
     print(f'\n  Saved: {out_path}')
+    return b64
 
 
 def load_family_map(tsv_path):
@@ -224,7 +231,75 @@ def _build_family_tables(rrna_dirs_list, evalues, family_map):
     return result
 
 
-def render_family_html(tables, evalues, label, output_dir):
+def _read_perf_data(rrna_dirs_list, evalues):
+    """Read runtime_seconds.txt and peak_rss_mb.txt for each (series, evalue, scale_N).
+
+    Returns dict: series_idx -> evalue -> scale_N -> (runtime_s, ram_mb)
+    """
+    result = {}
+    for si, rrna_dirs in enumerate(rrna_dirs_list):
+        result[si] = {}
+        for ev, top_dir in zip(evalues, rrna_dirs):
+            result[si][ev] = {}
+            for d in sorted(Path(top_dir).iterdir()):
+                m = re.match(r'scale_(\d+)$', d.name)
+                if not m or not d.is_dir():
+                    continue
+                n = int(m.group(1))
+                rt_f = d / 'runtime_seconds.txt'
+                ram_f = d / 'peak_rss_mb.txt'
+                if rt_f.exists() and ram_f.exists():
+                    result[si][ev][n] = (
+                        float(rt_f.read_text().strip()),
+                        float(ram_f.read_text().strip()),
+                    )
+    return result
+
+
+def _make_perf_plots(perf_data, evalues, series_labels):
+    """Create runtime and RAM charts. Returns (runtime_b64, ram_b64) - either may be None."""
+    plots = []
+    for metric_idx, ylabel, title in [
+        (0, 'Runtime (seconds)', 'Runtime vs Number of Reads'),
+        (1, 'Peak RAM (MB)', 'Peak RAM vs Number of Reads'),
+    ]:
+        fig, ax = plt.subplots(figsize=(8, 5))
+        has_data = False
+        color_idx = 0
+        for si, slabel in enumerate(series_labels):
+            ev_data = perf_data.get(si, {})
+            for ev in sorted(evalues, reverse=True):
+                scale_data = ev_data.get(ev, {})
+                if not scale_data:
+                    continue
+                ns = sorted(scale_data)
+                vals = [scale_data[n][metric_idx] for n in ns]
+                color = _COLORS[color_idx % len(_COLORS)]
+                color_idx += 1
+                lbl = f'{slabel} E={ev:g}' if len(series_labels) > 1 else f'E={ev:g}'
+                ax.plot(ns, vals, 'o-', label=lbl, color=color, linewidth=1.5)
+                has_data = True
+        if not has_data:
+            plt.close()
+            plots.append(None)
+            continue
+        ax.set_xscale('log')
+        ax.set_xlabel('Number of reads')
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+        buf.seek(0)
+        plots.append(base64.b64encode(buf.read()).decode())
+        plt.close()
+    return plots[0], plots[1]
+
+
+def render_family_html(tables, evalues, label, output_dir,
+                       roc_b64=None, runtime_b64=None, ram_b64=None):
     """Write <label>_family_breakdown.html with per-family sensitivity per E-value."""
     sections = []
     for ev in sorted(evalues, reverse=True):
@@ -241,14 +316,14 @@ def render_family_html(tables, evalues, label, output_dir):
                 t, a = d['total'], d['assigned']
                 grand_total += t
                 grand_assigned += a
-                pct = f'{a / t * 100:.1f}' if t else '-'
+                pct = f'{a / t * 100:.5f}' if t else '-'
                 rows.append(
                     f'      <tr><td>{fam.replace("_", " ")}</td>'
                     f'<td>{t:,}</td><td>{a:,}</td><td>{pct}%</td></tr>'
                 )
             if not rows:
                 continue
-            gp = f'{grand_assigned / grand_total * 100:.1f}' if grand_total else '-'
+            gp = f'{grand_assigned / grand_total * 100:.5f}' if grand_total else '-'
             rows.append(
                 f'      <tr style="font-weight:bold;border-top:2px solid #2c3e50">'
                 f'<td>Total</td><td>{grand_total:,}</td>'
@@ -267,6 +342,25 @@ def render_family_html(tables, evalues, label, output_dir):
                 + '\n'.join(scale_blocks)
                 + '\n  </section>'
             )
+
+    def _img_tag(b64):
+        return f'<img src="data:image/png;base64,{b64}" style="max-width:100%;height:auto">'
+
+    plots_section = ''
+    if roc_b64 or runtime_b64 or ram_b64:
+        parts = ['<section>']
+        if roc_b64:
+            parts.append(f'<h2>ROC Curve</h2>\n{_img_tag(roc_b64)}')
+        if runtime_b64 or ram_b64:
+            parts.append('<h2>Performance Summary</h2>')
+            parts.append('<div style="display:flex;gap:1em;flex-wrap:wrap">')
+            if runtime_b64:
+                parts.append(f'<div style="flex:1;min-width:300px">{_img_tag(runtime_b64)}</div>')
+            if ram_b64:
+                parts.append(f'<div style="flex:1;min-width:300px">{_img_tag(ram_b64)}</div>')
+            parts.append('</div>')
+        parts.append('</section>')
+        plots_section = '\n'.join(parts)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -288,6 +382,7 @@ def render_family_html(tables, evalues, label, output_dir):
 </head>
 <body>
 <h1>rRNA Family Breakdown - {label}</h1>
+{plots_section}
 <p>Reads assigned = reads in <code>aligned.blast</code>.
    Totals and family assignment are derived from the subsampled reads and
    <code>rRNA_test_10M_family.tsv</code> (source sequence ID to family mapping).</p>
@@ -345,7 +440,7 @@ def main():
         points = compute_series(rrna_dirs, nonrrna_dirs, args.evalues)
         all_series.append((slabel, points))
 
-    plot_roc(all_series, args.output_dir, args.label)
+    roc_b64 = plot_roc(all_series, args.output_dir, args.label)
 
     if args.rrna_family_tsv:
         if not args.rrna_family_tsv.exists():
@@ -356,7 +451,11 @@ def main():
             family_map = load_family_map(args.rrna_family_tsv)
             print(f'  Loaded {len(family_map):,} source sequence IDs')
             tables = _build_family_tables(args.rrna_dirs, args.evalues, family_map)
-            render_family_html(tables, args.evalues, args.label, args.output_dir)
+            print('\nCollecting performance data...')
+            perf_data = _read_perf_data(args.rrna_dirs, args.evalues)
+            runtime_b64, ram_b64 = _make_perf_plots(perf_data, args.evalues, series_labels)
+            render_family_html(tables, args.evalues, args.label, args.output_dir,
+                               roc_b64=roc_b64, runtime_b64=runtime_b64, ram_b64=ram_b64)
 
 
 if __name__ == '__main__':

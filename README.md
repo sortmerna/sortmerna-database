@@ -453,7 +453,7 @@ Run for T2T non-rRNA reads (false positive rate at scale), Rfam non-rRNA reads (
 Subsample reads once at E-value 1 (the default), then reuse those reads for the remaining thresholds with `--reads-dir`:
 
 ```bash
-for ev in 1 0.1 0.05 0.01; do
+for ev in 1 0.1 0.05 0.01 0.001 0.0001 0.00001; do
     reads_dir_t2t=$( [[ "${ev}" == "1" ]] && echo "" || echo "--reads-dir $SCALABILITY_DIR/scalability_t2t_ev1" )
     reads_dir_rfam=$( [[ "${ev}" == "1" ]] && echo "" || echo "--reads-dir $SCALABILITY_DIR/scalability_rfam_ev1" )
     reads_dir_rrna=$( [[ "${ev}" == "1" ]] && echo "" || echo "--reads-dir $SCALABILITY_DIR/scalability_rrna_ev1" )
@@ -491,28 +491,32 @@ Generate the ROC plot once all E-value runs are complete. Each point on the curv
 python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
     --output-dir $SCALABILITY_DIR/plots \
     --label smr_default_db \
-    --evalues 1 0.1 0.05 0.01 \
+    --evalues 1 0.1 0.05 0.01 0.001 0.0001 0.00001\
     --rrna-dirs \
         $SCALABILITY_DIR/scalability_rrna_ev1 \
         $SCALABILITY_DIR/scalability_rrna_ev0.1 \
         $SCALABILITY_DIR/scalability_rrna_ev0.05 \
         $SCALABILITY_DIR/scalability_rrna_ev0.01 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.001 \
     --nonrrna-dirs \
         $SCALABILITY_DIR/scalability_t2t_ev1 \
         $SCALABILITY_DIR/scalability_t2t_ev0.1 \
         $SCALABILITY_DIR/scalability_t2t_ev0.05 \
         $SCALABILITY_DIR/scalability_t2t_ev0.01 \
+        $SCALABILITY_DIR/scalability_t2t_ev0.001 \
     --series-labels "T2T non-rRNA" \
     --rrna-dirs \
         $SCALABILITY_DIR/scalability_rrna_ev1 \
         $SCALABILITY_DIR/scalability_rrna_ev0.1 \
         $SCALABILITY_DIR/scalability_rrna_ev0.05 \
         $SCALABILITY_DIR/scalability_rrna_ev0.01 \
+        $SCALABILITY_DIR/scalability_rrna_ev0.001 \
     --nonrrna-dirs \
         $SCALABILITY_DIR/scalability_rfam_ev1 \
         $SCALABILITY_DIR/scalability_rfam_ev0.1 \
         $SCALABILITY_DIR/scalability_rfam_ev0.05 \
         $SCALABILITY_DIR/scalability_rfam_ev0.01 \
+        $SCALABILITY_DIR/scalability_rfam_ev0.001 \
     --series-labels "Rfam non-rRNA" \
     --rrna-family-tsv $RRNA_SIM_DIR/rRNA_test_10M_family.tsv
 ```
@@ -524,6 +528,7 @@ The `--rrna-family-tsv` flag is optional. When provided, a `smr_default_db_famil
 **Goal:** Does SortMeRNA correctly identify rRNA reads as divergence increases between the read set and the database?
 
 - **Design:** Diagonal 3x3 - each read set tested against its matched database configuration only (same divergence level for reads and database)
+- **E-value:** Use the optimal e-value identified from the Experiment 1 ROC curve (the point with the best sensitivity/specificity tradeoff). Run Experiment 1 first and inspect the ROC plot before running Experiment 2.
 - **Read sets:**
   - Set 1: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 97% non-seed members -> tested against SMR sensitive db (97%)
   - Set 2: 12,500 reads x 8 rRNA types = 100,000 total reads simulated from 90-95% non-seed members -> tested against SMR default db (90-95%)
@@ -531,9 +536,18 @@ The `--rrna-family-tsv` flag is optional. When provided, a `smr_default_db_famil
 - **Rationale for 100,000 reads per Set:** Round number that is easy to interpret (1 missed read = 0.001% sensitivity drop), and fast to run. Kept at 100K rather than 1M to avoid conflating database-configuration differences with the E-value scaling effect: at higher read counts `S_min` rises (because `m` = total nucleotide count), which can suppress sensitivity independently of the database being tested. Experiment 1 characterizes that scaling effect separately; Experiment 2 holds read count fixed so results reflect only the database configuration.
 - **Metric:** Sensitivity = detected / total (aggregate across all rRNA types)
 
-Run SortMeRNA for each Set against its matched database configuration (rRNA reads produced in Phase 1 - see rRNA Test Sets):
+Run SortMeRNA for each Set against its matched database configuration (rRNA reads produced in Phase 1 - see rRNA Test Sets). Replace `<optimal_evalue>` with the value identified from the Experiment 1 ROC curve:
 
-*(benchmarking scripts coming soon)*
+```bash
+export SENSITIVITY_DIR=$DATA_DIR/sensitivity_test
+
+bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_sensitivity.sh \
+    $SENSITIVITY_DIR \
+    4 \
+    --evalue <optimal_evalue>
+```
+
+Outputs a per-Set sensitivity table and HTML summary at `$SENSITIVITY_DIR/sensitivity_summary.html`.
 
 #### Real Benchmark Datasets (PacBio)
 Sensitivity test using real PacBio long-read amplicon data:
