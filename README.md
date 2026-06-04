@@ -554,7 +554,7 @@ export SENSITIVITY_DIR=$DATA_DIR/sensitivity_test
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_sensitivity.sh \
     $SENSITIVITY_DIR \
     4 \
-    --evalue <optimal_evalue>
+    --evalue 1e-5
 ```
 
 Outputs a per-Set sensitivity table and HTML summary at `$SENSITIVITY_DIR/sensitivity_summary.html`.
