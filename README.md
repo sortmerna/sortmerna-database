@@ -490,7 +490,7 @@ Generate the ROC plot once all E-value runs are complete. Each point on the curv
 ```bash
 python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
     --output-dir $SCALABILITY_DIR/plots \
-    --label smr_default_db \
+    --label scalability_benchmark \
     --evalues 1 0.1 0.05 0.01 0.001 0.0001 0.00001 \
     --rrna-dirs \
         $SCALABILITY_DIR/scalability_rrna_ev1 \
@@ -529,7 +529,9 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
     --rrna-family-tsv $RRNA_SIM_DIR/rRNA_test_10M_family.tsv
 ```
 
-The `--rrna-family-tsv` flag is optional. When provided, a `smr_default_db_family_breakdown.html` file is written alongside the ROC plot showing, per E-value and scale point, how many reads from each rRNA family (silva ssu bacteria, rfam 5s, etc.) were assigned to rRNA by SortMeRNA.
+The `--rrna-family-tsv` flag is optional. When provided, a `scalability_benchmark_summary.html` file is written alongside the ROC plot showing, per E-value and scale point, how many reads from each rRNA family (silva ssu bacteria, rfam 5s, etc.) were assigned to rRNA by SortMeRNA.
+
+- Scalability benchmark with plots: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/scalability_test/plots/scalability_benchmark_summary.html" target="_blank">scalability_benchmark_summary.html</a>
 
 #### Experiment 2: Sensitivity across database configurations
 

@@ -259,9 +259,9 @@ def _read_perf_data(rrna_dirs_list, evalues):
 def _make_perf_plots(perf_data, evalues, series_labels):
     """Create runtime and RAM charts. Returns (runtime_b64, ram_b64) - either may be None."""
     plots = []
-    for metric_idx, ylabel, title in [
-        (0, 'Runtime (seconds)', 'Runtime vs Number of Reads'),
-        (1, 'Peak RAM (MB)', 'Peak RAM vs Number of Reads'),
+    for metric_idx, ylabel, title, log_y in [
+        (0, 'Runtime (seconds)', 'Runtime vs Number of Reads', True),
+        (1, 'Peak RAM (MB)', 'Peak RAM vs Number of Reads', False),
     ]:
         fig, ax = plt.subplots(figsize=(8, 5))
         has_data = False
@@ -284,6 +284,8 @@ def _make_perf_plots(perf_data, evalues, series_labels):
             plots.append(None)
             continue
         ax.set_xscale('log')
+        if log_y:
+            ax.set_yscale('log')
         ax.set_xlabel('Number of reads')
         ax.set_ylabel(ylabel)
         ax.set_title(title)
@@ -390,7 +392,7 @@ def render_family_html(tables, evalues, label, output_dir,
 </body>
 </html>"""
 
-    out_path = Path(output_dir) / f'{label}_family_breakdown.html'
+    out_path = Path(output_dir) / f'{label}_summary.html'
     out_path.write_text(html)
     print(f'\n  Saved: {out_path}')
 
