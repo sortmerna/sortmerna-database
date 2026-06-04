@@ -256,6 +256,35 @@ def _read_perf_data(rrna_dirs_list, evalues):
     return result
 
 
+def _read_nonrrna_tables(nonrrna_dirs_list, evalues):
+    """Read per-scale aligned counts from non-rRNA run directories.
+
+    Returns: series_idx -> ev -> scale_N -> (total, aligned)
+    """
+    result = {}
+    for si, nonrrna_dirs in enumerate(nonrrna_dirs_list):
+        result[si] = {}
+        for ev, top_dir in zip(evalues, nonrrna_dirs):
+            result[si][ev] = {}
+            top = Path(top_dir)
+            if not top.exists():
+                continue
+            for d in sorted(top.iterdir()):
+                m = re.match(r'scale_(\d+)$', d.name)
+                if not m or not d.is_dir():
+                    continue
+                n = int(m.group(1))
+                log_path = d / 'smr_out' / 'out' / 'aligned.log'
+                if not log_path.exists():
+                    continue
+                text = log_path.read_text()
+                m_total   = re.search(r'Total reads = (\d+)', text)
+                m_aligned = re.search(r'Total reads passing E-value threshold = (\d+)', text)
+                if m_total and m_aligned:
+                    result[si][ev][n] = (int(m_total.group(1)), int(m_aligned.group(1)))
+    return result
+
+
 def _make_perf_plots(perf_data, evalues, series_labels):
     """Create runtime and RAM charts. Returns (runtime_b64, ram_b64) - either may be None."""
     plots = []
@@ -301,9 +330,57 @@ def _make_perf_plots(perf_data, evalues, series_labels):
 
 
 def render_family_html(tables, evalues, label, output_dir,
-                       roc_b64=None, runtime_b64=None, ram_b64=None):
-    """Write <label>_family_breakdown.html with per-family sensitivity per E-value."""
-    sections = []
+                       roc_b64=None, runtime_b64=None, ram_b64=None,
+                       series_labels=None, nonrrna_tables=None,
+                       silva_version='', rfam_version='', smr_db_label=''):
+    """Write <label>_summary.html - scalability benchmark summary page."""
+
+    def _img_tag(b64):
+        return f'<img src="data:image/png;base64,{b64}" style="max-width:100%;height:auto">'
+
+    # --- Plots (ROC + runtime/RAM) ---
+    plots_html = ''
+    if roc_b64 or runtime_b64 or ram_b64:
+        parts = []
+        if roc_b64:
+            parts.append(f'<h3>ROC Curve</h3>\n{_img_tag(roc_b64)}')
+        if runtime_b64 or ram_b64:
+            parts.append('<h3>Runtime and Memory</h3>'
+                         '<div style="display:flex;gap:1em;flex-wrap:wrap">')
+            if runtime_b64:
+                parts.append(f'<div style="flex:1;min-width:300px">{_img_tag(runtime_b64)}</div>')
+            if ram_b64:
+                parts.append(f'<div style="flex:1;min-width:300px">{_img_tag(ram_b64)}</div>')
+            parts.append('</div>')
+        plots_html = '\n'.join(parts)
+
+    # --- Non-rRNA tables (one per series) ---
+    nonrrna_blocks = []
+    if nonrrna_tables and series_labels:
+        for si, slabel in enumerate(series_labels):
+            si_data = nonrrna_tables.get(si, {})
+            rows = []
+            for ev in sorted(evalues, reverse=True):
+                ev_data = si_data.get(ev, {})
+                for n in sorted(ev_data):
+                    total, aligned = ev_data[n]
+                    pct = f'{aligned / total * 100:.5f}' if total else '-'
+                    rows.append(
+                        f'        <tr><td>{ev:g}</td><td>{n:,}</td>'
+                        f'<td>{aligned:,}</td><td>{pct}%</td></tr>'
+                    )
+            if not rows:
+                continue
+            nonrrna_blocks.append(
+                f'      <h3>{slabel} reads</h3>\n'
+                f'      <div class="table-wrap"><table>\n'
+                f'        <thead><tr><th>E-value</th><th># reads</th>'
+                f'<th>Reads assigned to rRNA</th><th>%</th></tr></thead>\n'
+                f'        <tbody>\n' + '\n'.join(rows) + '\n        </tbody>\n      </table></div>'
+            )
+
+    # --- SILVA rRNA tables (per-family breakdown by e-value and scale) ---
+    rrna_ev_blocks = []
     for ev in sorted(evalues, reverse=True):
         ev_data = tables.get(ev, {})
         scale_blocks = []
@@ -320,75 +397,79 @@ def render_family_html(tables, evalues, label, output_dir,
                 grand_assigned += a
                 pct = f'{a / t * 100:.5f}' if t else '-'
                 rows.append(
-                    f'      <tr><td>{fam.replace("_", " ")}</td>'
+                    f'          <tr><td>{fam.replace("_", " ")}</td>'
                     f'<td>{t:,}</td><td>{a:,}</td><td>{pct}%</td></tr>'
                 )
             if not rows:
                 continue
             gp = f'{grand_assigned / grand_total * 100:.5f}' if grand_total else '-'
             rows.append(
-                f'      <tr style="font-weight:bold;border-top:2px solid #2c3e50">'
+                f'          <tr style="font-weight:bold;border-top:2px solid #2c3e50">'
                 f'<td>Total</td><td>{grand_total:,}</td>'
                 f'<td>{grand_assigned:,}</td><td>{gp}%</td></tr>'
             )
             scale_blocks.append(
-                f'    <h3>{n:,} reads</h3>\n'
-                f'    <div class="table-wrap"><table>\n'
-                f'      <thead><tr><th>rRNA type</th><th>Total reads</th>'
+                f'        <h5>{n:,} reads</h5>\n'
+                f'        <div class="table-wrap"><table>\n'
+                f'          <thead><tr><th>rRNA type</th><th>Total reads</th>'
                 f'<th>Reads assigned to rRNA</th><th>%</th></tr></thead>\n'
-                f'      <tbody>\n' + '\n'.join(rows) + '\n      </tbody>\n    </table></div>'
+                f'          <tbody>\n' + '\n'.join(rows) + '\n          </tbody>\n        </table></div>'
             )
         if scale_blocks:
-            sections.append(
-                f'  <section>\n  <h2>E-value = {ev:g}</h2>\n'
-                + '\n'.join(scale_blocks)
-                + '\n  </section>'
+            rrna_ev_blocks.append(
+                f'      <h4>E-value = {ev:g}</h4>\n' + '\n'.join(scale_blocks)
             )
 
-    def _img_tag(b64):
-        return f'<img src="data:image/png;base64,{b64}" style="max-width:100%;height:auto">'
+    rrna_block = ''
+    if rrna_ev_blocks:
+        rrna_block = (
+            '      <h3>SILVA rRNA reads</h3>\n'
+            '      <p>Per-family sensitivity. Reads assigned = reads in '
+            '<code>aligned.blast</code>; totals derived from subsampled reads and '
+            '<code>rRNA_test_10M_family.tsv</code>.</p>\n'
+            + '\n'.join(rrna_ev_blocks)
+        )
 
-    plots_section = ''
-    if roc_b64 or runtime_b64 or ram_b64:
-        parts = ['<section>']
-        if roc_b64:
-            parts.append(f'<h2>ROC Curve</h2>\n{_img_tag(roc_b64)}')
-        if runtime_b64 or ram_b64:
-            parts.append('<h2>Performance Summary</h2>')
-            parts.append('<div style="display:flex;gap:1em;flex-wrap:wrap">')
-            if runtime_b64:
-                parts.append(f'<div style="flex:1;min-width:300px">{_img_tag(runtime_b64)}</div>')
-            if ram_b64:
-                parts.append(f'<div style="flex:1;min-width:300px">{_img_tag(ram_b64)}</div>')
-            parts.append('</div>')
-        parts.append('</section>')
-        plots_section = '\n'.join(parts)
+    # --- Metadata line ---
+    meta_parts = []
+    if smr_db_label:
+        meta_parts.append(f'SortMeRNA database: <strong>{smr_db_label}</strong>')
+    if silva_version:
+        meta_parts.append(f'SILVA: <strong>{silva_version}</strong>')
+    if rfam_version:
+        meta_parts.append(f'Rfam: <strong>{rfam_version}</strong>')
+    meta_html = (' &nbsp;|&nbsp; '.join(meta_parts)) if meta_parts else ''
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>rRNA Family Breakdown - {label}</title>
+  <title>Scalability benchmark</title>
   <style>
     body {{ font-family: sans-serif; padding: 2em; max-width: 960px; margin: auto; }}
     h1 {{ color: #2c3e50; }}
     h2 {{ color: #2c3e50; margin-top: 2em; border-bottom: 2px solid #2c3e50; padding-bottom: 4px; }}
-    h3 {{ color: #555; margin-top: 1.2em; }}
+    h3 {{ color: #2c3e50; margin-top: 1.8em; border-bottom: 1px solid #7f8c8d; padding-bottom: 3px; }}
+    h4 {{ color: #555; margin-top: 1.4em; }}
+    h5 {{ color: #777; margin-top: 1em; font-size: 0.95em; }}
     p  {{ color: #444; }}
+    .meta {{ color: #555; margin: 0.5em 0 1.5em; }}
     .table-wrap {{ overflow-x: auto; margin-bottom: 1em; }}
-    table {{ border-collapse: collapse; min-width: 480px; }}
+    table {{ border-collapse: collapse; min-width: 420px; }}
     th, td {{ border: 1px solid #ccc; padding: 6px 14px; text-align: right; white-space: nowrap; }}
     th {{ background: #2c3e50; color: white; text-align: center; }}
     td:first-child, th:first-child {{ text-align: left; }}
   </style>
 </head>
 <body>
-<h1>rRNA Family Breakdown - {label}</h1>
-{plots_section}
-<p>Reads assigned = reads in <code>aligned.blast</code>.
-   Totals and family assignment are derived from the subsampled reads and
-   <code>rRNA_test_10M_family.tsv</code> (source sequence ID to family mapping).</p>
-{''.join(sections)}
+<h1>Scalability benchmark</h1>
+{f'<p class="meta">{meta_html}</p>' if meta_html else ''}
+{f'<section>{plots_html}</section>' if plots_html else ''}
+  <section>
+    <h2>Performance Summary</h2>
+{''.join(nonrrna_blocks)}
+{rrna_block}
+  </section>
 </body>
 </html>"""
 
@@ -417,6 +498,13 @@ def main():
                     help='TSV mapping source_seq_id to rRNA family, produced by '
                          'simulate_rrna_reads.sh (rRNA_test_10M_family.tsv). '
                          'When provided, generates a per-family sensitivity breakdown HTML.')
+    ap.add_argument('--silva-version', default='',
+                    help='SILVA version string shown in the HTML header (e.g. 138.2)')
+    ap.add_argument('--rfam-version', default='',
+                    help='Rfam version string shown in the HTML header (e.g. 15.1)')
+    ap.add_argument('--smr-db-label', default='',
+                    help='SortMeRNA database label shown in the HTML header '
+                         '(e.g. "v6.0.2 default db")')
     args = ap.parse_args()
 
     n_series = len(args.rrna_dirs)
@@ -456,8 +544,14 @@ def main():
             print('\nCollecting performance data...')
             perf_data = _read_perf_data(args.rrna_dirs, args.evalues)
             runtime_b64, ram_b64 = _make_perf_plots(perf_data, args.evalues, series_labels)
+            print('\nCollecting non-rRNA alignment counts...')
+            nonrrna_tables = _read_nonrrna_tables(args.nonrrna_dirs, args.evalues)
             render_family_html(tables, args.evalues, args.label, args.output_dir,
-                               roc_b64=roc_b64, runtime_b64=runtime_b64, ram_b64=ram_b64)
+                               roc_b64=roc_b64, runtime_b64=runtime_b64, ram_b64=ram_b64,
+                               series_labels=series_labels, nonrrna_tables=nonrrna_tables,
+                               silva_version=args.silva_version,
+                               rfam_version=args.rfam_version,
+                               smr_db_label=args.smr_db_label)
 
 
 if __name__ == '__main__':
