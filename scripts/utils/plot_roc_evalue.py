@@ -72,8 +72,11 @@ def read_counts(scale_dir):
 
 
 def compute_series(rrna_dirs, nonrrna_dirs, evalues):
-    """Return list of (evalue, fpr, tpr) for one series, sorted by evalue descending."""
+    """Return (points, r_n, nr_n) where points is [(evalue, fpr, tpr), ...] sorted by
+    evalue descending, r_n is the max rRNA read count seen, and nr_n is the max
+    non-rRNA read count seen across all E-value scale points."""
     points = []
+    r_n = nr_n = 0
     for ev, rd, nd in zip(evalues, rrna_dirs, nonrrna_dirs):
         r_scale  = find_largest_scale_dir(rd)
         nr_scale = find_largest_scale_dir(nd)
@@ -87,52 +90,58 @@ def compute_series(rrna_dirs, nonrrna_dirs, evalues):
             continue
         tpr = r_aligned  / r_total
         fpr = nr_aligned / nr_total
-        n   = r_total
+        r_n  = max(r_n,  r_total)
+        nr_n = max(nr_n, nr_total)
         print(f'  E={ev}: TPR={tpr:.4f} ({r_aligned}/{r_total} rRNA)  '
-              f'FPR={fpr:.6f} ({nr_aligned}/{nr_total} non-rRNA, N={n:,})')
+              f'FPR={fpr:.6f} ({nr_aligned}/{nr_total} non-rRNA)')
         points.append((float(ev), fpr, tpr))
-    # sort highest evalue first (loosest threshold = top-right of ROC)
     points.sort(key=lambda x: x[0], reverse=True)
-    return points
+    return points, r_n, nr_n
 
 
 def plot_roc(all_series, output_dir, label):
-    """Plot ROC curve with one point per E-value, one line per series."""
-    fig, ax = plt.subplots(figsize=(7, 6))
+    """Plot ROC curve with one subplot per series, one point per E-value."""
+    n = len(all_series)
+    fig, axes = plt.subplots(1, n, figsize=(7 * n, 6))
+    if n == 1:
+        axes = [axes]
 
-    # Label offsets cycle per series so annotations from different series don't overlap
-    _label_offsets = [(6, 3), (6, -10), (6, 16), (6, -17)]
+    # rRNA N is the same across series - take the max seen
+    r_n_global = max((s[2] for s in all_series if s[1]), default=0)
 
-    all_fprs, all_tprs = [], []
-    for si, ((series_label, points), color) in enumerate(zip(all_series, _COLORS)):
+    for ax, (series_label, points, r_n, nr_n), color in zip(axes, all_series, _COLORS):
         if not points:
+            ax.set_visible(False)
             continue
-        fprs = [p[1] for p in points]
-        tprs = [p[2] for p in points]
+        fprs   = [p[1] for p in points]
+        tprs   = [p[2] for p in points]
         evalues = [p[0] for p in points]
-        all_fprs.extend(fprs)
-        all_tprs.extend(tprs)
-        ax.plot(fprs, tprs, 'o-', color=color, label=series_label, linewidth=1.5)
-        # Only label the loosest and strictest E-value to avoid overlap
-        label_idx = {0, len(points) - 1}
-        base_xy = _label_offsets[si % len(_label_offsets)]
+
+        ax.plot(fprs, tprs, 'o-', color=color, linewidth=1.5)
+
+        # Alternate label offsets above/below to reduce overlap
         for i, (fpr, tpr, ev) in enumerate(zip(fprs, tprs, evalues)):
-            if i in label_idx:
-                ax.annotate(f'E={ev:g}', (fpr, tpr),
-                            textcoords='offset points', xytext=base_xy, fontsize=8,
-                            color=color)
+            y_off = 6 if i % 2 == 0 else -13
+            ax.annotate(f'E={ev:g}', (fpr, tpr),
+                        textcoords='offset points', xytext=(6, y_off),
+                        fontsize=7, color=color)
 
-    x_max = max(all_fprs) * 1.3 if all_fprs else 0.05
-    y_min = max(0.0, min(all_tprs) - 0.02) if all_tprs else 0.0
-    ax.set_xlim(-x_max * 0.02, x_max)
-    ax.set_ylim(y_min, 1.01)
-    ax.set_xlabel('False positive rate  (non-rRNA reads classified as rRNA)')
-    ax.set_ylabel('Sensitivity / TPR  (rRNA reads correctly classified)')
-    ax.set_title(f'{label} - ROC by E-value threshold')
-    ax.legend(fontsize=9)
-    ax.grid(True, alpha=0.3)
+        x_max = max(fprs) * 1.3 if fprs else 0.05
+        y_min = max(0.0, min(tprs) - 0.02) if tprs else 0.0
+        ax.set_xlim(-x_max * 0.02, x_max)
+        ax.set_ylim(y_min, 1.01)
+        ax.set_xlabel('False positive rate  (non-rRNA reads classified as rRNA)')
+        ax.set_ylabel('Sensitivity / TPR  (rRNA reads correctly classified)')
+        nr_n_str = f'N={nr_n:,}' if nr_n else 'N=?'
+        ax.set_title(f'{series_label}\n({nr_n_str})')
+        ax.grid(True, alpha=0.3)
 
-    plt.tight_layout()
+    r_n_str = f'N={r_n_global:,}' if r_n_global else 'N=?'
+    fig.suptitle(f'{label} - ROC by E-value threshold', fontsize=12)
+    fig.text(0.5, 0.01, f'rRNA reads (SILVA): {r_n_str}',
+             ha='center', fontsize=9, color='#555')
+
+    plt.tight_layout(rect=[0, 0.04, 1, 0.96])
     buf = io.BytesIO()
     fig.savefig(buf, format='png', dpi=300, bbox_inches='tight')
     buf.seek(0)
@@ -494,10 +503,9 @@ def main():
     ap.add_argument('--series-labels', nargs='+', action='append',
                     help='Label for each series (repeat flag once per series); '
                          'defaults to "series 1", "series 2", ...')
-    ap.add_argument('--rrna-family-tsv', type=Path, default=None,
+    ap.add_argument('--rrna-family-tsv', type=Path, required=True,
                     help='TSV mapping source_seq_id to rRNA family, produced by '
-                         'simulate_rrna_reads.sh (rRNA_test_10M_family.tsv). '
-                         'When provided, generates a per-family sensitivity breakdown HTML.')
+                         'simulate_rrna_reads.sh (rRNA_test_10M_family.tsv).')
     ap.add_argument('--silva-version', default='',
                     help='SILVA version string shown in the HTML header (e.g. 138.2)')
     ap.add_argument('--rfam-version', default='',
@@ -527,31 +535,29 @@ def main():
             ap.error(f'series {i+1}: number of dirs must match number of --evalues '
                      f'({len(args.evalues)})')
         print(f'\nSeries: {slabel}')
-        points = compute_series(rrna_dirs, nonrrna_dirs, args.evalues)
-        all_series.append((slabel, points))
+        points, r_n, nr_n = compute_series(rrna_dirs, nonrrna_dirs, args.evalues)
+        all_series.append((slabel, points, r_n, nr_n))
+
+    if not args.rrna_family_tsv.exists():
+        ap.error(f'--rrna-family-tsv not found: {args.rrna_family_tsv}')
 
     roc_b64 = plot_roc(all_series, args.output_dir, args.label)
 
-    if args.rrna_family_tsv:
-        if not args.rrna_family_tsv.exists():
-            print(f'\n  WARNING: --rrna-family-tsv not found: {args.rrna_family_tsv}',
-                  file=sys.stderr)
-        else:
-            print('\nComputing per-family sensitivity breakdown...')
-            family_map = load_family_map(args.rrna_family_tsv)
-            print(f'  Loaded {len(family_map):,} source sequence IDs')
-            tables = _build_family_tables(args.rrna_dirs, args.evalues, family_map)
-            print('\nCollecting performance data...')
-            perf_data = _read_perf_data(args.rrna_dirs, args.evalues)
-            runtime_b64, ram_b64 = _make_perf_plots(perf_data, args.evalues, series_labels)
-            print('\nCollecting non-rRNA alignment counts...')
-            nonrrna_tables = _read_nonrrna_tables(args.nonrrna_dirs, args.evalues)
-            render_family_html(tables, args.evalues, args.label, args.output_dir,
-                               roc_b64=roc_b64, runtime_b64=runtime_b64, ram_b64=ram_b64,
-                               series_labels=series_labels, nonrrna_tables=nonrrna_tables,
-                               silva_version=args.silva_version,
-                               rfam_version=args.rfam_version,
-                               smr_db_label=args.smr_db_label)
+    print('\nComputing per-family sensitivity breakdown...')
+    family_map = load_family_map(args.rrna_family_tsv)
+    print(f'  Loaded {len(family_map):,} source sequence IDs')
+    tables = _build_family_tables(args.rrna_dirs, args.evalues, family_map)
+    print('\nCollecting performance data...')
+    perf_data = _read_perf_data(args.rrna_dirs, args.evalues)
+    runtime_b64, ram_b64 = _make_perf_plots(perf_data, args.evalues, series_labels)
+    print('\nCollecting non-rRNA alignment counts...')
+    nonrrna_tables = _read_nonrrna_tables(args.nonrrna_dirs, args.evalues)
+    render_family_html(tables, args.evalues, args.label, args.output_dir,
+                       roc_b64=roc_b64, runtime_b64=runtime_b64, ram_b64=ram_b64,
+                       series_labels=series_labels, nonrrna_tables=nonrrna_tables,
+                       silva_version=args.silva_version,
+                       rfam_version=args.rfam_version,
+                       smr_db_label=args.smr_db_label)
 
 
 if __name__ == '__main__':

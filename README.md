@@ -532,7 +532,7 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
     --smr-db-label "v${SMR_VERSION} default db"
 ```
 
-The `--rrna-family-tsv` flag is optional. When provided, a `scalability_benchmark_summary.html` file is written alongside the ROC plot showing, per E-value and scale point, how many reads from each rRNA family (silva ssu bacteria, rfam 5s, etc.) were assigned to rRNA by SortMeRNA.
+A `scalability_benchmark_summary.html` file is written alongside the ROC plot containing: the embedded ROC curve and runtime/RAM plots; per-E-value and per-scale-point tables for T2T non-rRNA reads and Rfam non-rRNA reads (reads classified as rRNA); and a per-family sensitivity breakdown for SILVA rRNA reads showing how many reads from each rRNA family (silva ssu bacteria, rfam 5s, etc.) were assigned to rRNA by SortMeRNA.
 
 - Scalability benchmark with plots: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/scalability_test/plots/scalability_benchmark_summary.html" target="_blank">scalability_benchmark_summary.html</a>
 
