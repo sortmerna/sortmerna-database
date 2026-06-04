@@ -27,7 +27,7 @@
 #   SMR_DB_ROOT_DIR  Root of the sortmerna-database repository
 #
 # Outputs (all under <output_dir>):
-#   set<N>/smr_out/out/aligned.fasta   SortMeRNA-detected rRNA reads
+#   set<N>/smr_out/out/aligned.fa   SortMeRNA-detected rRNA reads
 #   set<N>/smr_out/out/aligned.log     SortMeRNA summary log
 #   set<N>/runtime_seconds.txt         Wall-clock runtime in seconds
 #   set<N>/peak_rss_mb.txt             Peak resident set size in MB
@@ -95,7 +95,7 @@ for set_num in 1 2 3; do
     set_dir="${OUTPUT_DIR}/set${set_num}"
     smr_workdir="${set_dir}/smr_out"
     aligned_log="${smr_workdir}/out/aligned.log"
-    aligned_fa="${smr_workdir}/out/aligned.fasta"
+    aligned_fa="${smr_workdir}/out/aligned.fa"
     sensitivity_file="${set_dir}/sensitivity.txt"
 
     echo ""
@@ -184,7 +184,7 @@ for sn, label, db_config, reads_file in sets:
     sens_f   = set_dir / "sensitivity.txt"
     rt_f     = set_dir / "runtime_seconds.txt"
     rss_f    = set_dir / "peak_rss_mb.txt"
-    aligned  = set_dir / "smr_out" / "out" / "aligned.fasta"
+    aligned  = set_dir / "smr_out" / "out" / "aligned.fa"
 
     if not sens_f.exists():
         continue
