@@ -11,7 +11,7 @@ Latest databases (SILVA 138.2 + Rfam 15.1):
 
 | Database | Sequences | Index size | Clustering | Recommended for | Link |
 |---|---|---|---|---|---|
-| `smr_v6.0.2_sensitive_db` | 515,371 | 3.8 GB | 97% all | Maximum sensitivity | comming soon
+| `smr_v6.0.2_sensitive_db` | 515,371 | 3.8 GB | 97% all | Maximum sensitivity | coming soon
 | `smr_v6.0.2_default_db` | 240,397 | 2.0 GB | 90-95% SILVA, seed Rfam | General use (recommended) | coming soon
 | `smr_v6.0.2_fast_db` | 137,179 | 1.1 GB | 85-90% SILVA, seed Rfam | Speed-critical workflows | coming soon
 
