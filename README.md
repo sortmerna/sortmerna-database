@@ -26,7 +26,7 @@ sortmerna --ref smr_v6.0.2_default_db.fasta --idx-dir idx/ --task 5
 
 **Step 2 - Filter reads (reuse the index for every run):**
 ```bash
-sortmerna --ref smr_v6.0.2_default_db.fasta --reads reads_R1.fastq --reads reads_R2.fastq \
+sortmerna --ref smr_v6.0.2_default_db.fasta --reads reads_R1.fq.gz --reads reads_R2.fq.gz \
     --idx-dir idx/ --workdir run/ --fastx --paired_in --threads 4 -e 1e-5
 ```
 
@@ -462,7 +462,7 @@ The SILVA ISS reads and Rfam direct sequences are shuffled together before outpu
 
 ## Phase 2: Validation and Benchmarking
 
-Evaluate the databases built in Phase 1 for sensitivity (rRNA detection) and specificity (false positive rate). Simulated Illumina reads from non-seed cluster members test sensitivity at each clustering threshold; non-rRNA reads from the T2T genome and Rfam test specificity. The Deng et al. 2022 benchmark datasets provide an additional evaluation on published, independently curated test data. Real PacBio amplicon data provides an independent validation on long reads.
+Evaluate the databases built in Phase 1 for sensitivity (rRNA detection) and specificity (false positive rate). Simulated Illumina reads from non-seed cluster members test sensitivity at each clustering threshold; non-rRNA reads from the T2T genome and Rfam test specificity. The [Deng et al. 2022](https://doi.org/10.1093/nar/gkac112) benchmark datasets provide an additional evaluation on published, independently curated test data. Real PacBio amplicon data provides an independent validation on long reads.
 
 ### Benchmarking Approach
 
@@ -482,7 +482,7 @@ SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`
 
 **Distinction from BLAST**: in BLAST, `m` is the length of the individual query sequence, giving a per-query E-value. In SortMeRNA, `m` is the total nucleotide count across all reads in the dataset (every read is filtered against the same score threshold regardless of its own length). This means `S_min` sets a run-level threshold: the expected number of spurious alignments across all reads against the database is <= E, not <= E per read.
 
-This design is motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~124M total bases (~69K sequences), roughly 10,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) (July 2023) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
+This design is motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~143M total bases (~240K sequences), roughly 9,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) (July 2023) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
 
 **Parallelism and `--score_split`**: SortMeRNA processes reads in parallel by dividing the input file into per-thread byte-range chunks - no physical splitting of the reads file occurs. By default, `m` is the total nucleotide count across all reads regardless of thread count, so `S_min` is identical across threads and the run-level threshold holds. The `--score_split` option changes this: it divides `m` by the number of threads, computing `S_min` as if each thread's chunk were an independent dataset. This lowers `S_min` (more lenient threshold), with an effect equivalent to increasing the E-value. It is off by default and should be used with care, as it makes the threshold dependent on the number of threads rather than the size of the dataset.
 
