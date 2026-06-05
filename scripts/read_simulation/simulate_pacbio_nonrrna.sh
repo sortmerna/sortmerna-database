@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+
+################################################################################
+# simulate_pacbio_nonrrna.sh
+#
+# Simulate PacBio HiFi non-rRNA reads from the masked T2T genome using PBSIM3.
+# The masked genome (rRNA loci replaced with Ns) is produced by
+# download_non_rrna.sh. Rfam non-rRNA families are not used here because most
+# sequences are shorter than typical PacBio HiFi read lengths.
+#
+# Output:
+#   non_rrna_pacbio_<N>_T2T.fastq  - N simulated PacBio HiFi reads
+#
+# Input (from download_non_rrna.sh / simulate_non_rrna.sh):
+#   t2t/${T2T_VERSION}_masked.fa   - T2T genome with rRNA loci masked
+#
+# Steps:
+#   1. Compute --depth to produce approximately N_READS reads at the target
+#      mean length from the masked genome (genome size estimated with seqkit)
+#   2. Run PBSIM3 (--strategy wgs) across all chromosomes
+#   3. Merge per-chromosome FASTQ outputs into a single file
+#   4. Subsample to exactly N_READS with seqkit if PBSIM3 overshoots
+#   5. Clean up PBSIM3 intermediate files
+#
+# Usage:
+#   bash simulate_pacbio_nonrrna.sh [output_dir] [OPTIONS]
+#
+# Positional:
+#   output_dir   Directory containing download_non_rrna.sh outputs
+#                (default: $NON_RRNA_DIR or data/non_rrna)
+#
+# Options:
+#   --reads INT          Target number of simulated reads (default: 253089)
+#                        Default matches the Karst et al. 2021 PacBio dataset
+#                        used for the rRNA sensitivity test.
+#   --length-mean INT    Mean read length in bp (default: 4500)
+#                        Matches the ~4,500 bp 16S+ITS+23S amplicons in Karst
+#                        et al. 2021, enabling a fair length-matched comparison.
+#   --length-sd INT      Read length standard deviation in bp (default: 500)
+#   --accuracy FLOAT     Mean read accuracy (default: 0.999, HiFi CCS level)
+#   --model STR          PBSIM3 error model file path (default: auto-detect
+#                        ERRHMM-SEQUEL.model from PBSIM3 installation)
+#   --seed INT           Random seed (default: 42)
+#   --keep-intermediates Keep per-chromosome FASTQ/MAF/ref files (default: remove)
+#   -h, --help           Show help
+#
+# Environment variables:
+#   T2T_VERSION   T2T genome version string (default: chm13v2.0)
+#   PBSIM3_BIN    Full path to pbsim3 binary (default: pbsim3 on PATH)
+#
+# Requires: pbsim3, seqkit
+#
+################################################################################
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- Defaults ---
+OUTPUT_DIR="${NON_RRNA_DIR:-data/non_rrna}"
+N_READS=253089
+LENGTH_MEAN=4500
+LENGTH_SD=500
+ACCURACY=0.999
+MODEL_PATH=""
+SEED=42
+KEEP_INTERMEDIATES=false
+T2T_VERSION="${T2T_VERSION:-chm13v2.0}"
+PBSIM3_BIN="${PBSIM3_BIN:-pbsim3}"
+
+# --- Arg parsing ---
+if [[ $# -gt 0 && "$1" != --* ]]; then
+    OUTPUT_DIR="$1"; shift
+fi
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --reads)               N_READS="$2";        shift 2 ;;
+        --length-mean)         LENGTH_MEAN="$2";    shift 2 ;;
+        --length-sd)           LENGTH_SD="$2";      shift 2 ;;
+        --accuracy)            ACCURACY="$2";       shift 2 ;;
+        --model)               MODEL_PATH="$2";     shift 2 ;;
+        --seed)                SEED="$2";           shift 2 ;;
+        --keep-intermediates)  KEEP_INTERMEDIATES=true; shift ;;
+        -h|--help)
+            sed -n '3,60p' "$0" | grep '^#' | sed 's/^# \?//'
+            exit 0 ;;
+        *) echo "Unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+T2T_DIR="${OUTPUT_DIR}/t2t"
+MASKED_FA="${T2T_DIR}/${T2T_VERSION}_masked.fa"
+
+if [[ ! -f "${MASKED_FA}" ]]; then
+    echo "ERROR: masked genome not found: ${MASKED_FA}" >&2
+    echo "  Run download_non_rrna.sh and simulate_non_rrna.sh first." >&2
+    exit 1
+fi
+
+# --- Auto-detect PBSIM3 model if not specified ---
+if [[ -z "${MODEL_PATH}" ]]; then
+    PBSIM3_SHARE="$(dirname "$(command -v "${PBSIM3_BIN}" 2>/dev/null || true)")/../share/pbsim3/data"
+    if [[ -f "${PBSIM3_SHARE}/ERRHMM-SEQUEL.model" ]]; then
+        MODEL_PATH="${PBSIM3_SHARE}/ERRHMM-SEQUEL.model"
+    else
+        echo "ERROR: could not auto-detect PBSIM3 error model. Set --model explicitly." >&2
+        exit 1
+    fi
+fi
+
+N_LABEL="$(python3 -c "
+n=${N_READS}
+if n % 1000000 == 0: print(f'{n//1000000}M')
+elif n % 1000 == 0:  print(f'{n//1000}K')
+else:                print(str(n))
+")"
+
+OUTPUT_FASTQ="${OUTPUT_DIR}/non_rrna_pacbio_${N_LABEL}_T2T.fastq"
+PBSIM3_PREFIX="${T2T_DIR}/pbsim3_tmp"
+
+echo "============================================"
+echo "PacBio non-rRNA simulation (PBSIM3)"
+echo "============================================"
+echo "  Masked genome: ${MASKED_FA}"
+echo "  Target reads:  ${N_READS}"
+echo "  Length mean:   ${LENGTH_MEAN} bp"
+echo "  Length SD:     ${LENGTH_SD} bp"
+echo "  Accuracy:      ${ACCURACY}"
+echo "  Model:         ${MODEL_PATH}"
+echo "  Seed:          ${SEED}"
+echo "  Output:        ${OUTPUT_FASTQ}"
+echo ""
+
+if [[ -f "${OUTPUT_FASTQ}" ]]; then
+    echo "Already exists: ${OUTPUT_FASTQ}"
+    exit 0
+fi
+
+# Estimate genome size (excluding Ns) for depth calculation
+echo "Estimating effective genome size..."
+genome_bp=$(seqkit seq --seq-type dna "${MASKED_FA}" | tr -d 'nN\n' | wc -c)
+echo "  Effective (non-N) bases: ${genome_bp}"
+
+# depth = (N_READS * LENGTH_MEAN) / genome_bp, add 5% buffer
+depth=$(python3 -c "print(f'{${N_READS} * ${LENGTH_MEAN} * 1.05 / ${genome_bp}:.4f}')")
+echo "  PBSIM3 depth:  ${depth}x"
+echo ""
+
+echo "Running PBSIM3..."
+"${PBSIM3_BIN}" \
+    --strategy wgs \
+    --method errhmm \
+    --errhmm "${MODEL_PATH}" \
+    --depth "${depth}" \
+    --length-mean "${LENGTH_MEAN}" \
+    --length-sd "${LENGTH_SD}" \
+    --accuracy-mean "${ACCURACY}" \
+    --seed "${SEED}" \
+    --prefix "${PBSIM3_PREFIX}" \
+    "${MASKED_FA}"
+
+echo ""
+echo "Merging per-chromosome FASTQ files..."
+cat "${PBSIM3_PREFIX}"_*.fastq > "${OUTPUT_FASTQ}.tmp"
+
+# Subsample to exactly N_READS if needed
+actual=$(seqkit stats -T "${OUTPUT_FASTQ}.tmp" | tail -1 | cut -f4)
+echo "  Simulated reads: ${actual}, target: ${N_READS}"
+if (( actual > N_READS )); then
+    echo "  Subsampling to ${N_READS}..."
+    seqkit sample -n "${N_READS}" --rand-seed "${SEED}" "${OUTPUT_FASTQ}.tmp" > "${OUTPUT_FASTQ}"
+    rm "${OUTPUT_FASTQ}.tmp"
+else
+    mv "${OUTPUT_FASTQ}.tmp" "${OUTPUT_FASTQ}"
+fi
+
+if [[ "${KEEP_INTERMEDIATES}" == false ]]; then
+    echo "Removing PBSIM3 intermediate files..."
+    rm -f "${PBSIM3_PREFIX}"_*.fastq "${PBSIM3_PREFIX}"_*.maf "${PBSIM3_PREFIX}"_*.ref
+fi
+
+final=$(seqkit stats -T "${OUTPUT_FASTQ}" | tail -1 | cut -f4)
+echo ""
+echo "Done."
+echo "  Output: ${OUTPUT_FASTQ}"
+echo "  Reads:  ${final}"

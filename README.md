@@ -315,6 +315,7 @@ Outputs per domain/type in each verified directory:
 
 > [!NOTE]
 > SILVA 138.2: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified/verification_summary.html" target="_blank">verification_summary.html</a>
+
 > Rfam 15.1: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified_rfam/verification_summary.html" target="_blank">verification_summary.html</a>
 
 ### Build Clustered Databases
@@ -655,10 +656,10 @@ Sensitivity test using real PacBio long-read amplicon data:
 - **Source**: [Karst et al. (2021, *Nature Methods*)](https://doi.org/10.1038/s41592-020-01041-y) - 253,089 high-quality,
   full-length bacterial rRNA operon sequences (~4,500 bp, 16S+ITS+23S) from 70
   AGP human fecal samples, generated using PacBio Sequel II UMI amplicon
-  sequencing
+  sequencing. Raw data: [Qiita study 10317](https://qiita.ucsd.edu/study/description/10317#) (American Gut Project).
 - **Rationale**: Every read is a guaranteed true positive by virtue of PCR
   amplification with 27F/2490R primers. Tests SortMeRNA's ability to handle ~4,500 bp long reads.
-- **Non-rRNA source**: PBSIM3 simulated reads from the masked T2T genome and Rfam non-rRNA family sequences - tested separately
+- **Non-rRNA source**: PBSIM3 simulated reads from the masked T2T genome
 - **Experiments**:
   - **Sensitivity**: Run all 253,089 operon sequences through SortMeRNA;
     expected classification rate = 100% per database configuration
@@ -694,6 +695,8 @@ sacrificing sensitivity.
 - **Sensitivity** = aligned reads / 253,089 (expected ~100% for all combos - any drop is a regression)
 - **Wall-clock time** - primary signal for selecting the winner
 - **Mean SW alignment score** - proxy for alignment quality; should be stable across sparse-seeding combos
+
+
 
 **Parameter sweep script:**
 
