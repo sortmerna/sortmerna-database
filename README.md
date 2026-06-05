@@ -663,7 +663,8 @@ Sensitivity test using real PacBio long-read amplicon data:
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_pacbio_nonrrna.sh \
-    $NON_RRNA_DIR
+    $NON_RRNA_DIR \
+    2>&1 | tee $NON_RRNA_DIR/pbsim3.log
 ```
 
 - **Experiments**:

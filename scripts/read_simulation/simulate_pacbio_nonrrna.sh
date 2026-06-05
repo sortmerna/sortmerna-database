@@ -139,8 +139,10 @@ elif n % 1000 == 0:  print(f'{n//1000}K')
 else:                print(str(n))
 ")"
 
-OUTPUT_FASTQ="${OUTPUT_DIR}/non_rrna_pacbio_${N_LABEL}_T2T.fastq"
-PBSIM3_PREFIX="${T2T_DIR}/pbsim3_tmp"
+OUTPUT_FASTQ="${OUTPUT_DIR}/non_rrna_pacbio_${N_LABEL}_T2T.fastq.gz"
+PBSIM3_DIR="${OUTPUT_DIR}/pbsim3"
+PBSIM3_PREFIX="${PBSIM3_DIR}/pbsim3_tmp"
+mkdir -p "${PBSIM3_DIR}"
 
 echo "============================================"
 echo "PacBio non-rRNA simulation (PBSIM3)"
@@ -185,22 +187,23 @@ echo "Running PBSIM3..."
 
 echo ""
 echo "Merging per-chromosome FASTQ files..."
-cat "${PBSIM3_PREFIX}"_*.fastq > "${OUTPUT_FASTQ}.tmp"
+cat "${PBSIM3_PREFIX}"_*.fq.gz > "${OUTPUT_FASTQ}.tmp.gz"
 
 # Subsample to exactly N_READS if needed
-actual=$(seqkit stats -T "${OUTPUT_FASTQ}.tmp" | tail -1 | cut -f4)
+actual=$(seqkit stats -T "${OUTPUT_FASTQ}.tmp.gz" | tail -1 | cut -f4)
 echo "  Simulated reads: ${actual}, target: ${N_READS}"
 if (( actual > N_READS )); then
     echo "  Subsampling to ${N_READS}..."
-    seqkit sample -n "${N_READS}" --rand-seed "${SEED}" "${OUTPUT_FASTQ}.tmp" > "${OUTPUT_FASTQ}"
-    rm "${OUTPUT_FASTQ}.tmp"
+    seqkit sample -n "${N_READS}" --rand-seed "${SEED}" "${OUTPUT_FASTQ}.tmp.gz" \
+        | gzip -c > "${OUTPUT_FASTQ}"
+    rm "${OUTPUT_FASTQ}.tmp.gz"
 else
-    mv "${OUTPUT_FASTQ}.tmp" "${OUTPUT_FASTQ}"
+    mv "${OUTPUT_FASTQ}.tmp.gz" "${OUTPUT_FASTQ}"
 fi
 
 if [[ "${KEEP_INTERMEDIATES}" == false ]]; then
     echo "Removing PBSIM3 intermediate files..."
-    rm -f "${PBSIM3_PREFIX}"_*.fastq "${PBSIM3_PREFIX}"_*.maf "${PBSIM3_PREFIX}"_*.ref
+    rm -rf "${PBSIM3_DIR}"
 fi
 
 [[ -n "${MASKED_FA_TMP}" && -f "${MASKED_FA_TMP}" ]] && rm -f "${MASKED_FA_TMP}"
