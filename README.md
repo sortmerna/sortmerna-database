@@ -205,6 +205,7 @@ export NON_RRNA_DIR=$DATA_DIR/non_rrna
 export RRNA_SIM_DIR=$DATA_DIR/rrna_sim
 export SCALABILITY_DIR=$DATA_DIR/scalability_test
 export SENSITIVITY_DIR=$DATA_DIR/sensitivity_test
+export PACBIO_DIR=$DATA_DIR/pacbio
 export THIRD_PARTY_ILLUMINA_BENCHMARK_DIR=/home/ubuntu/results-r6i.16xlarge
 
 # SILVA versions and full download URLs (update to use a different release or file type)
@@ -662,9 +663,19 @@ Sensitivity test using real PacBio long-read amplicon data:
 - **Non-rRNA source**: PBSIM3 simulated reads from the masked T2T genome (253,089 reads at ~4,500 bp mean to match the Karst dataset). Rfam non-rRNA families are not used here as most sequences are shorter than typical PacBio HiFi read lengths.
 
 ```bash
+# Count total reads
+seqkit stats -T $PACBIO_DIR/karst2021_253k.fna.gz
+file	format	type	num_seqs	sum_len	min_len	avg_len	max_len
+/home/ubuntu/working/data/pacbio/karst2021_253k.fna.gz	FASTA	DNA	253089	1117512051	3830	4415.5	5510
+
+
 bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_pacbio_nonrrna.sh \
     $NON_RRNA_DIR \
     2>&1 | tee $NON_RRNA_DIR/pbsim3.log
+
+seqkit stats -T $NON_RRNA_DIR/non_rrna_pacbio_253089_T2T.fastq.gz
+file	format	type	num_seqs	sum_len	min_len	avg_len	max_len
+/home/ubuntu/working/data/non_rrna/non_rrna_pacbio_253089_T2T.fastq.gz	FASTQ	DNA	253089	1141508536	98	4510.3	7252
 ```
 
 - **Experiments**:

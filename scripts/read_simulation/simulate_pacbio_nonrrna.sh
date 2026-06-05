@@ -26,7 +26,8 @@
 #   bash simulate_pacbio_nonrrna.sh [output_dir] [OPTIONS]
 #
 # Positional:
-#   output_dir   Directory containing download_non_rrna.sh outputs
+#   output_dir   Directory containing download_non_rrna.sh outputs and where
+#                simulated non-rRNA PacBio reads will be written
 #                (default: $NON_RRNA_DIR or data/non_rrna)
 #
 # Options:
