@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run_pacbio_sweep.sh  SortMeRNA --passes / --num_seeds parameter sweep for PacBio HiFi reads.
 #
-# Tests 4x4=16 combinations of --passes and --num_seeds against real rRNA reads
+# Tests 4x2=8 combinations of --passes and --num_seeds against real rRNA reads
 # (Karst et al. 2021, AGP, Qiita study 10317, ~4,500 bp 16S+ITS+23S operons) and
 # PBSIM3-simulated non-rRNA reads from the masked T2T genome. Each combination
 # reports sensitivity and FPR. Run SortMeRNA with -e 1e-5 (default db).
@@ -82,8 +82,11 @@ run_smr() {
         -e 1e-5
 }
 
-PASSES_LIST=("18,9,3" "100,50,10" "200,100,20" "500,200,50")
-SEEDS_LIST=(2 5 10 25)
+# Pass 3 is kept at stride 18 (same as short-read default) to preserve exhaustive
+# seed coverage in the final pass. Only passes 1 and 2 are scaled to exploit
+# early-exit for long reads where stride 18 already checks ~278 windows in pass 1.
+PASSES_LIST=("18,9,3" "500,100,18" "1000,200,18" "2000,500,18")
+SEEDS_LIST=(2 3)
 
 for passes in "${PASSES_LIST[@]}"; do
     for num_seeds in "${SEEDS_LIST[@]}"; do
