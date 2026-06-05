@@ -37,7 +37,8 @@
 #                        Matches the ~4,500 bp 16S+ITS+23S amplicons in Karst
 #                        et al. 2021, enabling a fair length-matched comparison.
 #   --length-sd INT      Read length standard deviation in bp (default: 500)
-#   --accuracy FLOAT     Mean read accuracy (default: 0.999, HiFi CCS level)
+#   --accuracy FLOAT     Mean read accuracy (default: 0.9999, matching Karst et al. 2021
+#                        CCS error rate of ~0.0007-0.008%)
 #   --model STR          PBSIM3 error model file path (default: auto-detect
 #                        ERRHMM-SEQUEL.model from PBSIM3 installation)
 #   --seed INT           Random seed (default: 42)
@@ -61,12 +62,12 @@ OUTPUT_DIR="${NON_RRNA_DIR:-data/non_rrna}"
 N_READS=253089
 LENGTH_MEAN=4500
 LENGTH_SD=500
-ACCURACY=0.999
+ACCURACY=0.9999  # Karst et al. 2021 CCS error rate ~0.0007-0.008% -> accuracy 99.992-99.9993%
 MODEL_PATH=""
 SEED=42
 KEEP_INTERMEDIATES=false
 T2T_VERSION="${T2T_VERSION:-chm13v2.0}"
-PBSIM3_BIN="${PBSIM3_BIN:-pbsim3}"
+PBSIM3_BIN="${PBSIM3_BIN:-pbsim}"   # PBSIM3 required (yukiteruono/pbsim3); binary may be named pbsim or pbsim3
 
 # --- Arg parsing ---
 if [[ $# -gt 0 && "$1" != --* ]]; then
@@ -100,11 +101,18 @@ fi
 
 # --- Auto-detect PBSIM3 model if not specified ---
 if [[ -z "${MODEL_PATH}" ]]; then
-    PBSIM3_SHARE="$(dirname "$(command -v "${PBSIM3_BIN}" 2>/dev/null || true)")/../share/pbsim3/data"
+    PBSIM3_SHARE="$(dirname "$(command -v "${PBSIM3_BIN}" 2>/dev/null || true)")/../share/pbsim3/data"   # also try share/pbsim/data
+    ALT_SHARE="$(dirname "$(command -v "${PBSIM3_BIN}" 2>/dev/null || true)")/../share/pbsim/data"
     if [[ -f "${PBSIM3_SHARE}/ERRHMM-SEQUEL.model" ]]; then
         MODEL_PATH="${PBSIM3_SHARE}/ERRHMM-SEQUEL.model"
+    elif [[ -f "${ALT_SHARE}/ERRHMM-SEQUEL.model" ]]; then
+        MODEL_PATH="${ALT_SHARE}/ERRHMM-SEQUEL.model"
+        # Note: ERRHMM-SEQUEL.model is from PacBio Sequel (not Sequel II CCS).
+        # No Sequel II CCS model exists in PBSIM3; ERRHMM-SEQUEL.model is the closest
+        # available. Combined with --accuracy-mean 0.9999 it approximates CCS error rates.
     else
         echo "ERROR: could not auto-detect PBSIM3 error model. Set --model explicitly." >&2
+        echo "  Looked in: ${PBSIM3_SHARE} and ${ALT_SHARE}" >&2
         exit 1
     fi
 fi

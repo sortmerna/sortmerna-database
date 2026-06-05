@@ -488,7 +488,7 @@ SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`
 
 **Distinction from BLAST**: in BLAST, `m` is the length of the individual query sequence, giving a per-query E-value. In SortMeRNA, `m` is the total nucleotide count across all reads in the dataset (every read is filtered against the same score threshold regardless of its own length). This means `S_min` sets a run-level threshold: the expected number of spurious alignments across all reads against the database is <= E, not <= E per read.
 
-This design is motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~143M total bases (~240K sequences), roughly 9,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) (July 2023) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
+This design is motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~143M total bases (~240K sequences), roughly 9,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) (July 2023) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~9,000x smaller than BLAST's.
 
 **Parallelism and `--score_split`**: SortMeRNA processes reads in parallel by dividing the input file into per-thread byte-range chunks - no physical splitting of the reads file occurs. By default, `m` is the total nucleotide count across all reads regardless of thread count, so `S_min` is identical across threads and the run-level threshold holds. The `--score_split` option changes this: it divides `m` by the number of threads, computing `S_min` as if each thread's chunk were an independent dataset. This lowers `S_min` (more lenient threshold), with an effect equivalent to increasing the E-value. It is off by default and should be used with care, as it makes the threshold dependent on the number of threads rather than the size of the dataset.
 
@@ -659,7 +659,13 @@ Sensitivity test using real PacBio long-read amplicon data:
   sequencing. Raw data: [Qiita study 10317](https://qiita.ucsd.edu/study/description/10317#) (American Gut Project).
 - **Rationale**: Every read is a guaranteed true positive by virtue of PCR
   amplification with 27F/2490R primers. Tests SortMeRNA's ability to handle ~4,500 bp long reads.
-- **Non-rRNA source**: PBSIM3 simulated reads from the masked T2T genome
+- **Non-rRNA source**: PBSIM3 simulated reads from the masked T2T genome (253,089 reads at ~4,500 bp mean to match the Karst dataset). Rfam non-rRNA families are not used here as most sequences are shorter than typical PacBio HiFi read lengths.
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_pacbio_nonrrna.sh \
+    $NON_RRNA_DIR
+```
+
 - **Experiments**:
   - **Sensitivity**: Run all 253,089 operon sequences through SortMeRNA;
     expected classification rate = 100% per database configuration
@@ -696,8 +702,6 @@ sacrificing sensitivity.
 - **Wall-clock time** - primary signal for selecting the winner
 - **Mean SW alignment score** - proxy for alignment quality; should be stable across sparse-seeding combos
 
-
-
 **Parameter sweep script:**
 
 ```bash
@@ -732,22 +736,6 @@ stretches). The winning combination is the sparsest `--passes` / highest
 - **Runtime**: Wall-clock time for various read counts
 - **Memory**: Peak RAM usage
 - **Disk space**: Database + index size
-
-### Benchmark SortMeRNA versions
-
-Benchmarking compares the latest SortMeRNA against v2.1b (the version used in the original paper). Since both binaries are named `sortmerna`, install v2.1b separately and reference it by full path.
-
-**Install SortMeRNA v2.1b:**
-
-```bash
-wget https://github.com/sortmerna/sortmerna/releases/download/2.1b/sortmerna-2.1b-linux.tar.gz
-tar -xzf sortmerna-2.1b-linux.tar.gz -C /home/ubuntu/
-sudo apt-get install -y libgomp1
-# binary: /home/ubuntu/sortmerna-2.1b/sortmerna
-export SMR_V2_BIN=/home/ubuntu/sortmerna-2.1b/sortmerna
-```
-
-*(benchmarking scripts coming soon)*
 
 ## Expected Outputs
 
