@@ -110,19 +110,24 @@ else
 fi
 
 # --- Auto-detect PBSIM3 model if not specified ---
+# Note: ERRHMM-SEQUEL.model is from PacBio Sequel (not Sequel II CCS).
+# No Sequel II CCS model exists in PBSIM3; ERRHMM-SEQUEL.model is the closest
+# available. Combined with --accuracy-mean 0.9999 it approximates CCS error rates.
 if [[ -z "${MODEL_PATH}" ]]; then
-    PBSIM3_SHARE="$(dirname "$(command -v "${PBSIM3_BIN}" 2>/dev/null || true)")/../share/pbsim3/data"   # also try share/pbsim/data
-    ALT_SHARE="$(dirname "$(command -v "${PBSIM3_BIN}" 2>/dev/null || true)")/../share/pbsim/data"
-    if [[ -f "${PBSIM3_SHARE}/ERRHMM-SEQUEL.model" ]]; then
-        MODEL_PATH="${PBSIM3_SHARE}/ERRHMM-SEQUEL.model"
-    elif [[ -f "${ALT_SHARE}/ERRHMM-SEQUEL.model" ]]; then
-        MODEL_PATH="${ALT_SHARE}/ERRHMM-SEQUEL.model"
-        # Note: ERRHMM-SEQUEL.model is from PacBio Sequel (not Sequel II CCS).
-        # No Sequel II CCS model exists in PBSIM3; ERRHMM-SEQUEL.model is the closest
-        # available. Combined with --accuracy-mean 0.9999 it approximates CCS error rates.
-    else
+    _bin_dir="$(dirname "$(command -v "${PBSIM3_BIN}" 2>/dev/null || true)")"
+    _env_root="${_bin_dir}/.."
+    for _candidate in \
+        "${_env_root}/data/ERRHMM-SEQUEL.model" \
+        "${_env_root}/share/pbsim3/data/ERRHMM-SEQUEL.model" \
+        "${_env_root}/share/pbsim/data/ERRHMM-SEQUEL.model"; do
+        if [[ -f "${_candidate}" ]]; then
+            MODEL_PATH="${_candidate}"
+            break
+        fi
+    done
+    if [[ -z "${MODEL_PATH}" ]]; then
         echo "ERROR: could not auto-detect PBSIM3 error model. Set --model explicitly." >&2
-        echo "  Looked in: ${PBSIM3_SHARE} and ${ALT_SHARE}" >&2
+        echo "  Searched under: ${_env_root}" >&2
         exit 1
     fi
 fi
