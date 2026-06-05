@@ -153,6 +153,8 @@ for set_num in 1 2 3; do
     n_detected=$(seqkit stats -T "${aligned_fa}" | tail -1 | cut -f4)
     sensitivity=$(awk "BEGIN {printf \"%.4f\", ${n_detected}/${n_total}}")
     echo "${sensitivity}" > "${sensitivity_file}"
+    echo "${n_total}"     > "${set_dir}/n_total.txt"
+    echo "${n_detected}"  > "${set_dir}/n_detected.txt"
     echo "  Sensitivity: ${n_detected}/${n_total} = $(awk "BEGIN {printf \"%.2f\", ${sensitivity}*100}")%"
 done
 
@@ -181,17 +183,20 @@ sets = [
 rows = ""
 for sn, label, db_config, reads_file in sets:
     set_dir = output_dir / f"set{sn}"
-    sens_f   = set_dir / "sensitivity.txt"
-    rt_f     = set_dir / "runtime_seconds.txt"
-    rss_f    = set_dir / "peak_rss_mb.txt"
-    aligned  = set_dir / "smr_out" / "out" / "aligned.fa"
+    sens_f      = set_dir / "sensitivity.txt"
+    rt_f        = set_dir / "runtime_seconds.txt"
+    rss_f       = set_dir / "peak_rss_mb.txt"
+    n_total_f   = set_dir / "n_total.txt"
+    n_detected_f= set_dir / "n_detected.txt"
 
     if not sens_f.exists():
         continue
 
     sensitivity = float(sens_f.read_text().strip())
-    runtime     = rt_f.read_text().strip()  if rt_f.exists()  else "-"
-    peak_rss    = rss_f.read_text().strip() if rss_f.exists() else "-"
+    runtime     = rt_f.read_text().strip()        if rt_f.exists()        else "-"
+    peak_rss    = rss_f.read_text().strip()       if rss_f.exists()       else "-"
+    n_total     = n_total_f.read_text().strip()   if n_total_f.exists()   else "-"
+    n_detected  = n_detected_f.read_text().strip()if n_detected_f.exists()else "-"
     pct         = f"{sensitivity * 100:.2f}%"
 
     rows += (
@@ -199,6 +204,8 @@ for sn, label, db_config, reads_file in sets:
         f"<td>{label}</td>"
         f"<td>{db_config}</td>"
         f"<td>{reads_file}</td>"
+        f"<td>{n_total}</td>"
+        f"<td>{n_detected}</td>"
         f"<td>{pct}</td>"
         f"<td>{runtime}</td>"
         f"<td>{peak_rss}</td>"
@@ -238,6 +245,7 @@ from non-seed cluster members at the matching clustering threshold. E-value: {ev
   <thead>
     <tr>
       <th>Set</th><th>Database</th><th>Reads file</th>
+      <th>Total reads</th><th>Total aligned reads</th>
       <th>Sensitivity</th><th>Runtime (s)</th><th>Peak RSS (MB)</th>
     </tr>
   </thead>

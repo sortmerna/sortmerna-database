@@ -3,9 +3,58 @@
 [![CI](https://github.com/sortmerna/sortmerna-database/actions/workflows/tests.yml/badge.svg)](https://github.com/sortmerna/sortmerna-database/actions/workflows/tests.yml)
 [![Coverage](https://codecov.io/gh/sortmerna/sortmerna-database/branch/main/graph/badge.svg)](https://codecov.io/gh/sortmerna/sortmerna-database)
 
-A comprehensive benchmarking framework for building and evaluating optimized rRNA databases for SortMeRNA across modern sequencing platforms.
+A benchmarking framework for building and evaluating rRNA databases for SortMeRNA across modern sequencing platforms.
 
 **Status**: 🚧 Active Development - this repository is undergoing daily changes and is not yet ready for use. Scripts, workflows, and outputs may change without notice. Do not use this repository in production or depend on its outputs until this status is updated to indicate a stable release.
+
+Latest databases (SILVA 138.2 + Rfam 15.1):
+
+| Database | Sequences | Index size | Clustering | Recommended for | Link |
+|---|---|---|---|---|---|
+| `smr_v6.0.2_sensitive_db` | 515,371 | 3.8 GB | 97% all | Maximum sensitivity | comming soon
+| `smr_v6.0.2_default_db` | 240,397 | 2.0 GB | 90-95% SILVA, seed Rfam | General use (recommended) | coming soon
+| `smr_v6.0.2_fast_db` | 137,179 | 1.1 GB | 85-90% SILVA, seed Rfam | Speed-critical workflows | coming soon
+
+Full build report: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
+
+These databases can be used with any SortMeRNA version. For SortMeRNA v6.0.0 and later we recommend `-e 1e-5` instead of the previous default of `-e 1`: v6.0.0 switched the hash index from CMPH to BBHash and alignment from SSW to Parasail, and latest benchmarks show a minor improvement in selectivity at this threshold with no impact on sensitivity or runtime.
+
+**Step 1 - Build the index (once per database):**
+```bash
+sortmerna --ref smr_v6.0.2_default_db.fasta --idx-dir idx/ --task 5
+```
+
+**Step 2 - Filter reads (reuse the index for every run):**
+```bash
+sortmerna --ref smr_v6.0.2_default_db.fasta --reads reads_R1.fastq --reads reads_R2.fastq \
+    --idx-dir idx/ --workdir run/ --fastx --paired_in --threads 4 -e 1e-5
+```
+
+`--workdir` is the base directory for everything that doesn't have its own explicit path override. Under it, SortMeRNA creates:
+
+| Subdirectory | Contents | Override option |
+|---|---|---|
+| `idx/` | Reference index | `--idx-dir` |
+| `kvdb/` | Alignment key-value DB (intermediate) | `--kvdb` |
+| `readb/` | Pre-processed/split reads | `--readb` |
+| `out/` | Final output files (`aligned.*`, `other.*`) | `--aligned` / `--other` |
+
+In the command above, `--workdir run/` combined with `--idx-dir idx/` means the index is read from `idx/` (explicit override) and everything else (kvdb, output files) lands under `run/`.
+
+> **Note:** SortMeRNA will exit with an error if `run/kvdb/` already exists and is non-empty. Remove or empty it between runs.
+
+**Paired-end output behavior (`--paired_in` / `--paired_out`):**
+
+The default behavior (neither flag set) is per-read: each read is written to the aligned output only if it individually aligns. The pair is not kept together - one read can end up in the aligned output while its mate is absent (or in the `--other` output if specified).
+
+| Scenario | `--paired_in` | `--paired_out` | Default (neither) |
+|---|---|---|---|
+| Both reads align | both → aligned | both → aligned | both → aligned |
+| Only R1 aligns | both → aligned | both → non-aligned | R1 → aligned, R2 dropped |
+| Only R2 aligns | both → aligned | both → non-aligned | R2 → aligned, R1 dropped |
+| Neither aligns | neither written | neither written | neither written |
+
+`--paired_in` is the conservative choice for most rRNA filtering workflows: it keeps pairs intact, which downstream tools (assemblers, quantifiers) require. Use `--paired_out` if you want the non-rRNA output to be pair-intact instead (e.g. for downstream assembly of the non-rRNA fraction).
 
 ## Overview
 
@@ -30,21 +79,29 @@ This repository contains code and workflows to:
 
 ### Phase 2: Validation and Benchmarking
 - [x] Simulate Illumina 150bp rRNA using non-seed cluster members and non-rRNA reads using T2T genome + Rfam non-rRNA families (InSilicoSeq)
-- [x] Experiment 1: Scalability - run SortMeRNA on T2T non-rRNA and rRNA reads at 10K, 100K, 1M, 10M scale points; generate runtime, FP rate, sensitivity, and E-value plots
-- [x] Experiment 2: Simulate rRNA reads from non-seed members at each clustering threshold (simulate_rrna_reads.sh)
+- [x] Simulate rRNA reads from non-seed members at each clustering threshold
+- [x] Experiment 1: Run SortMeRNA on T2T non-rRNA (10K-10M), Rfam ncRNA (10K-500K), and rRNA reads (10K-10M); generate runtime, FP rate, sensitivity, and E-value plots
 - [x] Experiment 2: Run SortMeRNA against matched database configuration and measure sensitivity
+- [x] Experiment 3: Run SortMeRNA on Deng et al. 2022 benchmark datasets (sensitivity and specificity)
 - [ ] Download real Illumina metatranscriptomics data
 - [ ] Download real PacBio amplicon data (Karst et al. 2021)
 - [ ] Download real PacBio metagenomics data
 - [ ] Benchmark latest SortMeRNA vs. SortMeRNA v2.1b (original paper) and other tools: sensitivity, specificity, runtime, memory
 
 
+## AWS Instances
+
+Benchmarking was run on AWS EC2:
+- **c6i.xlarge** - 4 vCPUs, 8 GB RAM (compute-intensive runs)
+- **r6i.xlarge** - 4 vCPUs, 32 GB RAM (memory-intensive runs)
+- **r6i.16xlarge** - 64 vCPUs, 512 GB RAM (memory + compute-intensive runs)
+
 ## Installation
 
 ### Requirements
 
 **Core tools:**
-- [SortMeRNA](https://github.com/sortmerna/sortmerna) v6.0.1 - rRNA filtering (installed from source, see Quick Start)
+- [SortMeRNA](https://github.com/sortmerna/sortmerna) v6.0.2 - rRNA filtering (installed from source, see Quick Start)
 - [VSEARCH](https://github.com/torognes/vsearch) >= 2.22 - sequence clustering
 - [Infernal](http://eddylab.org/infernal/) >= 1.1.4 - covariance model search (cmsearch, cmpress)
 - [SeqKit](https://bioinf.shenwei.me/seqkit/) >= 2.5 - sequence statistics
@@ -146,6 +203,8 @@ export INDEX_DIR=$DATA_DIR/index
 export NON_RRNA_DIR=$DATA_DIR/non_rrna
 export RRNA_SIM_DIR=$DATA_DIR/rrna_sim
 export SCALABILITY_DIR=$DATA_DIR/scalability_test
+export SENSITIVITY_DIR=$DATA_DIR/sensitivity_test
+export THIRD_PARTY_ILLUMINA_BENCHMARK_DIR=/home/ubuntu/results-r6i.16xlarge
 
 # SILVA versions and full download URLs (update to use a different release or file type)
 export SILVA_SSU_VERSION=138.2
@@ -196,7 +255,7 @@ Before clustering, all sequences were independently verified as rRNA using Infer
 - **5.8S**: RF00002 (Eukaryota)
 - **5S**: RF00001 (all domains)
 
-Trimming to the cmsearch hit coordinates was strategic for SortMeRNA: the tool builds a k-mer index over every reference sequence, so any non-rRNA nucleotides in a reference - flanking genomic DNA, assembly context, or sequence that SILVA's own truncation missed - would be indexed alongside the rRNA and could produce false-positive matches against non-rRNA reads.
+Trimming to cmsearch coordinates reduces false positives: SortMeRNA indexes every nucleotide in each reference sequence, so non-rRNA flanking sequence would be indexed alongside rRNA and increase the false-positive rate.
 
 #### Tools Considered
 
@@ -219,9 +278,9 @@ Key features:
 
 All sequences were independently verified as rRNA using Infernal's `cmsearch --cut_ga`. SILVA SSU/LSU sequences were screened with `--hmmonly` (profile-HMM only, no secondary-structure scoring), which is sufficient for long ribosomal RNAs and substantially faster; Rfam 5S and 5.8S sequences used a full covariance-model search because these shorter RNAs benefit more from secondary-structure information. Each verified sequence was trimmed to the cmsearch hit coordinates `[seq_from, seq_to]`; sequences with no above-threshold hit were written to `flagged_*.fasta` and excluded from downstream steps.
 
-**Multi-hit merging.** Some sequences produce more than one `!`-threshold hit against the same covariance model, typically because cmsearch reports separate local alignments for different segments of the same rRNA gene. When this happens, the trimming window is expanded to `[min(seq_from), max(seq_to)]` across all hits - but only if that merged span covers at least **85%** of the original sequence length (`COVERAGE_THRESHOLD = 0.85`). If coverage is below this threshold the hits are non-contiguous enough to suggest a chimera, assembly artifact, or non-rRNA insertion between the matching regions; the sequence is instead trimmed to the single highest-scoring hit and its log entry is marked `_REVIEW`. The merged span intentionally includes any gap between hits: for rRNA, inter-hit gaps typically correspond to hypervariable regions that score poorly against the profile HMM but are still genuine rRNA sequence. Including a gap is therefore usually correct, while excluding it risks discarding valid sequence; the 85% threshold provides a safeguard against merging across large non-rRNA insertions.
+**Multi-hit merging.** When cmsearch reports multiple above-threshold hits for the same sequence (typically separate local alignments over different segments of the same rRNA gene), the trimming window is expanded to `[min(seq_from), max(seq_to)]` - but only if the merged span covers at least **85%** of the original sequence length. Below that threshold the sequence is trimmed to the single highest-scoring hit and flagged `_REVIEW` (suggesting a chimera or non-rRNA insertion). The 85% threshold is permissive enough to include hypervariable inter-hit gaps, which are genuine rRNA, while guarding against merging across large non-rRNA insertions.
 
-**Minimum trimmed length.** After trimming, sequences shorter than **50%** of the original SILVA sequence length are routed to `flagged_*.fasta` rather than `clean`. This catches cases where only a small fragment of the rRNA was recovered after trimming - for example, a sequence where cmsearch aligned only to a short terminal region while the bulk of the sequence had no rRNA match. Such fragments are too partial to serve as reliable SortMeRNA reference sequences and could reduce specificity by matching non-rRNA reads that happen to resemble that short region. The note column in the TSV log records `too_short` for these cases.
+**Minimum trimmed length.** Sequences shorter than **50%** of the original length after trimming are routed to `flagged_*.fasta` (`too_short` in the log).
 
 **LSU Eukaryota is most affected.** Multi-hit and short-fragment cases were disproportionately observed in LSU eukaryotic sequences (RF02543, model length ~3400 bp). Among the ~16,000 LSU eukaryota sequences verified from SILVA 138.2, approximately 1.7% were flagged for low-coverage multi-hit patterns requiring manual review.
 
@@ -255,7 +314,7 @@ Outputs per domain/type in each verified directory:
 
 - SILVA 138.2: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified/verification_summary.html" target="_blank">verification_summary.html</a>
 
-- Rfam: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified_rfam/verification_summary.html" target="_blank">verification_summary.html</a>
+- Rfam 15.1: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified_rfam/verification_summary.html" target="_blank">verification_summary.html</a>
 
 ### Build Clustered Databases
 
@@ -295,11 +354,11 @@ Three database configurations are assembled from the clustered FASTA files and i
 
 | Configuration | SILVA SSU bacteria | SILVA SSU other | SILVA LSU | Rfam 5S / 5.8S |
 |---|---|---|---|---|
-| `smr_v<version>_sensitive_db` | 97% | 97% | 97% | 97% (full) |
-| `smr_v<version>_default_db` | 90% | 95% | 95% | seed |
-| `smr_v<version>_fast_db` | 85% | 90% | 90% | seed |
+| `smr_v<version>_sensitive_db` | 97% | 97% | 97% | 97% |
+| `smr_v<version>_default_db` | 90% | 95% | 95% | 90% |
+| `smr_v<version>_fast_db` | 85% | 90% | 90% | 85% |
 
-The sensitive database maximises recall; the default and fast databases trade a small number of sequences for a smaller index and faster runtime. Bacteria SSU uses a one-step lower threshold than the other SILVA domains in the default and fast configurations because bacterial 16S sequences are the largest and most diverse group - a slightly lower threshold helps limit index size without meaningfully reducing sensitivity.
+The sensitive database maximises recall; the default and fast databases trade a small number of sequences for a smaller index and faster runtime.
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh \
@@ -334,7 +393,7 @@ Two separate test sets from different sources, used independently to measure spe
 | File | Source | Description |
 |------|--------|-------------|
 | `non_rRNA_test_10M_T2T.fasta` | Human T2T genome (CHM13v2.0) | 10M simulated 150bp PE reads, rRNA loci masked prior to simulation |
-| `non_rRNA_test_Rfam.fasta` | Rfam non-rRNA families | 500K sequences sampled evenly across 10 families that share structural features with rRNA (the most challenging specificity test) |
+| `non_rRNA_test_Rfam.fasta` | Rfam non-rRNA families | 500K sequences sampled evenly across 10 families that share structural features with rRNA |
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR 4
@@ -347,13 +406,11 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_non_rrna.sh $NON_RRNA_DIR
 4. Simulate 10M 150bp PE reads with InSilicoSeq (NovaSeq error model)
 
 **Supplementing GFF3 with cmsearch:**
-The T2T-CHM13v2.0 assembly resolves the Nucleolar Organizer Regions (NORs) on the short arms of acrocentric chromosomes (chr13, chr14, chr15, chr21, chr22), assembling the large tandem arrays of rDNA repeat units encoding 18S/5.8S/28S rRNA that were largely absent or unsequenced in GRCh37/GRCh38. Comparison of cmsearch-identified rDNA loci against the RefSeq GFF3 annotation reveals rDNA sequence not covered by the annotation (exact figures are reported in <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/non_rrna/non_rrna_test_set_summary.html" target="_blank">non_rrna_test_set_summary.html</a> generated by `simulate_non_rrna.sh`), demonstrating that annotation-based masking alone is insufficient for this assembly. To run cmsearch, set `CMS_DIR` to a directory of pressed Rfam covariance models (see `download_non_rrna.sh` for details); without it the script falls back to GFF3-only masking.
+The T2T-CHM13v2.0 assembly resolves the Nucleolar Organizer Regions (NORs) on the short arms of acrocentric chromosomes (chr13, chr14, chr15, chr21, chr22), assembling the large tandem arrays of rDNA repeat units encoding 18S/5.8S/28S rRNA. Comparison of cmsearch-identified rDNA loci against the RefSeq GFF3 annotation reveals rDNA sequence not covered by the annotation (exact figures are reported in <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/non_rrna/non_rrna_test_set_summary.html" target="_blank">non_rrna_test_set_summary.html</a> generated by `simulate_non_rrna.sh`), demonstrating that cmsearch supplements the GFF3 by recovering rDNA loci not individually annotated in RefSeq. To run cmsearch, set `CMS_DIR` to a directory of pressed Rfam covariance models (see `download_non_rrna.sh` for details); without it the script falls back to GFF3-only masking.
 
-BLAST analysis of the RF01960 (18S) regions not covered by GFF3 shows that the large majority are rRNA-derived: the most common top hits are 45S pre-ribosomal RNA entries, followed by 18S ribosomal pseudogene entries. All are included in the masking BED - if a sequence is annotated as a ribosomal pseudogene it is rRNA-derived and SortMeRNA, which operates purely on sequence content, would correctly flag reads from it.
+BLAST analysis of the RF01960 (18S) regions not covered by GFF3 shows that the large majority are rRNA-derived: the most common top hits are 45S pre-ribosomal RNA entries, followed by 18S ribosomal pseudogene entries. All are included in the masking BED - if a sequence is annotated as a ribosomal pseudogene it is rRNA-derived and SortMeRNA, which operates purely on sequence content, would flag reads from it.
 
-Note: RF00001 (5S rRNA) hits include 5S pseudogenes distributed across many chromosomes in addition to functional copies - BLAST analysis confirms these are RNA5SP* pseudogene entries. These are included in the masking BED for the same reason.
-
-Note: The mitochondrial 12S rRNA (homologue of the SSU rRNA: RF00177) and 16S rRNA (homologue of the LSU rRNA: RF02541) were identified by running cmsearch against chrM only and added to the masking BED. The two mt-rRNA genes are separated by ~70 bp and merge into a single BED region after adding the 100 bp margin. Without this step, reads simulated from mitochondrial rRNA loci would not be masked and could contribute artifactual alignments that inflate apparent false-positive signal.
+Note: Mitochondrial 12S (RF00177) and 16S (RF02541) rRNA genes are identified by cmsearch against chrM only and added to the masking BED.
 
 **Preparation (Rfam):**
 1. Download 10 non-rRNA families (tRNA, SRP RNA, tmRNA, RNase P, spliceosomal RNAs)
@@ -361,7 +418,7 @@ Note: The mitochondrial 12S rRNA (homologue of the SSU rRNA: RF00177) and 16S rR
 
 Sequences are used as-is without read simulation. Most Rfam families consist of short RNAs (tRNA averages 73 bp, spliceosomal snRNAs 100-200 bp); simulating 150 bp reads from these sequences would discard the majority of them due to length. The natural length distribution is also the point: these structurally complex RNAs should be rejected by SortMeRNA regardless of length.
 
-Sampling evenly across families (fair-share allocation, ~102K per large family at the 500K default) ensures all families are equally represented regardless of family size. A fixed random seed (`--seed 42`) makes the output reproducible.
+Sampling uses fair-share allocation: the per-family quota starts at `target / n_families` and is recomputed after each round as small families are exhausted and removed, so larger families absorb the slack. If total available sequences across all families is less than the target, all sequences are used. A fixed random seed (`--seed 42`) makes the output reproducible.
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh \
@@ -383,8 +440,6 @@ Three Sets of simulated Illumina rRNA reads, one per database configuration. Eac
 | Set 2 | bacteria SSU 90%, others 95%, Rfam 90% | `smr_v${SMR_VERSION}_default_db` | 12,500 per rRNA type x 8 types = 100,000 |
 | Set 3 | bacteria SSU 85%, others 90%, Rfam 85% | `smr_v${SMR_VERSION}_fast_db` | 12,500 per rRNA type x 8 types = 100,000 |
 
-Rfam 5S and 5.8S use 97% non-seed members for all Sets because the default and fast databases use seed-only Rfam (no threshold-based clustering), so 97% members are absent from all three databases.
-
 **Preparation:**
 1. Cluster sequences with `cluster_sequences.sh` (produces `*_test_members.fasta` files)
 2. Run InSilicoSeq on each rRNA type's non-seed members (150bp PE, NovaSeq model)
@@ -401,13 +456,13 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh \
 
 **Scalability pool (Experiment 1):** `simulate_rrna_reads.sh` also produces `rRNA_test_10M.fasta` alongside the three sensitivity sets. The pool is built from Set 2 non-seed sources (default database, 90-95% clustering thresholds) and combines two source types:
 - **SILVA types (6 types, SSU + LSU):** IUPAC-cleaned and run through ISS (NovaSeq model, 150bp PE). ISS generates 10M reads.
-- **Rfam 5S (avg 117bp) and 5.8S (avg 150bp):** included directly as-is (IUPAC-cleaned, no min-length filter). These sequences are shorter than the ISS read length and cannot be reliably simulated; including them directly ensures short rRNA - the hardest sequences to detect as `S_min` rises with read count - are represented in the scalability pool.
+- **Rfam 5S (avg 117bp) and 5.8S (avg 150bp):** included directly as-is (IUPAC-cleaned, no min-length filter). These sequences are shorter than the ISS read length and cannot be reliably simulated; including them directly ensures short rRNA are represented in the scalability pool.
 
 The SILVA ISS reads and Rfam direct sequences are shuffled together before output.
 
 ## Phase 2: Validation and Benchmarking
 
-Evaluate the databases built in Phase 1 for sensitivity (rRNA detection) and specificity (false positive rate), and benchmark the latest SortMeRNA against v2.1b. Simulated Illumina reads from non-seed cluster members test sensitivity at each clustering threshold; non-rRNA reads from the T2T genome and Rfam test specificity. Real PacBio amplicon data provides an independent validation.
+Evaluate the databases built in Phase 1 for sensitivity (rRNA detection) and specificity (false positive rate). Simulated Illumina reads from non-seed cluster members test sensitivity at each clustering threshold; non-rRNA reads from the T2T genome and Rfam test specificity. The Deng et al. 2022 benchmark datasets provide an additional evaluation on published, independently curated test data. Real PacBio amplicon data provides an independent validation on long reads.
 
 ### Benchmarking Approach
 
@@ -423,11 +478,11 @@ SortMeRNA is an rRNA **filter** - it answers "is this read rRNA?" not "which typ
 
 #### E-value Filtering
 
-SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`) with Gumbel parameters (λ, K) [6,7] computed via the ALP library, where `m` is the query length, `n` is the total length of the reference database, `S` is the alignment score, and `E` is the expected number of alignments with score >= S by chance. Rather than computing a floating-point E-value per alignment, SortMeRNA inverts the formula once at startup to derive a minimum Smith-Waterman score (`S_min = ln(E / (K·m·n)) / (-λ)`), then filters reads with a single integer comparison during alignment.
+SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`) with Gumbel parameters (λ, K) [6,7] computed via the ALP library, where `m` and `n` are the effective query and database lengths (raw lengths minus an edge-effect correction), `S` is the alignment score, and `E` is the expected number of alignments with score >= S by chance. Rather than computing a floating-point E-value per alignment, SortMeRNA inverts the formula once at startup to derive a minimum Smith-Waterman score (`S_min = ln(E / (K·m·n)) / (-λ)`), then filters reads with a single integer comparison during alignment.
 
-**Distinction from BLAST**: in BLAST, `m` is the length of the individual query sequence, giving a per-query E-value. In SortMeRNA, `m` is the total nucleotide count across all reads in the dataset. This means `S_min` sets a run-level threshold: the expected number of spurious alignments across all reads against the database is <= E, not <= E per read. The effective per-read E-value is therefore `E / total_reads` - with 1M reads and E=1.0, the per-read threshold is 0.000001, far stricter than BLAST's default. A consequence is that the threshold is dataset-size dependent: adding more reads makes filtering more stringent, and short reads face the same absolute score threshold as long reads regardless of their length.
+**Distinction from BLAST**: in BLAST, `m` is the length of the individual query sequence, giving a per-query E-value. In SortMeRNA, `m` is the total nucleotide count across all reads in the dataset (every read is filtered against the same score threshold regardless of its own length). This means `S_min` sets a run-level threshold: the expected number of spurious alignments across all reads against the database is <= E, not <= E per read.
 
-This design is also motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~124M total bases (~69K sequences), roughly 10,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) (July 2023) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
+This design is motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~124M total bases (~69K sequences), roughly 10,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) (July 2023) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~10,000x smaller than BLAST's.
 
 **Parallelism and `--score_split`**: SortMeRNA processes reads in parallel by dividing the input file into per-thread byte-range chunks - no physical splitting of the reads file occurs. By default, `m` is the total nucleotide count across all reads regardless of thread count, so `S_min` is identical across threads and the run-level threshold holds. The `--score_split` option changes this: it divides `m` by the number of threads, computing `S_min` as if each thread's chunk were an independent dataset. This lowers `S_min` (more lenient threshold), with an effect equivalent to increasing the E-value. It is off by default and should be used with care, as it makes the threshold dependent on the number of threads rather than the size of the dataset.
 
@@ -435,10 +490,11 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
 
 **Goal:** How do runtime and memory scale with read volume, and do sensitivity and false positive rate remain stable at large scale?
 
-- **Design:** Fixed configuration (SMR default db) across increasing read volumes, run separately for rRNA reads and T2T non-rRNA reads
-- **Read volumes:** 10,000 -> 100,000 -> 1,000,000 -> 10,000,000 reads
+- **Design:** Fixed configuration (SMR default db) across increasing read volumes, run separately for rRNA reads, T2T non-rRNA reads, and Rfam non-rRNA reads
+- **Read volumes:** T2T and rRNA: 10,000 -> 100,000 -> 1,000,000 -> 10,000,000; Rfam: 10,000 -> 100,000 -> 500,000 (capped by family size)
 - **rRNA reads:** Subsampled from Set 2 non-seeds (90-95% identity members: default db) - tests sensitivity and the E-value threshold scaling effect (`S_min` increases with total read count, so sensitivity may shift across scale points)
-- **Non-rRNA reads:** Subsampled from `non_rRNA_test_10M_T2T.fasta` (10M reads simulated from the masked T2T genome to cover all scale points without re-running InSilicoSeq) - tests false positive rate at scale. The Rfam non-rRNA sequences were not used here because the T2T genome provides a much larger pool to sample from, and InSilicoSeq can generate consistent 150bp paired-end reads at any volume. Rfam families have limited sequence counts and many members are shorter than 150bp, making it impractical to simulate uniform-length reads at the scales needed for this experiment.
+- **Non-rRNA reads (T2T):** Subsampled from `non_rRNA_test_10M_T2T.fasta` - tests false positive rate at scale up to 10M reads
+- **Non-rRNA reads (Rfam):** Subsampled from `non_rRNA_test_Rfam.fasta` - tests specificity against structurally complex ncRNAs, capped at 500K due to family size limits
 - **Rationale for default db:** The configuration most users would deploy in practice; runtime numbers are directly interpretable for real-world use
 - **Metrics:**
   - Wall-clock runtime at each scale point
@@ -448,9 +504,9 @@ This design is also motivated by the difference in database scale. SortMeRNA's r
   - E-value and % identity distributions of aligned reads at each scale point
 - **`--score_split` comparison:** Re-run at each scale point with `--score_split` enabled. This option computes `S_min` from the per-thread chunk size rather than the total dataset size, making the threshold less sensitive to total read count. Comparing the two runs directly shows how much sensitivity and false positive rate shift when the E-value threshold is decoupled from dataset scale.
 
-Run for T2T non-rRNA reads (false positive rate at scale), Rfam non-rRNA reads (hardest specificity test - structurally similar to rRNA), and rRNA reads (sensitivity at scale) across four E-value thresholds. E-value 1 is SortMeRNA's default. Requires `non_rRNA_test_10M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` from `simulate_non_rrna.sh` and `rRNA_test_10M.fasta` from `simulate_rrna_reads.sh`. The Rfam non-rRNA set has 500K reads so its scale points are capped at 500K:
+Run for T2T non-rRNA reads + Rfam non-rRNA reads (false positive rate at scale) and rRNA reads (sensitivity at scale) across four E-value thresholds. Requires `non_rRNA_test_10M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` from `simulate_non_rrna.sh` and `rRNA_test_10M.fasta` from `simulate_rrna_reads.sh`. The Rfam non-rRNA set has 500K reads so its scale points are capped at 500K:
 
-Subsample reads once at E-value 1 (the default), then reuse those reads for the remaining thresholds with `--reads-dir`:
+Subsample reads once, then reuse those reads for the remaining thresholds with `--reads-dir`:
 
 ```bash
 for ev in 1 0.1 0.05 0.01 0.001 0.0001 0.00001; do
@@ -561,6 +617,32 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_sensitivity.sh \
 ```
 
 Outputs a per-Set sensitivity table and HTML summary at `$SENSITIVITY_DIR/sensitivity_summary.html`.
+
+#### Experiment 3: Benchmark on Deng et al. 2022 datasets
+
+**Goal:** Evaluate SortMeRNA (default db, `-e 1e-5`) on the benchmark datasets published in [Deng et al. 2022 (*Nucleic Acids Research*)](https://doi.org/10.1093/nar/gkac112), using the 6 of the 8 datasets available for download (source from manuscript: [Zenodo](https://zenodo.org/records/5547691)). Note both `RiboDetector_benchmark_datasets.tar.gz` and `RiboDetector_metaT_dataset.tar.gz` were downloaded and `RiboDetector_metaT_dataset`/* reads moved into `RiboDetector_benchmark_datasets` for benchmarking.
+
+Most datasets were simulated with ART_Illumina v2.3.7 (`-p -l 100 -ss HS25 -m 150 -s 10`, paired-end 100 bp HiSeq 2500 model). FN datasets (rRNA input) measure sensitivity; FP datasets (non-rRNA input) measure specificity; MetaT (mixed) is reported as NA since true labels are unknown at the read level.
+
+| Dataset | Test | Pairs | Description |
+|---|---|---|---|
+| SILVA_rRNA | FN | 20,000,000 | SILVA SSU+LSU rRNA sequences |
+| OMA_CDS | FP | 20,000,000 | prokaryotic and eukaryotic mRNA |
+| ENA_virus | FP | 27,206,792 | Viral gene sequences from ENA |
+| Amplicon_16S | FN | 7,917,920 | Real 16S V1-V2 amplicon reads (oral microbiome study) |
+| Human_ncRNA | FP | 6,330,381 | Human non-coding RNA |
+| MetaT | FN+FP | 9,165,829 | Oral metatranscriptome: 4.7M prokaryotic mRNA, 2.5M human mRNA, 73K viral mRNA, 1.9M rRNA (21% rRNA fraction) |
+
+Run on AWS EC2 r6i.16xlarge (64 vCPUs, 512 GB RAM) using 40 threads to match the 40 CPU cores used in Deng et al. 2022, allowing a closer comparison of runtime results. Only SortMeRNA results are reported here; benchmarking against other tools is out of scope for this repository and will be covered in the upcoming publication. To run the benchmark:
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_smr_benchmark.sh \
+    /home/ubuntu/TESTS/RiboDetector_benchmark_datasets \
+    $THIRD_PARTY_ILLUMINA_BENCHMARK_DIR \
+    --threads 40
+```
+
+Outputs a per-dataset summary TSV and HTML report at `$THIRD_PARTY_ILLUMINA_BENCHMARK_DIR/summary.html`.
 
 #### Real Benchmark Datasets (PacBio)
 Sensitivity test using real PacBio long-read amplicon data:
@@ -710,3 +792,4 @@ LGPL-3.0
 6. Karlin S, Altschul SF. Methods for assessing the statistical significance of molecular sequence features by using general scoring schemes. Proc Natl Acad Sci U S A. 1990 Mar;87(6):2264-2268. doi: [10.1073/pnas.87.6.2264](https://doi.org/10.1073/pnas.87.6.2264)
 7. Madden T. The BLAST Sequence Analysis Tool. 2013 Mar 15. In: The NCBI Handbook [Internet]. 2nd edition. Bethesda (MD): National Center for Biotechnology Information (US); 2013-. Available from: https://www.ncbi.nlm.nih.gov/books/NBK153387/
 8. National Library of Medicine. BLAST Databases. July 2023. Available from: https://www.nlm.nih.gov/ncbi/workshops/2023-08_BLAST_evol/databases.html
+9. Deng ZL, Münch PC, Mreches R, McHardy AC. Rapid and accurate identification of ribosomal RNA sequences via deep learning. Nucleic Acids Res. 2022 Jun 10;50(10):e60. doi: [10.1093/nar/gkac112](https://doi.org/10.1093/nar/gkac112)
