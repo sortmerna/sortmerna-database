@@ -614,15 +614,14 @@ A `scalability_benchmark_summary.html` file is written alongside the ROC plot co
 Run SortMeRNA for each Set against its matched database configuration (rRNA reads produced in Phase 1 - see rRNA Test Sets). Replace `<optimal_evalue>` with the value identified from the Experiment 1 ROC curve:
 
 ```bash
-export SENSITIVITY_DIR=$DATA_DIR/sensitivity_test
-
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_sensitivity.sh \
     $SENSITIVITY_DIR \
     4 \
     --evalue 1e-5
 ```
 
-Outputs a per-Set sensitivity table and HTML summary at `$SENSITIVITY_DIR/sensitivity_summary.html`.
+> [!NOTE]
+> Outputs a per-Set sensitivity table and HTML summary: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/sensitivity_test/sensitivity_summary.html" target="_blank">sensitivity_summary.html</a>.
 
 #### Experiment 3: Benchmark on Deng et al. 2022 datasets
 
@@ -648,7 +647,8 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_smr_benchmark.sh \
     --threads 40
 ```
 
-Outputs a per-dataset summary TSV and HTML report at `$THIRD_PARTY_ILLUMINA_BENCHMARK_DIR/summary.html`.
+> [!NOTE]
+> Outputs a per-Set summary HTML: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/results-r6i.16xlarge/summary.html" target="_blank">summary.html</a>.
 
 #### Real Benchmark Datasets (PacBio)
 Sensitivity test using real PacBio long-read amplicon data:
