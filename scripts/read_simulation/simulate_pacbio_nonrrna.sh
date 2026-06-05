@@ -181,7 +181,7 @@ echo "Running PBSIM3..."
     --accuracy-mean "${ACCURACY}" \
     --seed "${SEED}" \
     --prefix "${PBSIM3_PREFIX}" \
-    "${MASKED_FA}"
+    --genome "${MASKED_FA}"
 
 echo ""
 echo "Merging per-chromosome FASTQ files..."
