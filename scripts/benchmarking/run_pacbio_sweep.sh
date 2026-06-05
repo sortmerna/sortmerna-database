@@ -78,7 +78,7 @@ run_smr() {
         --passes "${passes}" \
         --num_seeds "${num_seeds}" \
         --threads "${THREADS}" \
-        --fastx \
+        --fastx --blast 1 \
         -e 1e-5
 }
 
