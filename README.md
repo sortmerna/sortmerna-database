@@ -15,7 +15,8 @@ Latest databases (SILVA 138.2 + Rfam 15.1):
 | `smr_v6.0.2_default_db` | 240,397 | 2.0 GB | 90-95% SILVA, seed Rfam | General use (recommended) | coming soon
 | `smr_v6.0.2_fast_db` | 137,179 | 1.1 GB | 85-90% SILVA, seed Rfam | Speed-critical workflows | coming soon
 
-Full build report: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
+> [!TIP]
+> Full build report: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
 
 These databases can be used with any SortMeRNA version. For SortMeRNA v6.0.0 and later we recommend `-e 1e-5` instead of the previous default of `-e 1`: v6.0.0 switched the hash index from CMPH to BBHash and alignment from SSW to Parasail, and latest benchmarks show a minor improvement in selectivity at this threshold with no impact on sensitivity or runtime.
 
@@ -312,9 +313,9 @@ Outputs per domain/type in each verified directory:
 
 **Verification Summary**
 
-- SILVA 138.2: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified/verification_summary.html" target="_blank">verification_summary.html</a>
-
-- Rfam 15.1: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified_rfam/verification_summary.html" target="_blank">verification_summary.html</a>
+> [!TIP]
+> SILVA 138.2: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified/verification_summary.html" target="_blank">verification_summary.html</a>
+> Rfam 15.1: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified_rfam/verification_summary.html" target="_blank">verification_summary.html</a>
 
 ### Build Clustered Databases
 
@@ -346,7 +347,8 @@ For each database and clustering threshold, the script outputs four files:
 
 The centroid sequences (`*_XX.fasta`) become the SortMeRNA reference databases. The non-seed members (`*_XX_test_members.fasta`) are sequences that were clustered away at each threshold, providing a natural source of reads for benchmarking - since they are real rRNA sequences not present in the database, they test whether SortMeRNA can still identify similar but non-identical rRNA.
 
-- Summary of total sequences per clustering threshold and SortMeRNA reference databases: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/clustered/clustering_summary.html" target="_blank">clustering_summary.html</a>
+> [!TIP]
+> Summary of total sequences per clustering threshold and SortMeRNA reference databases: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/clustered/clustering_summary.html" target="_blank">clustering_summary.html</a>
 
 ### Build SortMeRNA Indices
 
@@ -366,7 +368,8 @@ bash $SMR_DB_ROOT_DIR/scripts/database_building/build_sortmerna_index.sh \
     $INDEX_DIR
 ```
 
-- Per-configuration index build report (sequence count, build time, index size, peak CPU%, peak RAM): <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
+> [!TIP]
+> Per-configuration index build report (sequence count, build time, index size, peak CPU%, peak RAM): <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
 
 Pass `--force` to rebuild an index that already exists:
 
@@ -428,7 +431,8 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_non_rrna.sh \
     --rfam-reads 500000
 ```
 
-- Non-rRNA reference sources summary for read simulation: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/non_rrna/non_rrna_test_set_summary.html" target="_blank">non_rrna_test_set_summary.html</a>
+> [!TIP]
+> Non-rRNA reference sources summary for read simulation: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/non_rrna/non_rrna_test_set_summary.html" target="_blank">non_rrna_test_set_summary.html</a>
 
 ### rRNA Test Sets
 
@@ -452,7 +456,8 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh \
     --clustered-dir $CLUSTERED_DIR
 ```
 
-- rRNA read simulation summary: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/rrna_sim/rrna_simulation_summary.html" target="_blank">rrna_simulation_summary.html</a>
+> [!TIP]
+> rRNA read simulation summary: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/rrna_sim/rrna_simulation_summary.html" target="_blank">rrna_simulation_summary.html</a>
 
 **Scalability pool (Experiment 1):** `simulate_rrna_reads.sh` also produces `rRNA_test_10M.fasta` alongside the three sensitivity sets. The pool is built from Set 2 non-seed sources (default database, 90-95% clustering thresholds) and combines two source types:
 - **SILVA types (6 types, SSU + LSU):** IUPAC-cleaned and run through ISS (NovaSeq model, 150bp PE). ISS generates 10M reads.
@@ -590,7 +595,8 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
 
 A `scalability_benchmark_summary.html` file is written alongside the ROC plot containing: the embedded ROC curve and runtime/RAM plots; per-E-value and per-scale-point tables for T2T non-rRNA reads and Rfam non-rRNA reads (reads classified as rRNA); and a per-family sensitivity breakdown for SILVA rRNA reads showing how many reads from each rRNA family (silva ssu bacteria, rfam 5s, etc.) were assigned to rRNA by SortMeRNA.
 
-- Scalability benchmark with plots: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/scalability_test/plots/scalability_benchmark_summary.html" target="_blank">scalability_benchmark_summary.html</a>
+> [!TIP]
+> Scalability benchmark with plots: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/scalability_test/plots/scalability_benchmark_summary.html" target="_blank">scalability_benchmark_summary.html</a>
 
 #### Experiment 2: Sensitivity across database configurations
 
