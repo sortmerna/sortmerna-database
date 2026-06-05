@@ -92,9 +92,19 @@ done
 
 T2T_DIR="${OUTPUT_DIR}/t2t"
 MASKED_FA="${T2T_DIR}/${T2T_VERSION}_masked.fa"
+MASKED_FA_GZ="${MASKED_FA}.gz"
+MASKED_FA_TMP=""
 
-if [[ ! -f "${MASKED_FA}" ]]; then
-    echo "ERROR: masked genome not found: ${MASKED_FA}" >&2
+if [[ -f "${MASKED_FA}" ]]; then
+    : # use as-is
+elif [[ -f "${MASKED_FA_GZ}" ]]; then
+    echo "Decompressing ${MASKED_FA_GZ}..."
+    MASKED_FA_TMP="${T2T_DIR}/${T2T_VERSION}_masked_tmp.fa"
+    pigz -dc "${MASKED_FA_GZ}" > "${MASKED_FA_TMP}" 2>/dev/null \
+        || gzip -dc "${MASKED_FA_GZ}" > "${MASKED_FA_TMP}"
+    MASKED_FA="${MASKED_FA_TMP}"
+else
+    echo "ERROR: masked genome not found (tried .fa and .fa.gz): ${MASKED_FA}" >&2
     echo "  Run download_non_rrna.sh and simulate_non_rrna.sh first." >&2
     exit 1
 fi
@@ -187,6 +197,8 @@ if [[ "${KEEP_INTERMEDIATES}" == false ]]; then
     echo "Removing PBSIM3 intermediate files..."
     rm -f "${PBSIM3_PREFIX}"_*.fastq "${PBSIM3_PREFIX}"_*.maf "${PBSIM3_PREFIX}"_*.ref
 fi
+
+[[ -n "${MASKED_FA_TMP}" && -f "${MASKED_FA_TMP}" ]] && rm -f "${MASKED_FA_TMP}"
 
 final=$(seqkit stats -T "${OUTPUT_FASTQ}" | tail -1 | cut -f4)
 echo ""
