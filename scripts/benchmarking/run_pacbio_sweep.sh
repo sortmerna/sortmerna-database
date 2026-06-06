@@ -36,6 +36,7 @@ INDEX_DIR="${INDEX_DIR:?Please set INDEX_DIR (see README Set paths section)}"
 SMR_VERSION="${SMR_VERSION:?Please set SMR_VERSION (see README Set paths section)}"
 
 DB_NAME="smr_v${SMR_VERSION}_default_db"
+FAMILY_MAP="${INDEX_DIR}/${DB_NAME}/family_map.tsv"
 REF_DB="${INDEX_DIR}/${DB_NAME}/${DB_NAME}.fasta"
 IDX_DIR="${INDEX_DIR}/${DB_NAME}/idx"
 
@@ -77,7 +78,9 @@ echo ""
 
 mkdir -p "${SWEEP_DIR}"
 RESULTS="${SWEEP_DIR}/sweep_results.tsv"
+FAMILY_COUNTS="${SWEEP_DIR}/family_counts.tsv"
 printf 'passes\tnum_seeds\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${RESULTS}"
+rm -f "${FAMILY_COUNTS}"
 
 _tree_rss_kb() {
     ps -e -o pid=,ppid=,rss= 2>/dev/null | awk -v root="$1" '
@@ -180,6 +183,18 @@ for passes in "${PASSES_LIST[@]}"; do
             >> "${RESULTS}"
 
         echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA})  time=${wall}s  peak_rss=${peak_rss}MB"
+
+        # Family breakdown from BLAST outputs
+        if [[ -n "${FAMILY_MAP}" && -f "${FAMILY_MAP}" ]]; then
+            rrna_blast="${SWEEP_DIR}/${label}/rrna/out/aligned.blast.gz"
+            nonrrna_blast="${SWEEP_DIR}/${label}/nonrrna/out/aligned.blast.gz"
+            [[ -f "${rrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
+                --blast "${rrna_blast}" --map "${FAMILY_MAP}" \
+                --seeds "${num_seeds}" --type rrna --out "${FAMILY_COUNTS}"
+            [[ -f "${nonrrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
+                --blast "${nonrrna_blast}" --map "${FAMILY_MAP}" \
+                --seeds "${num_seeds}" --type nonrrna --out "${FAMILY_COUNTS}"
+        fi
     done
 done
 
@@ -187,53 +202,82 @@ echo ""
 echo "=== Sweep complete ==="
 column -t -s $'\t' "${RESULTS}"
 
-# --- ROC plot ---
-PLOT_PNG="${SWEEP_DIR}/roc_num_seeds.png"
-python3 - "${RESULTS}" "${PLOT_PNG}" <<'PYEOF'
-import sys, csv
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import numpy as np
+# --- R plots (ROC + stacked bar charts) ---
+PLOTS_DIR="${SWEEP_DIR}/plots"
+mkdir -p "${PLOTS_DIR}"
+if [[ -f "${FAMILY_COUNTS}" ]]; then
+    Rscript "${UTILS_DIR}/plot_pacbio_sweep.R" "${RESULTS}" "${FAMILY_COUNTS}" "${PLOTS_DIR}"
+else
+    echo "WARNING: family_counts.tsv not found - skipping bar charts (is family_map.tsv present?)"
+    Rscript "${UTILS_DIR}/plot_pacbio_sweep.R" "${RESULTS}" /dev/null "${PLOTS_DIR}" 2>/dev/null || true
+fi
 
-tsv_path, plot_path = sys.argv[1], sys.argv[2]
+# --- HTML report ---
+OUTPUT_HTML="${SWEEP_DIR}/sweep_report.html"
+python3 - "${RESULTS}" "${PLOTS_DIR}" "${OUTPUT_HTML}" <<'PYEOF'
+import sys, csv, base64, datetime
+from pathlib import Path
+
+results_tsv, plots_dir, html_path = sys.argv[1], sys.argv[2], sys.argv[3]
+
+def embed_png(path):
+    p = Path(path)
+    if not p.exists():
+        return "<p><em>Plot not available</em></p>"
+    data = base64.b64encode(p.read_bytes()).decode()
+    return f'<img src="data:image/png;base64,{data}" style="max-width:100%;border:1px solid #ddd;border-radius:4px">'
 
 rows = []
-with open(tsv_path) as f:
-    reader = csv.DictReader(f, delimiter='\t')
-    for r in reader:
-        rows.append({
-            'num_seeds': int(r['num_seeds']),
-            'sensitivity': float(r['sensitivity']),
-            'selectivity': 1.0 - float(r['fpr']),
-        })
+with open(results_tsv) as f:
+    rows = list(csv.DictReader(f, delimiter='\t'))
 
-rows.sort(key=lambda r: r['num_seeds'])
-seeds    = [r['num_seeds']    for r in rows]
-sens     = [r['sensitivity']  for r in rows]
-sel      = [r['selectivity']  for r in rows]
+table_rows = "".join(
+    f"<tr><td>{r['passes']}</td><td>{r['num_seeds']}</td>"
+    f"<td>{r['rrna_aligned']}</td><td>{float(r['sensitivity'])*100:.2f}%</td>"
+    f"<td>{r['nonrrna_aligned']}</td><td>{float(r['fpr'])*100:.2f}%</td>"
+    f"<td>{r['wall_sec']}</td><td>{r['peak_rss_mb']}</td></tr>"
+    for r in rows
+)
 
-fig, ax = plt.subplots(figsize=(8, 6))
+html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<title>PacBio Parameter Sweep Report</title>
+<style>
+  body{{font-family:Arial,sans-serif;margin:40px;color:#333}}
+  h1{{color:#2c3e50;border-bottom:2px solid #2c3e50;padding-bottom:8px}}
+  h2{{color:#34495e;margin-top:32px}}
+  table{{border-collapse:collapse;width:100%;font-size:0.88em}}
+  th,td{{border:1px solid #ddd;padding:8px 12px;text-align:left}}
+  th{{background:#2c3e50;color:#fff}}
+  tr:nth-child(even){{background:#f2f2f2}}
+  .plot{{margin:16px 0}}
+  .footer{{font-size:0.8em;color:#999;margin-top:40px;border-top:1px solid #ddd;padding-top:8px}}
+</style></head>
+<body>
+<h1>SortMeRNA PacBio Parameter Sweep</h1>
+<p>Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
 
-cmap = cm.get_cmap('viridis', len(rows))
-for i, r in enumerate(rows):
-    ax.scatter(r['selectivity'], r['sensitivity'], color=cmap(i), s=60, zorder=3)
-    ax.annotate(str(r['num_seeds']),
-                xy=(r['selectivity'], r['sensitivity']),
-                xytext=(4, 4), textcoords='offset points',
-                fontsize=7, color=cmap(i))
+<h2>ROC Curve (sensitivity vs selectivity)</h2>
+<div class="plot">{embed_png(f"{plots_dir}/roc.png")}</div>
 
-ax.plot(sel, sens, color='grey', linewidth=0.8, linestyle='--', zorder=2)
+<h2>rRNA reads: aligned by subunit vs num_seeds</h2>
+<div class="plot">{embed_png(f"{plots_dir}/bar_rrna.png")}</div>
 
-ax.set_xlabel('Selectivity (1 - FPR)', fontsize=12)
-ax.set_ylabel('Sensitivity (TPR)', fontsize=12)
-ax.set_title('SortMeRNA PacBio: num_seeds sweep\n(labels = num_seeds value)', fontsize=11)
-ax.set_xlim(0, 1.02)
-ax.set_ylim(0, 1.02)
-ax.axhline(1.0, color='green', linewidth=0.6, linestyle=':')
-ax.grid(True, alpha=0.3)
-fig.tight_layout()
-fig.savefig(plot_path, dpi=150)
-print(f"  ROC plot: {plot_path}")
+<h2>Non-rRNA reads (FP): aligned by subunit vs num_seeds</h2>
+<div class="plot">{embed_png(f"{plots_dir}/bar_nonrrna.png")}</div>
+
+<h2>Results table</h2>
+<table><thead><tr>
+  <th>passes</th><th>num_seeds</th>
+  <th>rRNA aligned</th><th>Sensitivity</th>
+  <th>Non-rRNA aligned</th><th>FPR</th>
+  <th>Wall time (s)</th><th>Peak RSS (MB)</th>
+</tr></thead><tbody>{table_rows}</tbody></table>
+
+<p class="footer">Generated by run_pacbio_sweep.sh</p>
+</body></html>"""
+
+Path(html_path).write_text(html)
+print(f"  HTML report: {html_path}")
 PYEOF
