@@ -79,7 +79,7 @@ echo ""
 mkdir -p "${SWEEP_DIR}"
 RESULTS="${SWEEP_DIR}/sweep_results.tsv"
 FAMILY_COUNTS="${SWEEP_DIR}/family_counts.tsv"
-printf 'passes\tevalue\tnum_seeds\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${RESULTS}"
+printf 'passes\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${RESULTS}"
 rm -f "${FAMILY_COUNTS}"
 
 _tree_rss_kb() {
@@ -104,7 +104,7 @@ _tree_rss_kb() {
 # Runs SortMeRNA in background, tracks wall time and peak RSS.
 # Writes wall_sec and peak_rss_mb to stdout as "WALL=<n> RSS=<n>".
 run_smr_timed() {
-    local reads="$1" workdir="$2" passes="$3" num_seeds="$4" evalue="$5"
+    local reads="$1" workdir="$2" passes="$3" num_seeds="$4" evalue="$5" min_lis="$6"
     local start peak_rss_mb=0 rss_kb rss_mb
     start=$(date +%s)
     "${SMR_BIN}" \
@@ -114,6 +114,7 @@ run_smr_timed() {
         --idx-dir "${IDX_DIR}" \
         --passes "${passes}" \
         --num_seeds "${num_seeds}" \
+        --min_lis "${min_lis}" \
         --threads "${THREADS}" \
         --fastx --blast 1 \
         -e "${evalue}" &
@@ -128,78 +129,87 @@ run_smr_timed() {
     echo "WALL=$(( $(date +%s) - start )) RSS=${peak_rss_mb}"
 }
 
-# NOTE: --passes is currently ignored by SortMeRNA v6.0.2 (always runs default 18,9,3).
-# Sweep is over --num_seeds and --evalue until --passes is fixed.
+# --min_lis is the per-reference co-linearity gate (LIS at stride 18):
+# --num_seeds 2 is fixed to trigger LIS computation.
 PASSES_LIST=("18,9,3")
-SEEDS_LIST=(1000 900 800 700 600 500 400 300 200 100 50 45 40 35 30 25 20 15 10 5 2)
-EVALUES_LIST=(1e-20 1e-10 1e-5)
+EVALUES_LIST=(1e-5 1e-10 1e-20)
+# Explicit (num_seeds, min_lis) pairs:
+#   Row 1: num_seeds=2 fixed, min_lis sweeps 2-10  -> min_lis does all the filtering
+#   Row 2: diagonal (num_seeds=min_lis 3-6)        -> both parameters contribute equally
+#   Row 3: num_seeds > min_lis (4-6 vs 2)          -> num_seeds dominates, min_lis redundant
+SEED_LIS_PAIRS=(
+    "2 2"  "2 3"  "2 4"  "2 5"  "2 6"  "2 7"  "2 8"  "2 9"  "2 10"
+    "3 3"  "4 4"  "5 5"  "6 6"
+    "3 2"  "4 2"  "5 2"  "6 2"
+)
 
 for passes in "${PASSES_LIST[@]}"; do
     for evalue in "${EVALUES_LIST[@]}"; do
-        ev_label="${evalue//./p}"        # 1e-5 -> 1e-5, keep as-is but safe for dir names
-        ev_label="${ev_label//-/m}"      # 1e-5 -> 1em5
-    for num_seeds in "${SEEDS_LIST[@]}"; do
-        label="p${passes//,/_}_e${ev_label}_s${num_seeds}"
-        rrna_log="${SWEEP_DIR}/${label}/rrna/out/aligned.log"
-        nonrrna_log="${SWEEP_DIR}/${label}/nonrrna/out/aligned.log"
+        ev_label="${evalue//-/m}"
+        for pair in "${SEED_LIS_PAIRS[@]}"; do
+            num_seeds="${pair%% *}"
+            min_lis="${pair##* }"
+            label="p${passes//,/_}_e${ev_label}_s${num_seeds}_lis${min_lis}"
+            rrna_log="${SWEEP_DIR}/${label}/rrna/out/aligned.log"
+            nonrrna_log="${SWEEP_DIR}/${label}/nonrrna/out/aligned.log"
 
-        echo "--------------------------------------------"
-        echo "passes=${passes}  evalue=${evalue}  num_seeds=${num_seeds}"
-        echo "--------------------------------------------"
+            echo "--------------------------------------------"
+            echo "passes=${passes}  evalue=${evalue}  num_seeds=${num_seeds}  min_lis=${min_lis}"
+            echo "--------------------------------------------"
 
-        wall_rrna=0 rss_rrna=0 wall_nonrrna=0 rss_nonrrna=0
+            wall_rrna=0 rss_rrna=0 wall_nonrrna=0 rss_nonrrna=0
 
-        if [[ -f "${rrna_log}" ]]; then
-            echo "  rRNA run already exists - skipping"
-        else
-            mkdir -p "${SWEEP_DIR}/${label}/rrna"
-            echo "  Running rRNA..."
-            result=$(run_smr_timed "${RRNA_READS}" "${SWEEP_DIR}/${label}/rrna" "${passes}" "${num_seeds}" "${evalue}")
-            wall_rrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
-            rss_rrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
-            echo "  rRNA done: ${wall_rrna}s peak RSS ${rss_rrna} MB"
-        fi
+            if [[ -f "${rrna_log}" ]]; then
+                echo "  rRNA run already exists - skipping"
+            else
+                mkdir -p "${SWEEP_DIR}/${label}/rrna"
+                echo "  Running rRNA..."
+                result=$(run_smr_timed "${RRNA_READS}" "${SWEEP_DIR}/${label}/rrna" "${passes}" "${num_seeds}" "${evalue}" "${min_lis}")
+                wall_rrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+                rss_rrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+                echo "  rRNA done: ${wall_rrna}s peak RSS ${rss_rrna} MB"
+            fi
 
-        if [[ -f "${nonrrna_log}" ]]; then
-            echo "  Non-rRNA run already exists - skipping"
-        else
-            mkdir -p "${SWEEP_DIR}/${label}/nonrrna"
-            echo "  Running non-rRNA..."
-            result=$(run_smr_timed "${NONRRNA_READS}" "${SWEEP_DIR}/${label}/nonrrna" "${passes}" "${num_seeds}" "${evalue}")
-            wall_nonrrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
-            rss_nonrrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
-            echo "  Non-rRNA done: ${wall_nonrrna}s peak RSS ${rss_nonrrna} MB"
-        fi
+            if [[ -f "${nonrrna_log}" ]]; then
+                echo "  Non-rRNA run already exists - skipping"
+            else
+                mkdir -p "${SWEEP_DIR}/${label}/nonrrna"
+                echo "  Running non-rRNA..."
+                result=$(run_smr_timed "${NONRRNA_READS}" "${SWEEP_DIR}/${label}/nonrrna" "${passes}" "${num_seeds}" "${evalue}" "${min_lis}")
+                wall_nonrrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+                rss_nonrrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+                echo "  Non-rRNA done: ${wall_nonrrna}s peak RSS ${rss_nonrrna} MB"
+            fi
 
-        wall=$(( wall_rrna + wall_nonrrna ))
-        peak_rss=$(( rss_rrna > rss_nonrrna ? rss_rrna : rss_nonrrna ))
+            wall=$(( wall_rrna + wall_nonrrna ))
+            peak_rss=$(( rss_rrna > rss_nonrrna ? rss_rrna : rss_nonrrna ))
 
-        rrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${rrna_log}")
-        nonrrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${nonrrna_log}")
-        sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA} }")
-        fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA} }")
+            rrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${rrna_log}")
+            nonrrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${nonrrna_log}")
+            sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA} }")
+            fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA} }")
 
-        printf '%s\t%s\t%d\t%s\t%s\t%s\t%s\t%d\t%d\n' \
-            "${passes}" "${evalue}" "${num_seeds}" \
-            "${rrna_aligned}" "${sens}" \
-            "${nonrrna_aligned}" "${fpr}" \
-            "${wall}" "${peak_rss}" \
-            >> "${RESULTS}"
+            printf '%s\t%s\t%d\t%d\t%s\t%s\t%s\t%s\t%d\t%d\n' \
+                "${passes}" "${evalue}" "${num_seeds}" "${min_lis}" \
+                "${rrna_aligned}" "${sens}" \
+                "${nonrrna_aligned}" "${fpr}" \
+                "${wall}" "${peak_rss}" \
+                >> "${RESULTS}"
 
-        echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA})  time=${wall}s  peak_rss=${peak_rss}MB"
+            echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA})  time=${wall}s  peak_rss=${peak_rss}MB"
 
-        # Family breakdown from BLAST outputs
-        if [[ -n "${FAMILY_MAP}" && -f "${FAMILY_MAP}" ]]; then
-            rrna_blast="${SWEEP_DIR}/${label}/rrna/out/aligned.blast.gz"
-            nonrrna_blast="${SWEEP_DIR}/${label}/nonrrna/out/aligned.blast.gz"
-            [[ -f "${rrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
-                --blast "${rrna_blast}" --map "${FAMILY_MAP}" \
-                --seeds "${num_seeds}" --evalue "${evalue}" --type rrna --out "${FAMILY_COUNTS}"
-            [[ -f "${nonrrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
-                --blast "${nonrrna_blast}" --map "${FAMILY_MAP}" \
-                --seeds "${num_seeds}" --evalue "${evalue}" --type nonrrna --out "${FAMILY_COUNTS}"
-        fi
-    done
+            # Family breakdown from BLAST outputs
+            if [[ -n "${FAMILY_MAP}" && -f "${FAMILY_MAP}" ]]; then
+                rrna_blast="${SWEEP_DIR}/${label}/rrna/out/aligned.blast.gz"
+                nonrrna_blast="${SWEEP_DIR}/${label}/nonrrna/out/aligned.blast.gz"
+                [[ -f "${rrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
+                    --blast "${rrna_blast}" --map "${FAMILY_MAP}" \
+                    --seeds "${min_lis}" --evalue "${evalue}" --type rrna --out "${FAMILY_COUNTS}"
+                [[ -f "${nonrrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
+                    --blast "${nonrrna_blast}" --map "${FAMILY_MAP}" \
+                    --seeds "${min_lis}" --evalue "${evalue}" --type nonrrna --out "${FAMILY_COUNTS}"
+            fi
+        done  # seed_lis_pairs
     done  # evalue
 done  # passes
 
