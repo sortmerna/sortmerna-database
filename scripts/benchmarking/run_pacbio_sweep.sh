@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run_pacbio_sweep.sh  SortMeRNA --passes / --num_seeds parameter sweep for PacBio HiFi reads.
 #
-# Tests 4x2=8 combinations of --passes and --num_seeds against real rRNA reads
+# Tests 21 values of --num_seeds against real rRNA reads
 # (Karst et al. 2021, AGP, Qiita study 10317, ~4,500 bp 16S+ITS+23S operons) and
 # PBSIM3-simulated non-rRNA reads from the masked T2T genome. Each combination
 # reports sensitivity and FPR. Run SortMeRNA with -e 1e-5 (default db).
@@ -120,14 +120,10 @@ run_smr_timed() {
     echo "WALL=$(( $(date +%s) - start )) RSS=${peak_rss_mb}"
 }
 
-# Pass 3 kept at stride 18 to preserve exhaustive seed coverage in the final pass.
-# num_seeds scaled for ~5000 bp reads: N seeds * 18 bp = minimum contiguous rRNA match.
-#   5  -> ~90 bp  (1.8%)   rejects most 55-67 bp partial genomic matches
-#   20 -> ~360 bp (7.2%)
-#   50 -> ~900 bp (18%)
-#   100 -> ~1800 bp (36%)  safe for full-operon reads; would miss partial-gene reads
-PASSES_LIST=("2000,500,18" "1000,200,18" "500,100,18" "18,9,3")
-SEEDS_LIST=(5 20 50 100)
+# NOTE: --passes is currently ignored by SortMeRNA v6.0.2 (always runs default 18,9,3).
+# Sweep is over --num_seeds only until --passes is fixed.
+PASSES_LIST=("18,9,3")
+SEEDS_LIST=(1000 900 800 700 600 500 400 300 200 100 50 45 40 35 30 25 20 15 10 5 2)
 
 for passes in "${PASSES_LIST[@]}"; do
     for num_seeds in "${SEEDS_LIST[@]}"; do
@@ -185,3 +181,54 @@ done
 echo ""
 echo "=== Sweep complete ==="
 column -t -s $'\t' "${RESULTS}"
+
+# --- ROC plot ---
+PLOT_PNG="${SWEEP_DIR}/roc_num_seeds.png"
+python3 - "${RESULTS}" "${PLOT_PNG}" <<'PYEOF'
+import sys, csv
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import numpy as np
+
+tsv_path, plot_path = sys.argv[1], sys.argv[2]
+
+rows = []
+with open(tsv_path) as f:
+    reader = csv.DictReader(f, delimiter='\t')
+    for r in reader:
+        rows.append({
+            'num_seeds': int(r['num_seeds']),
+            'sensitivity': float(r['sensitivity']),
+            'selectivity': 1.0 - float(r['fpr']),
+        })
+
+rows.sort(key=lambda r: r['num_seeds'])
+seeds    = [r['num_seeds']    for r in rows]
+sens     = [r['sensitivity']  for r in rows]
+sel      = [r['selectivity']  for r in rows]
+
+fig, ax = plt.subplots(figsize=(8, 6))
+
+cmap = cm.get_cmap('viridis', len(rows))
+for i, r in enumerate(rows):
+    ax.scatter(r['selectivity'], r['sensitivity'], color=cmap(i), s=60, zorder=3)
+    ax.annotate(str(r['num_seeds']),
+                xy=(r['selectivity'], r['sensitivity']),
+                xytext=(4, 4), textcoords='offset points',
+                fontsize=7, color=cmap(i))
+
+ax.plot(sel, sens, color='grey', linewidth=0.8, linestyle='--', zorder=2)
+
+ax.set_xlabel('Selectivity (1 - FPR)', fontsize=12)
+ax.set_ylabel('Sensitivity (TPR)', fontsize=12)
+ax.set_title('SortMeRNA PacBio: num_seeds sweep\n(labels = num_seeds value)', fontsize=11)
+ax.set_xlim(0, 1.02)
+ax.set_ylim(0, 1.02)
+ax.axhline(1.0, color='green', linewidth=0.6, linestyle=':')
+ax.grid(True, alpha=0.3)
+fig.tight_layout()
+fig.savefig(plot_path, dpi=150)
+print(f"  ROC plot: {plot_path}")
+PYEOF
