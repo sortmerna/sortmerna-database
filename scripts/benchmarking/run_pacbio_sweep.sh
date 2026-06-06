@@ -48,11 +48,16 @@ TOTAL_NONRRNA=253089
 QUICK="${QUICK:-1}"
 QUICK_N=10000
 if [[ "${QUICK}" == "1" ]]; then
-    echo "Quick mode: subsampling to ${QUICK_N} reads..."
     RRNA_10K="${SWEEP_DIR}/rrna_10k.fasta.gz"
     NONRRNA_10K="${SWEEP_DIR}/nonrrna_10k.fastq.gz"
-    [[ ! -f "${RRNA_10K}" ]]    && seqkit sample -n "${QUICK_N}" --rand-seed 42 "${RRNA_READS}"    | gzip -c > "${RRNA_10K}"
-    [[ ! -f "${NONRRNA_10K}" ]] && seqkit sample -n "${QUICK_N}" --rand-seed 42 "${NONRRNA_READS}" | gzip -c > "${NONRRNA_10K}"
+    mkdir -p "${SWEEP_DIR}"
+    if [[ -f "${RRNA_10K}" && -f "${NONRRNA_10K}" ]]; then
+        echo "Quick mode: reusing existing ${QUICK_N}-read subsets."
+    else
+        echo "Quick mode: subsampling to ${QUICK_N} reads..."
+        seqkit sample -n "${QUICK_N}" --rand-seed 42 "${RRNA_READS}"    | gzip -c > "${RRNA_10K}"
+        seqkit sample -n "${QUICK_N}" --rand-seed 42 "${NONRRNA_READS}" | gzip -c > "${NONRRNA_10K}"
+    fi
     RRNA_READS="${RRNA_10K}"
     NONRRNA_READS="${NONRRNA_10K}"
     TOTAL_RRNA=${QUICK_N}
