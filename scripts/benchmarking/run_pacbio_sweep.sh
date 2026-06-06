@@ -43,12 +43,21 @@ IDX_DIR="${INDEX_DIR}/${DB_NAME}/idx"
 TOTAL_RRNA=253089
 TOTAL_NONRRNA=253089
 
-# Quick-check mode: iterate on a 10k subset first, then run the full dataset
-# seqtk sample -s 42 "$RRNA_READS"    10000 > "${RRNA_READS%.fastq}_10k.fastq"
-# seqtk sample -s 42 "$NONRRNA_READS" 10000 > "${NONRRNA_READS%.fastq}_10k.fastq"
-# RRNA_READS="${RRNA_READS%.fastq}_10k.fastq"
-# NONRRNA_READS="${NONRRNA_READS%.fastq}_10k.fastq"
-# TOTAL_RRNA=10000; TOTAL_NONRRNA=10000
+# Quick-check mode: subsample to 10K reads for fast parameter iteration.
+# Disable by setting QUICK=0.
+QUICK="${QUICK:-1}"
+QUICK_N=10000
+if [[ "${QUICK}" == "1" ]]; then
+    echo "Quick mode: subsampling to ${QUICK_N} reads..."
+    RRNA_10K="${SWEEP_DIR}/rrna_10k.fasta.gz"
+    NONRRNA_10K="${SWEEP_DIR}/nonrrna_10k.fastq.gz"
+    [[ ! -f "${RRNA_10K}" ]]    && seqkit sample -n "${QUICK_N}" --rand-seed 42 "${RRNA_READS}"    | gzip -c > "${RRNA_10K}"
+    [[ ! -f "${NONRRNA_10K}" ]] && seqkit sample -n "${QUICK_N}" --rand-seed 42 "${NONRRNA_READS}" | gzip -c > "${NONRRNA_10K}"
+    RRNA_READS="${RRNA_10K}"
+    NONRRNA_READS="${NONRRNA_10K}"
+    TOTAL_RRNA=${QUICK_N}
+    TOTAL_NONRRNA=${QUICK_N}
+fi
 
 echo "============================================"
 echo "PacBio parameter sweep"
@@ -63,13 +72,33 @@ echo ""
 
 mkdir -p "${SWEEP_DIR}"
 RESULTS="${SWEEP_DIR}/sweep_results.tsv"
-printf 'passes\tnum_seeds\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\n' > "${RESULTS}"
+printf 'passes\tnum_seeds\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${RESULTS}"
 
-run_smr() {
-    local reads="$1"
-    local workdir="$2"
-    local passes="$3"
-    local num_seeds="$4"
+_tree_rss_kb() {
+    ps -e -o pid=,ppid=,rss= 2>/dev/null | awk -v root="$1" '
+        { pid[NR]=$1; ppid[NR]=$2; rss[NR]=$3 }
+        END {
+            in_tree[root]=1; changed=1
+            while (changed) {
+                changed=0
+                for (i=1;i<=NR;i++) {
+                    if (!in_tree[pid[i]] && in_tree[ppid[i]]) {
+                        in_tree[pid[i]]=1; changed=1
+                    }
+                }
+            }
+            total=0
+            for (i=1;i<=NR;i++) if (in_tree[pid[i]]) total+=rss[i]
+            print total
+        }'
+}
+
+# Runs SortMeRNA in background, tracks wall time and peak RSS.
+# Writes wall_sec and peak_rss_mb to stdout as "WALL=<n> RSS=<n>".
+run_smr_timed() {
+    local reads="$1" workdir="$2" passes="$3" num_seeds="$4"
+    local start peak_rss_mb=0 rss_kb rss_mb
+    start=$(date +%s)
     "${SMR_BIN}" \
         --ref "${REF_DB}" \
         --reads "${reads}" \
@@ -79,14 +108,26 @@ run_smr() {
         --num_seeds "${num_seeds}" \
         --threads "${THREADS}" \
         --fastx --blast 1 \
-        -e 1e-5
+        -e 1e-5 &
+    local pid=$!
+    while kill -0 "${pid}" 2>/dev/null; do
+        rss_kb=$(_tree_rss_kb "${pid}")
+        rss_mb=$(( (rss_kb + 0) / 1024 ))
+        (( rss_mb > peak_rss_mb )) && peak_rss_mb=${rss_mb}
+        sleep 5
+    done
+    wait "${pid}" || { echo "  ERROR: sortmerna failed" >&2; exit 1; }
+    echo "WALL=$(( $(date +%s) - start )) RSS=${peak_rss_mb}"
 }
 
-# Pass 3 is kept at stride 18 (same as short-read default) to preserve exhaustive
-# seed coverage in the final pass. Only passes 1 and 2 are scaled to exploit
-# early-exit for long reads where stride 18 already checks ~278 windows in pass 1.
-PASSES_LIST=("18,9,3" "500,100,18" "1000,200,18" "2000,500,18")
-SEEDS_LIST=(2 3)
+# Pass 3 kept at stride 18 to preserve exhaustive seed coverage in the final pass.
+# num_seeds scaled for ~5000 bp reads: N seeds * 18 bp = minimum contiguous rRNA match.
+#   5  -> ~90 bp  (1.8%)   rejects most 55-67 bp partial genomic matches
+#   20 -> ~360 bp (7.2%)
+#   50 -> ~900 bp (18%)
+#   100 -> ~1800 bp (36%)  safe for full-operon reads; would miss partial-gene reads
+PASSES_LIST=("2000,500,18" "1000,200,18" "500,100,18" "18,9,3")
+SEEDS_LIST=(5 20 50 100)
 
 for passes in "${PASSES_LIST[@]}"; do
     for num_seeds in "${SEEDS_LIST[@]}"; do
@@ -98,37 +139,46 @@ for passes in "${PASSES_LIST[@]}"; do
         echo "passes=${passes}  num_seeds=${num_seeds}"
         echo "--------------------------------------------"
 
-        start=$SECONDS
+        wall_rrna=0 rss_rrna=0 wall_nonrrna=0 rss_nonrrna=0
 
         if [[ -f "${rrna_log}" ]]; then
             echo "  rRNA run already exists - skipping"
         else
             mkdir -p "${SWEEP_DIR}/${label}/rrna"
-            run_smr "${RRNA_READS}" "${SWEEP_DIR}/${label}/rrna" "${passes}" "${num_seeds}"
+            echo "  Running rRNA..."
+            result=$(run_smr_timed "${RRNA_READS}" "${SWEEP_DIR}/${label}/rrna" "${passes}" "${num_seeds}")
+            wall_rrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+            rss_rrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+            echo "  rRNA done: ${wall_rrna}s peak RSS ${rss_rrna} MB"
         fi
 
         if [[ -f "${nonrrna_log}" ]]; then
             echo "  Non-rRNA run already exists - skipping"
         else
             mkdir -p "${SWEEP_DIR}/${label}/nonrrna"
-            run_smr "${NONRRNA_READS}" "${SWEEP_DIR}/${label}/nonrrna" "${passes}" "${num_seeds}"
+            echo "  Running non-rRNA..."
+            result=$(run_smr_timed "${NONRRNA_READS}" "${SWEEP_DIR}/${label}/nonrrna" "${passes}" "${num_seeds}")
+            wall_nonrrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+            rss_nonrrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+            echo "  Non-rRNA done: ${wall_nonrrna}s peak RSS ${rss_nonrrna} MB"
         fi
 
-        wall=$(( SECONDS - start ))
+        wall=$(( wall_rrna + wall_nonrrna ))
+        peak_rss=$(( rss_rrna > rss_nonrrna ? rss_rrna : rss_nonrrna ))
 
         rrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${rrna_log}")
         nonrrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${nonrrna_log}")
         sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA} }")
         fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA} }")
 
-        printf '%s\t%d\t%s\t%s\t%s\t%s\t%d\n' \
+        printf '%s\t%d\t%s\t%s\t%s\t%s\t%d\t%d\n' \
             "${passes}" "${num_seeds}" \
             "${rrna_aligned}" "${sens}" \
             "${nonrrna_aligned}" "${fpr}" \
-            "${wall}" \
+            "${wall}" "${peak_rss}" \
             >> "${RESULTS}"
 
-        echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA})  time=${wall}s"
+        echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA})  time=${wall}s  peak_rss=${peak_rss}MB"
     done
 done
 
