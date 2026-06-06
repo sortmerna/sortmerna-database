@@ -43,7 +43,7 @@ p_roc <- ggplot(sweep, aes(x = selectivity, y = sensitivity, label = num_seeds))
        subtitle = "Labels = num_seeds value") +
   theme_bw(base_size = 11)
 
-ggsave(file.path(out_dir, "roc.png"), p_roc, width = 7, height = 5.5, dpi = 150)
+ggsave(file.path(out_dir, "roc.png"), p_roc, width = 7, height = 5.5, dpi = 300)
 message("  Saved roc.png")
 
 # --- Stacked bar charts ---
@@ -88,6 +88,6 @@ make_bar <- function(data, type_label, title) {
 p_rrna <- make_bar(fam, "rrna",    "rRNA reads: aligned by subunit vs num_seeds")
 p_non  <- make_bar(fam, "nonrrna", "Non-rRNA reads (FP): aligned by subunit vs num_seeds")
 
-ggsave(file.path(out_dir, "bar_rrna.png"),    p_rrna, width = 9, height = 5, dpi = 150)
-ggsave(file.path(out_dir, "bar_nonrrna.png"), p_non,  width = 9, height = 5, dpi = 150)
+ggsave(file.path(out_dir, "bar_rrna.png"),    p_rrna, width = 9, height = 5, dpi = 300)
+ggsave(file.path(out_dir, "bar_nonrrna.png"), p_non,  width = 9, height = 5, dpi = 300)
 message("  Saved bar_rrna.png and bar_nonrrna.png")

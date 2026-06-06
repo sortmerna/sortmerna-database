@@ -79,7 +79,7 @@ echo ""
 mkdir -p "${SWEEP_DIR}"
 RESULTS="${SWEEP_DIR}/sweep_results.tsv"
 FAMILY_COUNTS="${SWEEP_DIR}/family_counts.tsv"
-printf 'passes\tnum_seeds\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${RESULTS}"
+printf 'passes\tevalue\tnum_seeds\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${RESULTS}"
 rm -f "${FAMILY_COUNTS}"
 
 _tree_rss_kb() {
@@ -104,7 +104,7 @@ _tree_rss_kb() {
 # Runs SortMeRNA in background, tracks wall time and peak RSS.
 # Writes wall_sec and peak_rss_mb to stdout as "WALL=<n> RSS=<n>".
 run_smr_timed() {
-    local reads="$1" workdir="$2" passes="$3" num_seeds="$4"
+    local reads="$1" workdir="$2" passes="$3" num_seeds="$4" evalue="$5"
     local start peak_rss_mb=0 rss_kb rss_mb
     start=$(date +%s)
     "${SMR_BIN}" \
@@ -116,7 +116,7 @@ run_smr_timed() {
         --num_seeds "${num_seeds}" \
         --threads "${THREADS}" \
         --fastx --blast 1 \
-        -e 1e-5 &
+        -e "${evalue}" &
     local pid=$!
     while kill -0 "${pid}" 2>/dev/null; do
         rss_kb=$(_tree_rss_kb "${pid}")
@@ -129,18 +129,22 @@ run_smr_timed() {
 }
 
 # NOTE: --passes is currently ignored by SortMeRNA v6.0.2 (always runs default 18,9,3).
-# Sweep is over --num_seeds only until --passes is fixed.
+# Sweep is over --num_seeds and --evalue until --passes is fixed.
 PASSES_LIST=("18,9,3")
 SEEDS_LIST=(1000 900 800 700 600 500 400 300 200 100 50 45 40 35 30 25 20 15 10 5 2)
+EVALUES_LIST=(1e-5 1e-10 1e-20)
 
 for passes in "${PASSES_LIST[@]}"; do
+    for evalue in "${EVALUES_LIST[@]}"; do
+        ev_label="${evalue//./p}"        # 1e-5 -> 1e-5, keep as-is but safe for dir names
+        ev_label="${ev_label//-/m}"      # 1e-5 -> 1em5
     for num_seeds in "${SEEDS_LIST[@]}"; do
-        label="p${passes//,/_}_s${num_seeds}"
+        label="p${passes//,/_}_e${ev_label}_s${num_seeds}"
         rrna_log="${SWEEP_DIR}/${label}/rrna/out/aligned.log"
         nonrrna_log="${SWEEP_DIR}/${label}/nonrrna/out/aligned.log"
 
         echo "--------------------------------------------"
-        echo "passes=${passes}  num_seeds=${num_seeds}"
+        echo "passes=${passes}  evalue=${evalue}  num_seeds=${num_seeds}"
         echo "--------------------------------------------"
 
         wall_rrna=0 rss_rrna=0 wall_nonrrna=0 rss_nonrrna=0
@@ -150,7 +154,7 @@ for passes in "${PASSES_LIST[@]}"; do
         else
             mkdir -p "${SWEEP_DIR}/${label}/rrna"
             echo "  Running rRNA..."
-            result=$(run_smr_timed "${RRNA_READS}" "${SWEEP_DIR}/${label}/rrna" "${passes}" "${num_seeds}")
+            result=$(run_smr_timed "${RRNA_READS}" "${SWEEP_DIR}/${label}/rrna" "${passes}" "${num_seeds}" "${evalue}")
             wall_rrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
             rss_rrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
             echo "  rRNA done: ${wall_rrna}s peak RSS ${rss_rrna} MB"
@@ -161,7 +165,7 @@ for passes in "${PASSES_LIST[@]}"; do
         else
             mkdir -p "${SWEEP_DIR}/${label}/nonrrna"
             echo "  Running non-rRNA..."
-            result=$(run_smr_timed "${NONRRNA_READS}" "${SWEEP_DIR}/${label}/nonrrna" "${passes}" "${num_seeds}")
+            result=$(run_smr_timed "${NONRRNA_READS}" "${SWEEP_DIR}/${label}/nonrrna" "${passes}" "${num_seeds}" "${evalue}")
             wall_nonrrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
             rss_nonrrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
             echo "  Non-rRNA done: ${wall_nonrrna}s peak RSS ${rss_nonrrna} MB"
@@ -175,8 +179,8 @@ for passes in "${PASSES_LIST[@]}"; do
         sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA} }")
         fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA} }")
 
-        printf '%s\t%d\t%s\t%s\t%s\t%s\t%d\t%d\n' \
-            "${passes}" "${num_seeds}" \
+        printf '%s\t%s\t%d\t%s\t%s\t%s\t%s\t%d\t%d\n' \
+            "${passes}" "${evalue}" "${num_seeds}" \
             "${rrna_aligned}" "${sens}" \
             "${nonrrna_aligned}" "${fpr}" \
             "${wall}" "${peak_rss}" \
@@ -190,13 +194,14 @@ for passes in "${PASSES_LIST[@]}"; do
             nonrrna_blast="${SWEEP_DIR}/${label}/nonrrna/out/aligned.blast.gz"
             [[ -f "${rrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
                 --blast "${rrna_blast}" --map "${FAMILY_MAP}" \
-                --seeds "${num_seeds}" --type rrna --out "${FAMILY_COUNTS}"
+                --seeds "${num_seeds}" --evalue "${evalue}" --type rrna --out "${FAMILY_COUNTS}"
             [[ -f "${nonrrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
                 --blast "${nonrrna_blast}" --map "${FAMILY_MAP}" \
-                --seeds "${num_seeds}" --type nonrrna --out "${FAMILY_COUNTS}"
+                --seeds "${num_seeds}" --evalue "${evalue}" --type nonrrna --out "${FAMILY_COUNTS}"
         fi
     done
-done
+    done  # evalue
+done  # passes
 
 echo ""
 echo "=== Sweep complete ==="

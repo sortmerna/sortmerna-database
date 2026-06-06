@@ -59,6 +59,7 @@ def main():
     ap.add_argument("--blast",  required=True)
     ap.add_argument("--map",    required=True)
     ap.add_argument("--seeds",  required=True, type=int)
+    ap.add_argument("--evalue", default="1e-5")
     ap.add_argument("--type",   required=True, choices=["rrna", "nonrrna"])
     ap.add_argument("--out",    required=True)
     args = ap.parse_args()
@@ -69,12 +70,12 @@ def main():
     write_header = not Path(args.out).exists()
     with open(args.out, "a") as f:
         if write_header:
-            f.write("num_seeds\trna_type\tfamily\tcount\n")
+            f.write("evalue\tnum_seeds\trna_type\tfamily\tcount\n")
         if counts:
             for family, count in sorted(counts.items()):
-                f.write(f"{args.seeds}\t{args.type}\t{family}\t{count}\n")
+                f.write(f"{args.evalue}\t{args.seeds}\t{args.type}\t{family}\t{count}\n")
         else:
-            f.write(f"{args.seeds}\t{args.type}\tNo alignment\t0\n")
+            f.write(f"{args.evalue}\t{args.seeds}\t{args.type}\tNo alignment\t0\n")
 
     print(f"  {args.type} family breakdown ({sum(counts.values())} hits): "
           + ", ".join(f"{v} {k}" for k, v in counts.most_common(3)))
