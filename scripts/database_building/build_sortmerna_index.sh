@@ -82,20 +82,26 @@ build_config() {
 
   [[ "${FORCE}" == true ]] && rm -rf "${db_dir}/idx"
 
-  # Assemble combined reference
+  # Assemble combined reference and family map
+  local family_map="${db_dir}/family_map.tsv"
   > "${combined}"
   local total=0
+  local fam_args=()
   for f in "${files[@]}"; do
     if [[ ! -f "${f}" ]] || [[ ! -s "${f}" ]]; then
       echo "  WARNING: missing or empty file: ${f}"
       continue
     fi
-    local n
+    local n family_label
     n=$(seqkit stats -T "${f}" | tail -1 | cut -f4)
+    family_label=$(basename "${f}" | sed 's/_[0-9]*\.fasta$//' | sed 's/_/ /g')
     echo "  + $(basename "${f}"): ${n} sequences"
     cat "${f}" >> "${combined}"
+    fam_args+=("${f}:${family_label}")
     total=$((total + n))
   done
+
+  python3 "${UTILS_DIR}/build_family_map.py" "${family_map}" "${fam_args[@]}"
   echo "  Total: ${total} sequences"
 
   # Build index
