@@ -60,7 +60,7 @@ fam <- read.delim(family_tsv, stringsAsFactors = FALSE) %>%
   group_by(num_seeds, rna_type, subunit) %>%
   summarise(count = sum(count), .groups = "drop") %>%
   mutate(
-    subunit   = factor(subunit, levels = c("16S", "18S", "23S", "28S", "5S", "5.8S", "Unknown")),
+    subunit   = factor(subunit, levels = c("16S", "18S", "23S", "28S", "5S", "5.8S", "Unknown", "No alignment")),
     num_seeds = factor(num_seeds, levels = sort(unique(num_seeds)))
   )
 
@@ -71,7 +71,8 @@ palette <- c(
   "28S"     = "#ff7f0e",
   "5S"      = "#2ca02c",
   "5.8S"    = "#98df8a",
-  "Unknown" = "#7f7f7f"
+  "Unknown"      = "#7f7f7f",
+  "No alignment" = "#ffffff"
 )
 
 make_bar <- function(data, type_label, title) {

@@ -70,8 +70,11 @@ def main():
     with open(args.out, "a") as f:
         if write_header:
             f.write("num_seeds\trna_type\tfamily\tcount\n")
-        for family, count in sorted(counts.items()):
-            f.write(f"{args.seeds}\t{args.type}\t{family}\t{count}\n")
+        if counts:
+            for family, count in sorted(counts.items()):
+                f.write(f"{args.seeds}\t{args.type}\t{family}\t{count}\n")
+        else:
+            f.write(f"{args.seeds}\t{args.type}\tNo alignment\t0\n")
 
     print(f"  {args.type} family breakdown ({sum(counts.values())} hits): "
           + ", ".join(f"{v} {k}" for k, v in counts.most_common(3)))
