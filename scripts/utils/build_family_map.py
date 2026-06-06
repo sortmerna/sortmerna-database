@@ -12,6 +12,7 @@ Columns written:
     seq_id, rna_family, domain, phylum, class, order, tax_family, genus, species
 """
 
+import gzip
 import re
 import sys
 from pathlib import Path
@@ -45,7 +46,8 @@ def write_family_map(output_path: str, fasta_family_pairs: list[tuple[str, str]]
     with open(output_path, "w") as out:
         out.write("\t".join(HEADER) + "\n")
         for fasta_path, rna_family in fasta_family_pairs:
-            with open(fasta_path) as f:
+            opener = gzip.open(fasta_path, "rt") if fasta_path.endswith(".gz") else open(fasta_path)
+            with opener as f:
                 for line in f:
                     if not line.startswith(">"):
                         continue
@@ -64,8 +66,11 @@ def main():
     pairs = []
     for entry in sys.argv[2:]:
         fasta_path, rna_family = entry.rsplit(":", 1)
-        if not Path(fasta_path).exists():
-            print(f"WARNING: {fasta_path} not found - skipping", file=sys.stderr)
+        p = Path(fasta_path)
+        if not p.exists() and Path(fasta_path + ".gz").exists():
+            fasta_path += ".gz"
+        elif not p.exists():
+            print(f"WARNING: {fasta_path}[.gz] not found - skipping", file=sys.stderr)
             continue
         pairs.append((fasta_path, rna_family))
 

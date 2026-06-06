@@ -388,6 +388,7 @@ For each configuration the script produces:
 | `<config>/<config>.fasta` | Combined reference FASTA (all domains concatenated) |
 | `<config>/idx/` | SortMeRNA index files |
 | `<config>/index.stats` | Sequence count, build time, index size, SortMeRNA version |
+| `<config>/family_map.tsv` | Tab-separated mapping of sequence ID to rRNA family (used for BLAST hit breakdown) |
 
 **Index building is done once.** The index only needs to be built once per database configuration. When you later run SortMeRNA alignment with the same `--ref` and `--idx-dir` paths, SortMeRNA finds the existing index and skips rebuilding - even across separate invocations or tmux sessions. Use `--force` to explicitly trigger a rebuild.
 
@@ -686,59 +687,42 @@ file	format	type	num_seqs	sum_len	min_len	avg_len	max_len
 
 #### PacBio Parameter Optimisation Sweep
 
-SortMeRNA's default seeding parameters (`--passes 18,9,3`, `--num_seeds 2`) were
-designed for Illumina and 454 reads in the 100-500 bp range. For ~4,500 bp
-PacBio HiFi reads the seed window length (`--L 18`) and Levenshtein distance (1)
-remain appropriate, but the pass strides can be made much sparser - reducing the
-number of seed lookups per read from ~1,495 (default) down to ~90 - without
-sacrificing sensitivity.
+SortMeRNA's default seeding parameters (`--passes 18,9,3`, `--num_seeds 2`) were designed for Illumina reads in the 100-500 bp range. For ~4,500 bp PacBio HiFi full-operon reads the key parameter to tune is `--num_seeds`.
 
-**Parameter grid** (4 x 4 = 16 combinations):
+**Why `--num_seeds 2` is too low for long reads**
 
-| `--passes` | Approx. stride ratio vs default | P1 windows / read | Total windows / read |
-|---|---|---|---|
-| `18,9,3`    | 1x (default)  | 250 | 1,495 |
-| `100,50,10` | ~6x           |  45 |   449 |
-| `200,100,20`| ~12x          |  23 |   225 |
-| `500,200,50`| ~28x          |   9 |    90 |
+`--num_seeds N` requires at least N co-linear seed matches (LIS) against a reference sequence before triggering Smith-Waterman alignment. The finest pass (stride 3) places the most seeds and dominates: for a 150 bp Illumina read, `(150-18)/3 + 1` ~ 45 seeds are placed, so `--num_seeds 2` requires 2 of ~45 - a ~4.5% hit rate. For a 4,500 bp PacBio read, `(4500-18)/3 + 1` ~ 1,494 seeds are placed, so `--num_seeds 2` requires only ~0.1% - a threshold trivially met by any short rRNA-like segment or 5S pseudogene. This produces high false positive rates (~13-17% on masked T2T reads). The problem is compounded by short references: SortMeRNA runs Smith-Waterman over the full length of the matched reference, so a 5S rRNA reference (~117 bp) only requires a ~50-60 bp matching region on the read to pass the SW score threshold. Since 5S pseudogenes are distributed across many chromosomes in the T2T genome, long non-rRNA reads frequently contain short 5S-like segments that seed-match and then pass the alignment step purely on the strength of the short reference length.
 
-`--num_seeds` tested: **2** (default), **5**, **10**, **25**
+**Maximum LIS ceiling per reference type**
 
-> **Degenerate combinations**: `--passes 500,200,50 --num_seeds 25` - P1 yields
-> only ~9 windows so the seed threshold cannot be met in Pass 1; the code always
-> cascades through all three passes. Such combinations appear in the grid to
-> confirm they offer no speed benefit over the default.
+`--num_seeds` is evaluated against each reference sequence independently. The maximum possible co-linear LIS is bounded by the reference length at the finest pass (stride 3):
 
-**Metrics collected per run:**
-- **Sensitivity** = aligned reads / 253,089 (expected ~100% for all combos - any drop is a regression)
-- **Wall-clock time** - primary signal for selecting the winner
-- **Mean SW alignment score** - proxy for alignment quality; should be stable across sparse-seeding combos
+| Reference | Approx. length | Max seeds at stride 3 |
+|---|---|---|
+| 5S rRNA | ~120 bp | ~34 |
+| 5.8S rRNA | ~160 bp | ~47 |
+| 16S SSU | ~1,500 bp | ~494 |
+| 23S LSU | ~2,900 bp | ~961 |
 
-**Parameter sweep script:**
+Setting `--num_seeds > 34` structurally prevents most 5S references from triggering SW alignment. The practical 23S ceiling is confirmed empirically: at `--num_seeds 800`, only 22.86% of full-operon reads pass (those whose 23S region aligns to a long-enough LSU reference); at `--num_seeds 1000`, sensitivity drops to 0% because no reference in the database is long enough to produce 1000 co-linear seeds.
+
+**Sweep: `--num_seeds` from 2 to 1000**
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_sweep.sh \
-    /path/to/karst2021_253k.fastq \
-    /path/to/pbsim3_nonrrna_253k.fastq \
-    $WORK_DIR/results/pacbio_sweep \
+    $PACBIO_DIR/karst2021_253k.fna.gz \
+    $NON_RRNA_DIR/non_rrna_pacbio_253089_T2T.fastq.gz \
+    $PACBIO_DIR/sweep \
     4
 ```
 
-**Expected results table** (`sweep_results.tsv`):
+The sweep tests 21 values of `--num_seeds` (2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000) on 10K subsampled reads (quick mode). Outputs `sweep_results.tsv` and a ROC plot (`roc_num_seeds.png`) of sensitivity vs selectivity (1 - FPR).
 
-```
-passes        num_seeds  total   aligned  sensitivity  wall_sec
-18,9,3        2          253089  ...      ...          ...
-18,9,3        5          253089  ...      ...          ...
-...
-500,200,50    25         253089  ...      ...          ...
-```
+**Interpreting results**: the optimal `--num_seeds` is the lowest value where:
+1. Sensitivity stays at 1.0000 (all full-operon rRNA reads detected via 16S/23S seeds)
+2. FPR drops to near zero (5S and partial genomic matches blocked)
 
-**Interpreting results**: sensitivity should remain flat at ~1.0000 across all
-combinations (HiFi error rate ~0.1% means sparse seeds still land in error-free
-stretches). The winning combination is the sparsest `--passes` / highest
-`--num_seeds` pair that maintains full sensitivity - expect this to be around
-`--passes 200,100,20 --num_seeds 5` based on the window-count analysis above.
+The expected elbow is somewhere between 35 (above the 5S ceiling) and ~500 (well below the 23S ceiling of ~961), where the LIS from genuine 16S/23S alignments dominates over spurious partial matches.
 
 #### Performance Metrics
 - **Sensitivity**: True positives / (True positives + False negatives)
