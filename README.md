@@ -7,6 +7,26 @@ A benchmarking framework for building and evaluating rRNA databases for SortMeRN
 
 **Status**: 🚧 Active Development - this repository is undergoing daily changes and is not yet ready for use. Scripts, workflows, and outputs may change without notice. Do not use this repository in production or depend on its outputs until this status is updated to indicate a stable release.
 
+## Table of Contents
+
+- [Latest databases](#latest-databases-silva-1382--rfam-151)
+- [Installation](#installation)
+- [Phase 1: Database Construction](#phase-1-database-construction-1)
+  - [Download Source Databases](#download-source-databases)
+  - [Verify Sequences](#verify-sequences)
+  - [Build Clustered Databases](#build-clustered-databases)
+  - [Build SortMeRNA Indices](#build-sortmerna-indices)
+  - [Non-rRNA Test Sets](#non-rrna-test-sets)
+  - [rRNA Test Sets](#rrna-test-sets)
+- [Phase 2: Validation and Benchmarking](#phase-2-validation-and-benchmarking-1)
+  - [Experiment 1: Scalability](#experiment-1-scalability)
+  - [Experiment 2: Sensitivity across database configurations](#experiment-2-sensitivity-across-database-configurations)
+  - [Experiment 3: Benchmark on Deng et al. 2022 datasets](#experiment-3-benchmark-on-deng-et-al-2022-datasets)
+  - [Real Benchmark Datasets (PacBio)](#real-benchmark-datasets-pacbio)
+  - [PacBio Parameter Optimisation Sweep](#pacbio-parameter-optimisation-sweep)
+- [AWS Instances](#aws-instances)
+- [References](#references)
+
 Latest databases (SILVA 138.2 + Rfam 15.1):
 
 | Database | Sequences | Index size | Clustering | Recommended for | Link |
@@ -688,10 +708,6 @@ file	format	type	num_seqs	sum_len	min_len	avg_len	max_len
 #### PacBio Parameter Optimisation Sweep
 
 SortMeRNA's default seeding parameters (`--passes 18,9,3`, `--num_seeds 2`) were designed for Illumina reads in the 100-500 bp range. For ~4,500 bp PacBio HiFi full-operon reads the key parameter to tune is `--num_seeds`.
-
-**Why `--num_seeds 2` is too low for long reads**
-
-`--num_seeds N` requires at least N co-linear seed matches (LIS) against a reference sequence before triggering Smith-Waterman alignment. The finest pass (stride 3) places the most seeds and dominates: for a 150 bp Illumina read, `(150-18)/3 + 1` ~ 45 seeds are placed, so `--num_seeds 2` requires 2 of ~45 - a ~4.5% hit rate. For a 4,500 bp PacBio read, `(4500-18)/3 + 1` ~ 1,494 seeds are placed, so `--num_seeds 2` requires only ~0.1% - a threshold trivially met by any short rRNA-like segment or 5S pseudogene. This produces high false positive rates (~13-17% on masked T2T reads). The problem is compounded by short references: SortMeRNA runs Smith-Waterman over the full length of the matched reference, so a 5S rRNA reference (~117 bp) only requires a ~50-60 bp matching region on the read to pass the SW score threshold. Since 5S pseudogenes are distributed across many chromosomes in the T2T genome, long non-rRNA reads frequently contain short 5S-like segments that seed-match and then pass the alignment step purely on the strength of the short reference length.
 
 **Maximum LIS ceiling per reference type**
 
