@@ -132,7 +132,7 @@ run_smr_timed() {
 # Sweep is over --num_seeds and --evalue until --passes is fixed.
 PASSES_LIST=("18,9,3")
 SEEDS_LIST=(1000 900 800 700 600 500 400 300 200 100 50 45 40 35 30 25 20 15 10 5 2)
-EVALUES_LIST=(1e-5 1e-10 1e-20)
+EVALUES_LIST=(1e-20 1e-10 1e-5)
 
 for passes in "${PASSES_LIST[@]}"; do
     for evalue in "${EVALUES_LIST[@]}"; do
