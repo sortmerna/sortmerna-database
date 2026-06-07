@@ -247,7 +247,7 @@ with open(results_tsv) as f:
     rows = list(csv.DictReader(f, delimiter='\t'))
 
 table_rows = "".join(
-    f"<tr><td>{r['passes']}</td><td>{r['num_seeds']}</td>"
+    f"<tr><td>{r['passes']}</td><td>{r['evalue']}</td><td>{r['num_seeds']}</td><td>{r['min_lis']}</td>"
     f"<td>{r['rrna_aligned']}</td><td>{float(r['sensitivity'])*100:.2f}%</td>"
     f"<td>{r['nonrrna_aligned']}</td><td>{float(r['fpr'])*100:.2f}%</td>"
     f"<td>{r['wall_sec']}</td><td>{r['peak_rss_mb']}</td></tr>"
@@ -284,7 +284,7 @@ html = f"""<!DOCTYPE html>
 
 <h2>Results table</h2>
 <table><thead><tr>
-  <th>passes</th><th>num_seeds</th>
+  <th>passes</th><th>evalue</th><th>num_seeds</th><th>min_lis</th>
   <th>rRNA aligned</th><th>Sensitivity</th>
   <th>Non-rRNA aligned</th><th>FPR</th>
   <th>Wall time (s)</th><th>Peak RSS (MB)</th>

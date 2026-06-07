@@ -25,25 +25,27 @@ family_tsv <- args[2]
 out_dir    <- args[3]
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-# --- ROC curve ---
+# --- ROC curve (3 panels, one per e-value, auto-scaled axes) ---
 sweep <- read.delim(sweep_tsv, stringsAsFactors = FALSE) %>%
-  mutate(selectivity = 1 - fpr) %>%
-  arrange(num_seeds)
+  mutate(
+    selectivity = 1 - fpr,
+    label       = paste0("ms=", min_lis, ",ns=", num_seeds),
+    evalue      = factor(evalue, levels = sort(unique(evalue)))
+  )
 
-p_roc <- ggplot(sweep, aes(x = selectivity, y = sensitivity, label = num_seeds)) +
-  geom_line(colour = "grey60", linetype = "dashed") +
-  geom_point(aes(colour = num_seeds), size = 2.5) +
-  geom_text(nudge_x = 0.004, nudge_y = 0.004, size = 2.5, colour = "grey30") +
-  scale_colour_viridis_c(name = "num_seeds", direction = -1) +
+p_roc <- ggplot(sweep, aes(x = selectivity, y = sensitivity)) +
+  geom_point(size = 2, colour = "#2c3e50") +
+  geom_text(aes(label = label), size = 2.2, hjust = -0.08, vjust = 0.5, colour = "grey30") +
+  facet_wrap(~ evalue, scales = "free", ncol = 3,
+             labeller = labeller(evalue = function(x) paste0("e = ", x))) +
   geom_hline(yintercept = 1, linetype = "dotted", colour = "forestgreen") +
-  scale_x_continuous(limits = c(0, 1.02)) +
-  scale_y_continuous(limits = c(0, 1.02)) +
   labs(x = "Selectivity (1 - FPR)", y = "Sensitivity",
-       title = "SortMeRNA PacBio sweep: ROC",
-       subtitle = "Labels = num_seeds value") +
-  theme_bw(base_size = 11)
+       title = "SortMeRNA PacBio sweep: ROC by e-value",
+       subtitle = "Labels: ms = min_lis, ns = num_seeds") +
+  theme_bw(base_size = 11) +
+  theme(panel.spacing = unit(1, "lines"))
 
-ggsave(file.path(out_dir, "roc.png"), p_roc, width = 7, height = 5.5, dpi = 300)
+ggsave(file.path(out_dir, "roc.png"), p_roc, width = 14, height = 5, dpi = 300)
 message("  Saved roc.png")
 
 # --- Stacked bar charts ---
