@@ -45,6 +45,8 @@ IDX_DIR="${INDEX_DIR}/${DB_NAME}/idx"
 # Total reads in each dataset - used to compute sensitivity and FPR
 TOTAL_RRNA=253089
 TOTAL_NONRRNA=253089
+TOTAL_RRNA_FULL=$(seqkit stats -T "${RRNA_FULL}"    | tail -1 | cut -f4)
+TOTAL_NONRRNA_FULL=$(seqkit stats -T "${NONRRNA_FULL}" | tail -1 | cut -f4)
 
 # Quick-check mode: subsample to 10K reads for fast parameter iteration.
 # Disable by setting QUICK=0.
@@ -229,7 +231,7 @@ column -t -s $'\t' "${RESULTS}"
 
 # --- Full-dataset validation at recommended operating points ---
 echo ""
-echo "=== Full-dataset validation (${TOTAL_RRNA} rRNA / ${TOTAL_NONRRNA} non-rRNA reads) ==="
+echo "=== Full-dataset validation (${TOTAL_RRNA_FULL} rRNA / ${TOTAL_NONRRNA_FULL} non-rRNA reads) ==="
 VALID_RESULTS="${SWEEP_DIR}/validation_results.tsv"
 printf 'passes\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${VALID_RESULTS}"
 
@@ -282,8 +284,8 @@ for pair in "1e-10 2 4" "1e-10 2 5"; do
     peak_rss=$(( rss_rrna > rss_nonrrna ? rss_rrna : rss_nonrrna ))
     rrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${rrna_log}")
     nonrrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${nonrrna_log}")
-    sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA} }")
-    fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA} }")
+    sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA_FULL} }")
+    fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA_FULL} }")
 
     printf '18,9,3\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\n' \
         "${ev}" "${ns}" "${ml}" \
@@ -292,7 +294,7 @@ for pair in "1e-10 2 4" "1e-10 2 5"; do
         "${wall}" "${peak_rss}" \
         >> "${VALID_RESULTS}"
 
-    echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA})  time=${wall}s"
+    echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA_FULL})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA_FULL})  time=${wall}s"
 done
 
 echo ""
