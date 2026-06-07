@@ -204,10 +204,10 @@ for passes in "${PASSES_LIST[@]}"; do
                 nonrrna_blast="${SWEEP_DIR}/${label}/nonrrna/out/aligned.blast.gz"
                 [[ -f "${rrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
                     --blast "${rrna_blast}" --map "${FAMILY_MAP}" \
-                    --seeds "${min_lis}" --evalue "${evalue}" --type rrna --out "${FAMILY_COUNTS}"
+                    --num-seeds "${num_seeds}" --min-lis "${min_lis}" --evalue "${evalue}" --type rrna --out "${FAMILY_COUNTS}"
                 [[ -f "${nonrrna_blast}" ]] && python3 "${UTILS_DIR}/blast_family_breakdown.py" \
                     --blast "${nonrrna_blast}" --map "${FAMILY_MAP}" \
-                    --seeds "${min_lis}" --evalue "${evalue}" --type nonrrna --out "${FAMILY_COUNTS}"
+                    --num-seeds "${num_seeds}" --min-lis "${min_lis}" --evalue "${evalue}" --type nonrrna --out "${FAMILY_COUNTS}"
             fi
         done  # seed_lis_pairs
     done  # evalue

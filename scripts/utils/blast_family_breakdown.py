@@ -56,12 +56,13 @@ def count_families(blast_path: str, family_map: dict) -> Counter:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--blast",  required=True)
-    ap.add_argument("--map",    required=True)
-    ap.add_argument("--seeds",  required=True, type=int)
-    ap.add_argument("--evalue", default="1e-5")
-    ap.add_argument("--type",   required=True, choices=["rrna", "nonrrna"])
-    ap.add_argument("--out",    required=True)
+    ap.add_argument("--blast",     required=True)
+    ap.add_argument("--map",       required=True)
+    ap.add_argument("--num-seeds", required=True, type=int)
+    ap.add_argument("--min-lis",   required=True, type=int)
+    ap.add_argument("--evalue",    default="1e-5")
+    ap.add_argument("--type",      required=True, choices=["rrna", "nonrrna"])
+    ap.add_argument("--out",       required=True)
     args = ap.parse_args()
 
     family_map = load_family_map(args.map)
@@ -70,12 +71,13 @@ def main():
     write_header = not Path(args.out).exists()
     with open(args.out, "a") as f:
         if write_header:
-            f.write("evalue\tnum_seeds\trna_type\tfamily\tcount\n")
+            f.write("evalue\tnum_seeds\tmin_lis\trna_type\tfamily\tcount\n")
+        row_prefix = f"{args.evalue}\t{args.num_seeds}\t{args.min_lis}\t{args.type}"
         if counts:
             for family, count in sorted(counts.items()):
-                f.write(f"{args.evalue}\t{args.seeds}\t{args.type}\t{family}\t{count}\n")
+                f.write(f"{row_prefix}\t{family}\t{count}\n")
         else:
-            f.write(f"{args.evalue}\t{args.seeds}\t{args.type}\tNo alignment\t0\n")
+            f.write(f"{row_prefix}\tNo alignment\t0\n")
 
     print(f"  {args.type} family breakdown ({sum(counts.values())} hits): "
           + ", ".join(f"{v} {k}" for k, v in counts.most_common(3)))

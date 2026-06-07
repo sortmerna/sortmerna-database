@@ -13,6 +13,9 @@
 suppressPackageStartupMessages({
   library(ggplot2)
   library(dplyr)
+  library(ggrepel)
+  library(patchwork)
+  library(cowplot)
 })
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -33,12 +36,20 @@ sweep <- read.delim(sweep_tsv, stringsAsFactors = FALSE) %>%
     evalue      = factor(evalue, levels = sort(unique(evalue)))
   )
 
+# Use 1e-5 x-axis range for all panels so they are comparable
+x_limits <- sweep %>%
+  filter(evalue == "1e-5") %>%
+  summarise(lo = min(selectivity) - 0.02, hi = max(selectivity) + 0.02)
+
 p_roc <- ggplot(sweep, aes(x = selectivity, y = sensitivity)) +
   geom_point(size = 2, colour = "#2c3e50") +
-  geom_text(aes(label = label), size = 2.2, hjust = -0.08, vjust = 0.5, colour = "grey30") +
-  facet_wrap(~ evalue, scales = "free", ncol = 3,
+  geom_label_repel(aes(label = label), size = 2.2, colour = "grey20",
+                   box.padding = 0.3, point.padding = 0.2,
+                   max.overlaps = Inf, min.segment.length = 0) +
+  facet_wrap(~ evalue, scales = "free_y", ncol = 3,
              labeller = labeller(evalue = function(x) paste0("e = ", x))) +
   geom_hline(yintercept = 1, linetype = "dotted", colour = "forestgreen") +
+  scale_x_continuous(limits = c(x_limits$lo, x_limits$hi)) +
   labs(x = "Selectivity (1 - FPR)", y = "Sensitivity",
        title = "SortMeRNA PacBio sweep: ROC by e-value",
        subtitle = "Labels: ms = min_lis, ns = num_seeds") +
@@ -49,7 +60,7 @@ ggsave(file.path(out_dir, "roc.png"), p_roc, width = 14, height = 5, dpi = 300)
 message("  Saved roc.png")
 
 # --- Stacked bar charts ---
-fam <- read.delim(family_tsv, stringsAsFactors = FALSE) %>%
+fam_raw <- read.delim(family_tsv, stringsAsFactors = FALSE) %>%
   mutate(subunit = case_when(
     grepl("SSU.*Bacteria|SSU.*Archaea", family)   ~ "16S",
     grepl("SSU.*Eukaryota",             family)   ~ "18S",
@@ -58,38 +69,60 @@ fam <- read.delim(family_tsv, stringsAsFactors = FALSE) %>%
     grepl("5\\.8S",                     family)   ~ "5.8S",
     grepl("5S",                         family)   ~ "5S",
     TRUE                                          ~ "Unknown"
-  )) %>%
-  group_by(num_seeds, rna_type, subunit) %>%
-  summarise(count = sum(count), .groups = "drop") %>%
-  mutate(
-    subunit   = factor(subunit, levels = c("16S", "18S", "23S", "28S", "5S", "5.8S", "Unknown", "No alignment")),
-    num_seeds = factor(num_seeds, levels = sort(unique(num_seeds)))
-  )
+  ))
 
 palette <- c(
-  "16S"     = "#1f77b4",
-  "18S"     = "#17becf",
-  "23S"     = "#d62728",
-  "28S"     = "#ff7f0e",
-  "5S"      = "#2ca02c",
-  "5.8S"    = "#98df8a",
+  "16S"          = "#1f77b4",
+  "18S"          = "#17becf",
+  "23S"          = "#d62728",
+  "28S"          = "#ff7f0e",
+  "5S"           = "#2ca02c",
+  "5.8S"         = "#98df8a",
   "Unknown"      = "#7f7f7f",
   "No alignment" = "#ffffff"
 )
 
-make_bar <- function(data, type_label, title) {
-  ggplot(data %>% filter(rna_type == type_label),
-         aes(x = num_seeds, y = count, fill = subunit)) +
+subunit_levels <- c("16S", "18S", "23S", "28S", "5S", "5.8S", "Unknown", "No alignment")
+
+make_bar <- function(data, x_var, type_label, title, xlab) {
+  df <- data %>%
+    filter(rna_type == type_label) %>%
+    group_by(across(all_of(c(x_var, "subunit")))) %>%
+    summarise(count = sum(count), .groups = "drop") %>%
+    mutate(
+      subunit      = factor(subunit, levels = subunit_levels),
+      x_val        = factor(.data[[x_var]], levels = sort(unique(.data[[x_var]])))
+    )
+  ggplot(df, aes(x = x_val, y = count, fill = subunit)) +
     geom_bar(stat = "identity") +
     scale_fill_manual(values = palette, name = "rRNA subunit", drop = FALSE) +
-    labs(x = "num_seeds", y = "Aligned reads", title = title) +
-    theme_bw(base_size = 11) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    labs(x = xlab, y = "Aligned reads", title = title) +
+    theme_bw(base_size = 10) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "none")
 }
 
-p_rrna <- make_bar(fam, "rrna",    "rRNA reads: aligned by subunit vs num_seeds")
-p_non  <- make_bar(fam, "nonrrna", "Non-rRNA reads (FP): aligned by subunit vs num_seeds")
+make_row <- function(x_var, xlab, row_title) {
+  p1 <- make_bar(fam_raw, x_var, "rrna",    paste0(row_title, " - rRNA"),    xlab)
+  p2 <- make_bar(fam_raw, x_var, "nonrrna", paste0(row_title, " - non-rRNA"), xlab)
+  p1 + p2
+}
 
-ggsave(file.path(out_dir, "bar_rrna.png"),    p_rrna, width = 9, height = 5, dpi = 300)
-ggsave(file.path(out_dir, "bar_nonrrna.png"), p_non,  width = 9, height = 5, dpi = 300)
-message("  Saved bar_rrna.png and bar_nonrrna.png")
+legend_plot <- ggplot(
+  data.frame(subunit = factor(subunit_levels, levels = subunit_levels), x = 1, y = 1),
+  aes(x = x, y = y, fill = subunit)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = palette, name = "rRNA subunit", drop = FALSE) +
+  theme_void() +
+  theme(legend.position = "right")
+shared_legend <- cowplot::get_legend(legend_plot)
+
+row_ns  <- make_row("num_seeds", "num_seeds", "Aligned by num_seeds")
+row_lis <- make_row("min_lis",   "min_lis",   "Aligned by min_lis")
+row_ev  <- make_row("evalue",    "e-value",   "Aligned by e-value")
+
+combined <- (row_ns / row_lis / row_ev) +
+  plot_annotation(title = "rRNA family breakdown (left: rRNA reads, right: non-rRNA reads)")
+
+ggsave(file.path(out_dir, "bar_combined.png"), combined, width = 14, height = 14, dpi = 300)
+message("  Saved bar_combined.png")
