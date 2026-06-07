@@ -13,6 +13,7 @@
 suppressPackageStartupMessages({
   library(ggplot2)
   library(dplyr)
+  library(rlang)
   library(ggrepel)
   library(patchwork)
   library(cowplot)
@@ -41,7 +42,7 @@ sweep <- read.delim(sweep_tsv, stringsAsFactors = FALSE) %>%
 max_ev <- max(as.numeric(levels(sweep$evalue)))
 x_limits <- sweep %>%
   filter(abs(as.numeric(as.character(evalue)) - max_ev) < max_ev * 1e-6) %>%
-  summarise(lo = min(selectivity) - 0.02, hi = max(selectivity) + 0.02)
+  summarise(lo = min(selectivity) - 0.02, hi = 1.0)
 
 p_roc <- ggplot(sweep, aes(x = selectivity, y = sensitivity)) +
   geom_point(size = 2, colour = "#2c3e50") +
@@ -104,9 +105,10 @@ make_bar <- function(data, x_var, type_label, title, xlab) {
           legend.position = "none")
 }
 
-make_row <- function(x_var, xlab, row_title) {
-  p1 <- make_bar(fam_raw, x_var, "rrna",    paste0(row_title, " - rRNA"),    xlab)
-  p2 <- make_bar(fam_raw, x_var, "nonrrna", paste0(row_title, " - non-rRNA"), xlab)
+make_row <- function(x_var, xlab, row_title, filter_expr) {
+  filtered <- fam_raw %>% filter(!!rlang::parse_expr(filter_expr))
+  p1 <- make_bar(filtered, x_var, "rrna",    paste0(row_title, " - rRNA"),    xlab)
+  p2 <- make_bar(filtered, x_var, "nonrrna", paste0(row_title, " - non-rRNA"), xlab)
   p1 + p2
 }
 
@@ -119,9 +121,18 @@ legend_plot <- ggplot(
   theme(legend.position = "right")
 shared_legend <- cowplot::get_legend(legend_plot)
 
-row_ns  <- make_row("num_seeds", "num_seeds", "Aligned by num_seeds")
-row_lis <- make_row("min_lis",   "min_lis",   "Aligned by min_lis")
-row_ev  <- make_row("evalue",    "e-value",   "Aligned by e-value")
+# Fix reference values for non-swept parameters
+fam_raw <- fam_raw %>% mutate(evalue_num = as.numeric(evalue))
+ref_ev_num <- max(fam_raw$evalue_num)
+ref_ns  <- "2"   # num_seeds reference
+ref_lis <- "2"   # min_lis reference
+
+row_ns  <- make_row("num_seeds", "num_seeds", paste0("vs num_seeds (evalue=", ref_ev_num, ", min_lis=", ref_lis, ")"),
+                    paste0('evalue_num == ', ref_ev_num, ' & min_lis == ', ref_lis))
+row_lis <- make_row("min_lis",   "min_lis",   paste0("vs min_lis (evalue=", ref_ev_num, ", num_seeds=", ref_ns, ")"),
+                    paste0('evalue_num == ', ref_ev_num, ' & num_seeds == ', ref_ns))
+row_ev  <- make_row("evalue_num", "e-value",  paste0("vs e-value (num_seeds=", ref_ns, ", min_lis=", ref_lis, ")"),
+                    paste0('num_seeds == ', ref_ns, ' & min_lis == ', ref_lis))
 
 combined <- (row_ns / row_lis / row_ev) +
   plot_annotation(title = "rRNA family breakdown (left: rRNA reads, right: non-rRNA reads)")
