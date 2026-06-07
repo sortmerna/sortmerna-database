@@ -10,6 +10,7 @@ A benchmarking framework for building and evaluating rRNA databases for SortMeRN
 ## Table of Contents
 
 - [Latest databases](#latest-databases-silva-1382--rfam-151)
+- [Overview](#overview)
 - [Installation](#installation)
 - [Phase 1: Database Construction](#phase-1-database-construction-1)
   - [Download Source Databases](#download-source-databases)
@@ -85,10 +86,6 @@ This repository contains code and workflows to:
 1. Download and independently verify rRNA sequences using Infernal covariance models
 2. Build clustered rRNA databases from verified SILVA and Rfam sequences
 3. Benchmark database performance (accuracy vs. size tradeoffs)
-4. Optimize clustering parameters for different use cases
-5. Validate databases against simulated and real datasets
-   
-## Goals
 
 ### Phase 1: Database Construction
 - [x] Download latest SILVA database
@@ -111,16 +108,16 @@ This repository contains code and workflows to:
 - [ ] Experiment 7: PacBio metagenomics classification (Minich et al. 2025)
 
 
-## AWS Instances
+## Installation
+
+### Requirements
+
+**AWS Instances**
 
 Benchmarking was run on AWS EC2:
 - **c6i.xlarge** - 4 vCPUs, 8 GB RAM (compute-intensive runs)
 - **r6i.xlarge** - 4 vCPUs, 32 GB RAM (memory-intensive runs)
 - **r6i.16xlarge** - 64 vCPUs, 512 GB RAM (compute + memory-intensive runs)
-
-## Installation
-
-### Requirements
 
 **Core tools:**
 - [SortMeRNA](https://github.com/sortmerna/sortmerna) v6.0.2 - rRNA filtering (installed from source, see Quick Start)
