@@ -46,9 +46,11 @@ x_limits <- sweep %>%
 
 p_roc <- ggplot(sweep, aes(x = selectivity, y = sensitivity)) +
   geom_point(size = 2, colour = "#2c3e50") +
-  geom_label_repel(aes(label = label), size = 2.2, colour = "grey20",
-                   box.padding = 0.3, point.padding = 0.2,
-                   max.overlaps = Inf, min.segment.length = 0) +
+  geom_label_repel(
+    data = sweep %>% filter(abs(as.numeric(as.character(evalue)) - max_ev) < max_ev * 1e-6),
+    aes(label = label), size = 2.2, colour = "grey20",
+    box.padding = 0.3, point.padding = 0.2,
+    max.overlaps = Inf, min.segment.length = 0) +
   facet_wrap(~ evalue, scales = "free_y", ncol = 3,
              labeller = labeller(evalue = function(x) paste0("e = ", x))) +
   geom_hline(yintercept = 1, linetype = "dotted", colour = "forestgreen") +
