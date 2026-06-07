@@ -157,27 +157,35 @@ for passes in "${PASSES_LIST[@]}"; do
             echo "passes=${passes}  evalue=${evalue}  num_seeds=${num_seeds}  min_lis=${min_lis}"
             echo "--------------------------------------------"
 
-            wall_rrna=0 rss_rrna=0 wall_nonrrna=0 rss_nonrrna=0
+            wall_rrna=NA rss_rrna=NA wall_nonrrna=NA rss_nonrrna=NA
 
             if [[ -f "${rrna_log}" ]]; then
                 echo "  rRNA run already exists - skipping"
+                wall_rrna=$(cat "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"    2>/dev/null || echo NA)
+                rss_rrna=$( cat "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt" 2>/dev/null || echo NA)
             else
                 mkdir -p "${SWEEP_DIR}/${label}/rrna"
                 echo "  Running rRNA..."
                 result=$(run_smr_timed "${RRNA_READS}" "${SWEEP_DIR}/${label}/rrna" "${passes}" "${num_seeds}" "${evalue}" "${min_lis}")
                 wall_rrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
                 rss_rrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+                echo "${wall_rrna}" > "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"
+                echo "${rss_rrna}"  > "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt"
                 echo "  rRNA done: ${wall_rrna}s peak RSS ${rss_rrna} MB"
             fi
 
             if [[ -f "${nonrrna_log}" ]]; then
                 echo "  Non-rRNA run already exists - skipping"
+                wall_nonrrna=$(cat "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"    2>/dev/null || echo NA)
+                rss_nonrrna=$( cat "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt" 2>/dev/null || echo NA)
             else
                 mkdir -p "${SWEEP_DIR}/${label}/nonrrna"
                 echo "  Running non-rRNA..."
                 result=$(run_smr_timed "${NONRRNA_READS}" "${SWEEP_DIR}/${label}/nonrrna" "${passes}" "${num_seeds}" "${evalue}" "${min_lis}")
                 wall_nonrrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
                 rss_nonrrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+                echo "${wall_nonrrna}" > "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"
+                echo "${rss_nonrrna}"  > "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt"
                 echo "  Non-rRNA done: ${wall_nonrrna}s peak RSS ${rss_nonrrna} MB"
             fi
 
@@ -272,6 +280,18 @@ html = f"""<!DOCTYPE html>
 <body>
 <h1>SortMeRNA PacBio Parameter Sweep</h1>
 <p>Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+
+<div style="background:#f8f9fa;border-left:4px solid #3498db;padding:12px 18px;margin:16px 0;font-size:0.93em">
+<p><strong>rRNA reads (sensitivity test):</strong>
+253,089 real PacBio HiFi full-length bacterial rRNA operon sequences (~4,500 bp, 16S+ITS+23S) from
+<a href="https://doi.org/10.1038/s41592-020-01041-y">Karst et al. 2021 (<em>Nature Methods</em>)</a>,
+70 AGP human fecal samples sequenced with PacBio Sequel II UMI amplicon sequencing
+(<a href="https://qiita.ucsd.edu/study/description/10317#">Qiita study 10317</a>).
+Every read is a guaranteed true positive by PCR amplification with 27F/2490R primers.</p>
+<p><strong>Non-rRNA reads (specificity test):</strong>
+253,089 PacBio HiFi reads simulated with PBSIM3 from the rRNA-masked human T2T genome (CHM13v2.0),
+mean length ~4,500 bp to match the Karst dataset.</p>
+</div>
 
 <h2>ROC Curve (sensitivity vs selectivity)</h2>
 <div class="plot">{embed_png(f"{plots_dir}/roc.png")}</div>
