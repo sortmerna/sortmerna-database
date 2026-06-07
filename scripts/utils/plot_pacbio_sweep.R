@@ -15,7 +15,6 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(ggrepel)
   library(patchwork)
-  library(cowplot)
 })
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -103,7 +102,7 @@ make_bar <- function(data, x_var, type_label, title, xlab) {
     labs(x = xlab, y = "Aligned reads", title = title) +
     theme_bw(base_size = 10) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
-          legend.position = "none")
+          legend.position = "right")
 }
 
 make_row <- function(x_var, xlab, row_title, fix_ev = NULL, fix_ns = NULL, fix_lis = NULL) {
@@ -115,15 +114,6 @@ make_row <- function(x_var, xlab, row_title, fix_ev = NULL, fix_ns = NULL, fix_l
   p2 <- make_bar(filtered, x_var, "nonrrna", paste0(row_title, " - non-rRNA"), xlab)
   p1 + p2
 }
-
-legend_plot <- ggplot(
-  data.frame(subunit = factor(subunit_levels, levels = subunit_levels), x = 1, y = 1),
-  aes(x = x, y = y, fill = subunit)) +
-  geom_bar(stat = "identity") +
-  scale_fill_manual(values = palette, name = "rRNA subunit", drop = FALSE) +
-  theme_void() +
-  theme(legend.position = "right")
-shared_legend <- cowplot::get_legend(legend_plot)
 
 # Fix reference values for non-swept parameters
 fam_raw <- fam_raw %>% mutate(evalue_num = as.numeric(evalue))
@@ -142,7 +132,9 @@ row_ev  <- make_row("evalue_num", "e-value",
                     fix_ns = as.integer(ref_ns), fix_lis = as.integer(ref_lis))
 
 combined <- (row_ns / row_lis / row_ev) +
-  plot_annotation(title = "rRNA family breakdown (left: rRNA reads, right: non-rRNA reads)")
+  plot_layout(guides = "collect") +
+  plot_annotation(title = "rRNA family breakdown (left: rRNA reads, right: non-rRNA reads)") &
+  theme(legend.position = "right")
 
 ggsave(file.path(out_dir, "bar_combined.png"), combined, width = 14, height = 14, dpi = 300)
 message("  Saved bar_combined.png")

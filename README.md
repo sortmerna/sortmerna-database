@@ -22,7 +22,9 @@ A benchmarking framework for building and evaluating rRNA databases for SortMeRN
   - [Experiment 1: Scalability](#experiment-1-scalability)
   - [Experiment 2: Sensitivity across database configurations](#experiment-2-sensitivity-across-database-configurations)
   - [Experiment 3: Benchmark on Deng et al. 2022 datasets](#experiment-3-benchmark-on-deng-et-al-2022-datasets)
-  - [Real Benchmark Datasets (PacBio)](#real-benchmark-datasets-pacbio)
+  - [Experiment 5: Short-read Illumina Metatranscriptomics](#experiment-5-short-read-illumina-metatranscriptomics)
+  - [Experiment 6: PacBio rRNA Operon](#experiment-6-pacbio-rrna-operon-karst-et-al-2021)
+  - [Experiment 7: PacBio Metagenomics](#experiment-7-pacbio-metagenomics-minich-et-al-2025)
   - [PacBio Parameter Optimisation Sweep](#pacbio-parameter-optimisation-sweep)
 - [AWS Instances](#aws-instances)
 - [References](#references)
@@ -38,7 +40,7 @@ Latest databases (SILVA 138.2 + Rfam 15.1):
 > [!NOTE]
 > Full build report: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
 
-These databases can be used with any SortMeRNA version. For SortMeRNA v6.0.0 and later we recommend `-e 1e-5` instead of the previous default of `-e 1`: v6.0.0 switched the hash index from CMPH to BBHash and alignment from SSW to Parasail, and latest benchmarks show a minor improvement in selectivity at this threshold with no impact on sensitivity or runtime.
+These databases can be used with any SortMeRNA version. For SortMeRNA v6.0.0 and later we recommend `-e 1e-5` (for Illumina/454 data) instead of the previous default of `-e 1`. Version v6.0.0 switched the hash index from CMPH to BBHash and alignment from SSW to Parasail, and latest benchmarks show a minor improvement in selectivity at this threshold with no impact on sensitivity or runtime.
 
 **Step 1 - Build the index (once per database):**
 ```bash
@@ -104,10 +106,9 @@ This repository contains code and workflows to:
 - [x] Experiment 1: Run SortMeRNA on T2T non-rRNA (10K-10M), Rfam ncRNA (10K-500K), and rRNA reads (10K-10M); generate runtime, FP rate, sensitivity, and E-value plots
 - [x] Experiment 2: Run SortMeRNA against matched database configuration and measure sensitivity
 - [x] Experiment 3: Run SortMeRNA on Deng et al. 2022 benchmark datasets (sensitivity and specificity)
-- [ ] Download real Illumina metatranscriptomics data
-- [ ] Download real PacBio amplicon data (Karst et al. 2021)
-- [ ] Download real PacBio metagenomics data
-- [ ] Benchmark latest SortMeRNA vs. SortMeRNA v2.1b (original paper) and other tools: sensitivity, specificity, runtime, memory
+- [ ] Experiment 5: Short-read Illumina metatranscriptomics data
+- [x] Experiment 6: PacBio rRNA operon sensitivity/specificity (Karst et al. 2021, parameter sweep)
+- [ ] Experiment 7: PacBio metagenomics classification (Minich et al. 2025)
 
 
 ## AWS Instances
@@ -115,7 +116,7 @@ This repository contains code and workflows to:
 Benchmarking was run on AWS EC2:
 - **c6i.xlarge** - 4 vCPUs, 8 GB RAM (compute-intensive runs)
 - **r6i.xlarge** - 4 vCPUs, 32 GB RAM (memory-intensive runs)
-- **r6i.16xlarge** - 64 vCPUs, 512 GB RAM (memory + compute-intensive runs)
+- **r6i.16xlarge** - 64 vCPUs, 512 GB RAM (compute + memory-intensive runs)
 
 ## Installation
 
@@ -130,9 +131,6 @@ Benchmarking was run on AWS EC2:
 **Languages:**
 - Python >= 3.8
 - R >= 4.0
-
-**Python libraries:**
-- pandas, numpy, matplotlib, seaborn, biopython
 
 **Simulation tools (for benchmarking):**
 - [InSilicoSeq](https://github.com/HadrienG/InSilicoSeq) - Illumina read simulation
@@ -336,7 +334,6 @@ Outputs per domain/type in each verified directory:
 
 > [!NOTE]
 > SILVA 138.2: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified/verification_summary.html" target="_blank">verification_summary.html</a>
-
 > Rfam 15.1: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/verified_rfam/verification_summary.html" target="_blank">verification_summary.html</a>
 
 ### Build Clustered Databases
@@ -673,15 +670,20 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_smr_benchmark.sh \
 > [!NOTE]
 > Outputs a per-Set summary HTML: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/results-r6i.16xlarge/summary.html" target="_blank">summary.html</a>.
 
-#### Real Benchmark Datasets (PacBio)
-Sensitivity test using real PacBio long-read amplicon data:
+#### Experiment 5: Short-read Illumina Metatranscriptomics
+
+- **Status**: [ ] Data download and analysis pending.
+
+#### Experiment 6: PacBio rRNA Operon (Karst et al. 2021)
+
+Sensitivity and specificity test using real PacBio HiFi full-length rRNA operon reads:
 - **Source**: [Karst et al. (2021, *Nature Methods*)](https://doi.org/10.1038/s41592-020-01041-y) - 253,089 high-quality,
   full-length bacterial rRNA operon sequences (~4,500 bp, 16S+ITS+23S) from 70
   AGP human fecal samples, generated using PacBio Sequel II UMI amplicon
   sequencing. Raw data: [Qiita study 10317](https://qiita.ucsd.edu/study/description/10317#) (American Gut Project).
 - **Rationale**: Every read is a guaranteed true positive by virtue of PCR
   amplification with 27F/2490R primers. Tests SortMeRNA's ability to handle ~4,500 bp long reads.
-- **Non-rRNA source**: PBSIM3 simulated reads from the masked T2T genome (253,089 reads at ~4,500 bp mean to match the Karst dataset). Rfam non-rRNA families are not used here as most sequences are shorter than typical PacBio HiFi read lengths.
+- **Non-rRNA source**: PBSIM3 simulated reads from the masked T2T genome (253,089 reads at ~4,500 bp mean to match the Karst dataset).
 
 ```bash
 # Count total reads
@@ -705,40 +707,30 @@ file	format	type	num_seqs	sum_len	min_len	avg_len	max_len
   - **Specificity**: Run PBSIM3-simulated non-rRNA reads through SortMeRNA;
     measure false positive rate per database configuration
 
-#### PacBio Parameter Optimisation Sweep
+##### PacBio Parameter Optimisation Sweep
 
-SortMeRNA's default seeding parameters (`--passes 18,9,3`, `--num_seeds 2`) were designed for Illumina reads in the 100-500 bp range. For ~4,500 bp PacBio HiFi full-operon reads the key parameter to tune is `--num_seeds`.
+SortMeRNA's default parameters (`--passes 18,9,3`, `--num_seeds 2`, `--min_lis 2`, `-e 1e-3`) were designed for Illumina/454 short reads, where the challenge is sensitivity: a read may contain only a small fragment of one rRNA gene, so the seed and LIS thresholds are kept permissive (2 seeds, LIS >= 2) to avoid missing weakly-represented rRNA signal. The E-value threshold similarly reflects the short-read regime, where a high-scoring alignment over 150 bp is already strong evidence.
 
-**Maximum LIS ceiling per reference type**
+`--passes 18,9,3`: the strides are defined relative to the seed length (L, L/2, 3), not read length, so the seed-matching mechanism is identical across read lengths. On long reads, pass 1 alone saturates the seed threshold and early-exit fires immediately, making passes 2 and 3 largely redundant in practice.
 
-`--num_seeds` is evaluated against each reference sequence independently. The maximum possible co-linear LIS is bounded by the reference length at the finest pass (stride 3):
+**Sweep findings:** For PacBio long reads (5-15 kb), random k-mer matches and degraded pseudogene fragments accumulate enough seeds to pass default thresholds, driving FPR as high as 22.4% against human non-rRNA reads. The parameter sweep reveals:
 
-| Reference | Approx. length | Max seeds at stride 3 |
-|---|---|---|
-| 5S rRNA | ~120 bp | ~34 |
-| 5.8S rRNA | ~160 bp | ~47 |
-| 16S SSU | ~1,500 bp | ~494 |
-| 23S LSU | ~2,900 bp | ~961 |
-
-Setting `--num_seeds > 34` structurally prevents most 5S references from triggering SW alignment. The practical 23S ceiling is confirmed empirically: at `--num_seeds 800`, only 22.86% of full-operon reads pass (those whose 23S region aligns to a long-enough LSU reference); at `--num_seeds 1000`, sensitivity drops to 0% because no reference in the database is long enough to produce 1000 co-linear seeds.
-
-**Sweep: `--num_seeds` from 2 to 1000**
+- **`-e` is the dominant specificity lever** - tightening from `1e-5` to `1e-10` alone reduces FPR from 22.4% to 3.3% with no sensitivity loss
+- **`--min_lis` provides targeted additional filtering** - requires co-linear seed chains on a single reference, directly blocking short pseudogene fragments (~50 bp, max LIS ~3) while preserving detection of 5S (~120 bp, max LIS ~7) and larger subunits
+- **`--num_seeds` contributes modestly** and is largely subsumed by `--min_lis` at the same threshold value
+- **Sensitivity stays 100% throughout** - full-operon reads generate LIS >> 10 against 23S references regardless of parameter choice
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_sweep.sh \
     $PACBIO_DIR/karst2021_253k.fna.gz \
     $NON_RRNA_DIR/non_rrna_pacbio_253089_T2T.fastq.gz \
-    $PACBIO_DIR/sweep \
+    $PACBIO_DIR/sweep_lis \
     4
 ```
 
-The sweep tests 21 values of `--num_seeds` (2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000) on 10K subsampled reads (quick mode). Outputs `sweep_results.tsv` and a ROC plot (`roc_num_seeds.png`) of sensitivity vs selectivity (1 - FPR).
+Sweeps 17 `(num_seeds, min_lis)` pairs x 3 e-values on 10K subsampled reads. Outputs `sweep_results.tsv`, ROC curve (3 panels by e-value), and family breakdown bar charts showing which rRNA subunit drives sensitivity and FPR at each parameter combination.
 
-**Interpreting results**: the optimal `--num_seeds` is the lowest value where:
-1. Sensitivity stays at 1.0000 (all full-operon rRNA reads detected via 16S/23S seeds)
-2. FPR drops to near zero (5S and partial genomic matches blocked)
-
-The expected elbow is somewhere between 35 (above the 5S ceiling) and ~500 (well below the 23S ceiling of ~961), where the LIS from genuine 16S/23S alignments dominates over spurious partial matches.
+The recommended operating point for PacBio metatranscriptomic data is `-e 1e-10 --min_lis 4` or `-e 1e-10 --min_lis 5`, achieving ~2% FPR at ~500 s runtime on 10 K reads with 4 threads and no loss of rRNA recovery.
 
 #### Performance Metrics
 - **Sensitivity**: True positives / (True positives + False negatives)
@@ -748,6 +740,13 @@ The expected elbow is somewhere between 35 (above the 5S ceiling) and ~500 (well
 - **Runtime**: Wall-clock time for various read counts
 - **Memory**: Peak RAM usage
 - **Disk space**: Database + index size
+
+#### Experiment 7: PacBio Metagenomics (Minich et al. 2025)
+
+- **Source**: [Minich et al. (2025, *Cell*)](https://www.cell.com/cell/fulltext/S0092-8674%2825%2900975-4) - PacBio HiFi metagenomics from 47 fecal samples, mean read length N50 ~9,663 bp (SD += 1,868). Unlike Karst et al., reads are shotgun metagenomic - no guaranteed rRNA content per read. Raw data: [PRJNA1139951](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1139951). Metadata: [Supplementary Table S28](https://data.mendeley.com/datasets/ks5tvfzbzr/1).
+- **Rationale**: Tests SortMeRNA on long-read metagenomics where rRNA reads are a small unknown fraction of a mixed community. True labels are unknown at the read level; results reported as fraction of reads classified as rRNA and family breakdown.
+
+
 
 ## Expected Outputs
 

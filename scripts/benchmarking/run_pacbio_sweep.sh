@@ -28,6 +28,8 @@ set -euo pipefail
 
 RRNA_READS="$1"
 NONRRNA_READS="$2"
+RRNA_FULL="${RRNA_READS}"
+NONRRNA_FULL="${NONRRNA_READS}"
 SWEEP_DIR="$3"
 THREADS="${4:-4}"
 
@@ -225,6 +227,78 @@ echo ""
 echo "=== Sweep complete ==="
 column -t -s $'\t' "${RESULTS}"
 
+# --- Full-dataset validation at recommended operating points ---
+echo ""
+echo "=== Full-dataset validation (${TOTAL_RRNA} rRNA / ${TOTAL_NONRRNA} non-rRNA reads) ==="
+VALID_RESULTS="${SWEEP_DIR}/validation_results.tsv"
+printf 'passes\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${VALID_RESULTS}"
+
+for pair in "1e-10 2 4" "1e-10 2 5"; do
+    ev=$(echo "$pair" | cut -d' ' -f1)
+    ns=$(echo "$pair" | cut -d' ' -f2)
+    ml=$(echo "$pair" | cut -d' ' -f3)
+    ev_label="${ev//-/m}"
+    label="full_e${ev_label}_s${ns}_lis${ml}"
+    rrna_log="${SWEEP_DIR}/${label}/rrna/out/aligned.log"
+    nonrrna_log="${SWEEP_DIR}/${label}/nonrrna/out/aligned.log"
+
+    echo "--------------------------------------------"
+    echo "Full dataset: evalue=${ev}  num_seeds=${ns}  min_lis=${ml}"
+    echo "--------------------------------------------"
+
+    wall_rrna=0 rss_rrna=0 wall_nonrrna=0 rss_nonrrna=0
+
+    if [[ -f "${rrna_log}" ]]; then
+        echo "  rRNA run already exists - skipping"
+        wall_rrna=$(cat "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"    2>/dev/null || echo 0)
+        rss_rrna=$( cat "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt" 2>/dev/null || echo 0)
+    else
+        mkdir -p "${SWEEP_DIR}/${label}/rrna"
+        echo "  Running rRNA (full dataset)..."
+        result=$(run_smr_timed "${RRNA_FULL}" "${SWEEP_DIR}/${label}/rrna" "18,9,3" "${ns}" "${ev}" "${ml}")
+        wall_rrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+        rss_rrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+        echo "${wall_rrna}" > "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"
+        echo "${rss_rrna}"  > "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt"
+        echo "  rRNA done: ${wall_rrna}s peak RSS ${rss_rrna} MB"
+    fi
+
+    if [[ -f "${nonrrna_log}" ]]; then
+        echo "  Non-rRNA run already exists - skipping"
+        wall_nonrrna=$(cat "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"    2>/dev/null || echo 0)
+        rss_nonrrna=$( cat "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt" 2>/dev/null || echo 0)
+    else
+        mkdir -p "${SWEEP_DIR}/${label}/nonrrna"
+        echo "  Running non-rRNA (full dataset)..."
+        result=$(run_smr_timed "${NONRRNA_FULL}" "${SWEEP_DIR}/${label}/nonrrna" "18,9,3" "${ns}" "${ev}" "${ml}")
+        wall_nonrrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+        rss_nonrrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+        echo "${wall_nonrrna}" > "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"
+        echo "${rss_nonrrna}"  > "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt"
+        echo "  Non-rRNA done: ${wall_nonrrna}s peak RSS ${rss_nonrrna} MB"
+    fi
+
+    wall=$(( wall_rrna + wall_nonrrna ))
+    peak_rss=$(( rss_rrna > rss_nonrrna ? rss_rrna : rss_nonrrna ))
+    rrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${rrna_log}")
+    nonrrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${nonrrna_log}")
+    sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA} }")
+    fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA} }")
+
+    printf '18,9,3\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\n' \
+        "${ev}" "${ns}" "${ml}" \
+        "${rrna_aligned}" "${sens}" \
+        "${nonrrna_aligned}" "${fpr}" \
+        "${wall}" "${peak_rss}" \
+        >> "${VALID_RESULTS}"
+
+    echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA})  time=${wall}s"
+done
+
+echo ""
+echo "=== Full-dataset validation results ==="
+column -t -s $'\t' "${VALID_RESULTS}"
+
 # --- R plots (ROC + stacked bar charts) ---
 PLOTS_DIR="${SWEEP_DIR}/plots"
 mkdir -p "${PLOTS_DIR}"
@@ -237,11 +311,11 @@ fi
 
 # --- HTML report ---
 OUTPUT_HTML="${SWEEP_DIR}/sweep_report.html"
-python3 - "${RESULTS}" "${PLOTS_DIR}" "${OUTPUT_HTML}" <<'PYEOF'
+python3 - "${RESULTS}" "${VALID_RESULTS}" "${PLOTS_DIR}" "${OUTPUT_HTML}" <<'PYEOF'
 import sys, csv, base64, datetime
 from pathlib import Path
 
-results_tsv, plots_dir, html_path = sys.argv[1], sys.argv[2], sys.argv[3]
+results_tsv, valid_tsv, plots_dir, html_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 
 def embed_png(path):
     p = Path(path)
@@ -250,17 +324,20 @@ def embed_png(path):
     data = base64.b64encode(p.read_bytes()).decode()
     return f'<img src="data:image/png;base64,{data}" style="max-width:100%;border:1px solid #ddd;border-radius:4px">'
 
-rows = []
-with open(results_tsv) as f:
-    rows = list(csv.DictReader(f, delimiter='\t'))
+def make_table_rows(tsv_path):
+    if not Path(tsv_path).exists():
+        return ""
+    rows = list(csv.DictReader(open(tsv_path), delimiter='\t'))
+    return "".join(
+        f"<tr><td>{r['passes']}</td><td>{r['evalue']}</td><td>{r['num_seeds']}</td><td>{r['min_lis']}</td>"
+        f"<td>{r['rrna_aligned']}</td><td>{float(r['sensitivity'])*100:.2f}%</td>"
+        f"<td>{r['nonrrna_aligned']}</td><td>{float(r['fpr'])*100:.2f}%</td>"
+        f"<td>{r['wall_sec']}</td><td>{r['peak_rss_mb']}</td></tr>"
+        for r in rows
+    )
 
-table_rows = "".join(
-    f"<tr><td>{r['passes']}</td><td>{r['evalue']}</td><td>{r['num_seeds']}</td><td>{r['min_lis']}</td>"
-    f"<td>{r['rrna_aligned']}</td><td>{float(r['sensitivity'])*100:.2f}%</td>"
-    f"<td>{r['nonrrna_aligned']}</td><td>{float(r['fpr'])*100:.2f}%</td>"
-    f"<td>{r['wall_sec']}</td><td>{r['peak_rss_mb']}</td></tr>"
-    for r in rows
-)
+table_rows       = make_table_rows(results_tsv)
+valid_table_rows = make_table_rows(valid_tsv)
 
 html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -298,6 +375,13 @@ mean length ~4,500 bp.</p>
 
 <h2>rRNA family breakdown (left: rRNA reads, right: non-rRNA reads)</h2>
 <div class="plot">{embed_png(f"{plots_dir}/bar_combined.png")}</div>
+<div style="background:#f8f9fa;border-left:4px solid #2c3e50;padding:10px 16px;margin:8px 0;font-size:0.9em">
+<p><strong>Left (rRNA reads):</strong> All bars at 10,000, pure 23S - full-operon reads maintain 100% sensitivity across all parameter values. The 23S region always generates enough co-linear seeds to trigger alignment.</p>
+<p><strong>Right (non-rRNA reads - FPR):</strong>
+<em>vs num_seeds:</em> modest FPR reduction (2->6); num_seeds is a weak lever. &nbsp;
+<em>vs min_lis:</em> progressive step-down as min_lis increases 2->10; min_lis is the primary specificity lever, blocking pseudogene fragments by requiring longer co-linear seed chains. &nbsp;
+<em>vs e-value:</em> largest single effect - FPR from ~2,240 (1e-5) to ~54 (1e-20); dominant FP family is 18S throughout, indicating unmasked 18S pseudogenes in the T2T genome as the main false-positive source.</p>
+</div>
 
 <h2>Results table</h2>
 <table><thead><tr>
@@ -306,6 +390,16 @@ mean length ~4,500 bp.</p>
   <th>Non-rRNA aligned</th><th>FPR</th>
   <th>Wall time (s)</th><th>Peak RSS (MB)</th>
 </tr></thead><tbody>{table_rows}</tbody></table>
+
+<h2>Recommended operating points (full dataset: 253,089 reads)</h2>
+<p>The recommended operating point for PacBio metatranscriptomic data is <code>-e 1e-10 --min_lis 4</code> or
+<code>-e 1e-10 --min_lis 5</code>, achieving ~2% FPR with no loss of rRNA recovery.</p>
+<table><thead><tr>
+  <th>passes</th><th>evalue</th><th>num_seeds</th><th>min_lis</th>
+  <th>rRNA aligned</th><th>Sensitivity</th>
+  <th>Non-rRNA aligned</th><th>FPR</th>
+  <th>Wall time (s)</th><th>Peak RSS (MB)</th>
+</tr></thead><tbody>{valid_table_rows}</tbody></table>
 
 <p class="footer">Generated by run_pacbio_sweep.sh</p>
 </body></html>"""
