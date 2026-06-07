@@ -508,7 +508,7 @@ SortMeRNA uses the Karlin-Altschul framework (`E = K · m · n · exp(-λ · S)`
 
 **Distinction from BLAST**: in BLAST, `m` is the length of the individual query sequence, giving a per-query E-value. In SortMeRNA, `m` is the total nucleotide count across all reads in the dataset (every read is filtered against the same score threshold regardless of its own length). This means `S_min` sets a run-level threshold: the expected number of spurious alignments across all reads against the database is <= E, not <= E per read.
 
-This design is motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~143M total bases (~240K sequences), roughly 9,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) (July 2023) [8]. If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~9,000x smaller than BLAST's.
+This design is motivated by the difference in database scale. SortMeRNA's rRNA reference databases are ~143M total bases (~240K sequences), roughly 9,000x smaller than BLAST's nt database (~1.3 trillion bases, ~96M sequences) (National Library of Medicine, 2023). If SortMeRNA used BLAST's per-query approach with `m` = individual read length (e.g. 150 bp), the search space `K·m·n` would be so small that many alignments would pass the filter. By setting `m` to the total reads length, SortMeRNA trades BLAST's per-query statistical framing for a run-level one in order to produce a meaningful threshold despite having a reference database that is ~9,000x smaller than BLAST's.
 
 #### Experiment 1: Scalability
 
@@ -731,7 +731,14 @@ Sweeps 17 `(num_seeds, min_lis)` pairs x 3 e-values on 10K subsampled reads. Out
 
 The recommended operating point for PacBio metatranscriptomic data is `-e 1e-10 --min_lis 4` or `-e 1e-10 --min_lis 5`, achieving ~2% FPR at ~500 s runtime on 10 K reads with 4 threads and no loss of rRNA recovery.
 
-#### Performance Metrics
+#### Experiment 6: PacBio Metagenomics (Minich et al. 2025)
+
+- **Source**: [Minich et al. (2025, *Cell*)](https://www.cell.com/cell/fulltext/S0092-8674%2825%2900975-4) - PacBio HiFi metagenomics from 47 fecal samples, mean read length N50 ~9,663 bp (SD += 1,868). Unlike Karst et al., reads are shotgun metagenomic - no guaranteed rRNA content per read. Raw data: [PRJNA1139951](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1139951). Metadata: [Supplementary Table S28](https://data.mendeley.com/datasets/ks5tvfzbzr/1).
+- **Rationale**: Tests SortMeRNA on long-read metagenomics where rRNA reads are a small unknown fraction of a mixed community. True labels are unknown at the read level; results reported as fraction of reads classified as rRNA and family breakdown.
+
+## Expected Outputs
+
+### Performance Metrics
 - **Sensitivity**: True positives / (True positives + False negatives)
 - **Specificity**: True negatives / (True negatives + False positives)
 - **Precision**: True positives / (True positives + False positives)
@@ -739,15 +746,6 @@ The recommended operating point for PacBio metatranscriptomic data is `-e 1e-10 
 - **Runtime**: Wall-clock time for various read counts
 - **Memory**: Peak RAM usage
 - **Disk space**: Database + index size
-
-#### Experiment 6: PacBio Metagenomics (Minich et al. 2025)
-
-- **Source**: [Minich et al. (2025, *Cell*)](https://www.cell.com/cell/fulltext/S0092-8674%2825%2900975-4) - PacBio HiFi metagenomics from 47 fecal samples, mean read length N50 ~9,663 bp (SD += 1,868). Unlike Karst et al., reads are shotgun metagenomic - no guaranteed rRNA content per read. Raw data: [PRJNA1139951](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1139951). Metadata: [Supplementary Table S28](https://data.mendeley.com/datasets/ks5tvfzbzr/1).
-- **Rationale**: Tests SortMeRNA on long-read metagenomics where rRNA reads are a small unknown fraction of a mixed community. True labels are unknown at the read level; results reported as fraction of reads classified as rRNA and family breakdown.
-
-
-
-## Expected Outputs
 
 ### Database Statistics
 - Sequence count reduction per clustering level
@@ -791,12 +789,14 @@ LGPL-3.0
 
 ## References
 
-1. Kopylova E, Noé L, Touzet H. SortMeRNA: fast and accurate filtering of ribosomal RNAs in metatranscriptomic data. Bioinformatics. 2012 Dec 15;28(24):3211-7. doi: 10.1093/bioinformatics/bts611. Epub 2012 Oct 15
-2. Quast C, Pruesse E, Yilmaz P, Gerken J, Schweer T, Yarza P, Peplies J, Glöckner FO. The SILVA ribosomal RNA gene database project: improved data processing and web-based tools. Nucleic Acids Res. 2013 Jan;41(Database issue):D590-6. doi: 10.1093/nar/gks1219. Epub 2012 Nov 28
-3. Kalvari I, Nawrocki EP, Ontiveros-Palacios N, Argasinska J, Lamkiewicz K, Marz M, Griffiths-Jones S, Toffano-Nioche C, Gautheret D, Weinberg Z, Rivas E, Eddy SR, Finn RD, Bateman A, Petrov AI. Rfam 14: expanded coverage of metagenomic, viral and microRNA families. Nucleic Acids Res. 2021 Jan 8;49(D1):D192-D200. doi: 10.1093/nar/gkaa1047
+1. Kopylova E, Noé L, Touzet H. SortMeRNA: fast and accurate filtering of ribosomal RNAs in metatranscriptomic data. Bioinformatics. 2012 Dec 15;28(24):3211-7. doi: [10.1093/bioinformatics/bts611](https://doi.org/10.1093/bioinformatics/bts611). Epub 2012 Oct 15
+2. Quast C, Pruesse E, Yilmaz P, Gerken J, Schweer T, Yarza P, Peplies J, Glöckner FO. The SILVA ribosomal RNA gene database project: improved data processing and web-based tools. Nucleic Acids Res. 2013 Jan;41(Database issue):D590-6. doi: [10.1093/nar/gks1219](https://doi.org/10.1093/nar/gks1219). Epub 2012 Nov 28
+3. Kalvari I, Nawrocki EP, Ontiveros-Palacios N, Argasinska J, Lamkiewicz K, Marz M, Griffiths-Jones S, Toffano-Nioche C, Gautheret D, Weinberg Z, Rivas E, Eddy SR, Finn RD, Bateman A, Petrov AI. Rfam 14: expanded coverage of metagenomic, viral and microRNA families. Nucleic Acids Res. 2021 Jan 8;49(D1):D192-D200. doi: [10.1093/nar/gkaa1047](https://doi.org/10.1093/nar/gkaa1047)
 4. Karst SM, Ziels RM, Kirkegaard RH et al. High-accuracy long-read amplicon sequences using unique molecular identifiers with Nanopore or PacBio sequencing. Nat Methods 18, 165-169 (2021). doi: [10.1038/s41592-020-01041-y](https://doi.org/10.1038/s41592-020-01041-y)
 5. Gourlé H, Karlsson-Lindsjö O, Hayer J, Bongcam-Rudloff E. Simulating Illumina metagenomic data with InSilicoSeq. Bioinformatics. 2019 Feb 1;35(3):521-522. doi: [10.1093/bioinformatics/bty630](https://doi.org/10.1093/bioinformatics/bty630)
 6. Karlin S, Altschul SF. Methods for assessing the statistical significance of molecular sequence features by using general scoring schemes. Proc Natl Acad Sci U S A. 1990 Mar;87(6):2264-2268. doi: [10.1073/pnas.87.6.2264](https://doi.org/10.1073/pnas.87.6.2264)
 7. Madden T. The BLAST Sequence Analysis Tool. 2013 Mar 15. In: The NCBI Handbook [Internet]. 2nd edition. Bethesda (MD): National Center for Biotechnology Information (US); 2013-. Available from: https://www.ncbi.nlm.nih.gov/books/NBK153387/
 8. National Library of Medicine. BLAST Databases. July 2023. Available from: https://www.nlm.nih.gov/ncbi/workshops/2023-08_BLAST_evol/databases.html
 9. Deng ZL, Münch PC, Mreches R, McHardy AC. Rapid and accurate identification of ribosomal RNA sequences via deep learning. Nucleic Acids Res. 2022 Jun 10;50(10):e60. doi: [10.1093/nar/gkac112](https://doi.org/10.1093/nar/gkac112)
+10. Karst SM, Ziels RM, Kirkegaard RH et al. High-accuracy long-read amplicon sequences using unique molecular identifiers with Nanopore or PacBio sequencing. Nat Methods 18, 165-169 (2021). doi: [10.1038/s41592-020-01041-y](https://doi.org/10.1038/s41592-020-01041-y)
+11. Minich JJ, Allsing N, Din MO, Tisza MJ, Maleta K, McDonald D, Hartwick N, Mamerto A, Brennan C, Hansen L, Shaffer J, Murray ER, Duong T, Knight R, Stephenson K, Manary MJ, Michael TP. Culture-independent meta-pangenomics enabled by long-read metagenomics reveals associations with pediatric undernutrition. Cell. 2025 Nov 13;188(23):6666-6686.e25. doi: [10.1016/j.cell.2025.08.020](https://doi.org/10.1016/j.cell.2025.08.020). PMID: 40930091.
