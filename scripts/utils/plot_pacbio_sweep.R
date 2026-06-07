@@ -13,7 +13,6 @@
 suppressPackageStartupMessages({
   library(ggplot2)
   library(dplyr)
-  library(rlang)
   library(ggrepel)
   library(patchwork)
   library(cowplot)
@@ -107,8 +106,11 @@ make_bar <- function(data, x_var, type_label, title, xlab) {
           legend.position = "none")
 }
 
-make_row <- function(x_var, xlab, row_title, filter_expr) {
-  filtered <- fam_raw %>% filter(!!rlang::parse_expr(filter_expr))
+make_row <- function(x_var, xlab, row_title, fix_ev = NULL, fix_ns = NULL, fix_lis = NULL) {
+  filtered <- fam_raw
+  if (!is.null(fix_ev))  filtered <- filtered %>% filter(abs(evalue_num - fix_ev) < fix_ev * 1e-6)
+  if (!is.null(fix_ns))  filtered <- filtered %>% filter(num_seeds == fix_ns)
+  if (!is.null(fix_lis)) filtered <- filtered %>% filter(min_lis   == fix_lis)
   p1 <- make_bar(filtered, x_var, "rrna",    paste0(row_title, " - rRNA"),    xlab)
   p2 <- make_bar(filtered, x_var, "nonrrna", paste0(row_title, " - non-rRNA"), xlab)
   p1 + p2
@@ -129,12 +131,15 @@ ref_ev_num <- max(fam_raw$evalue_num)
 ref_ns  <- "2"   # num_seeds reference
 ref_lis <- "2"   # min_lis reference
 
-row_ns  <- make_row("num_seeds", "num_seeds", paste0("vs num_seeds (evalue=", ref_ev_num, ", min_lis=", ref_lis, ")"),
-                    paste0('evalue_num == ', ref_ev_num, ' & min_lis == ', ref_lis))
-row_lis <- make_row("min_lis",   "min_lis",   paste0("vs min_lis (evalue=", ref_ev_num, ", num_seeds=", ref_ns, ")"),
-                    paste0('evalue_num == ', ref_ev_num, ' & num_seeds == ', ref_ns))
-row_ev  <- make_row("evalue_num", "e-value",  paste0("vs e-value (num_seeds=", ref_ns, ", min_lis=", ref_lis, ")"),
-                    paste0('num_seeds == ', ref_ns, ' & min_lis == ', ref_lis))
+row_ns  <- make_row("num_seeds", "num_seeds",
+                    paste0("vs num_seeds  [evalue=", ref_ev_num, ", min_lis=", ref_lis, "]"),
+                    fix_ev = ref_ev_num, fix_lis = as.integer(ref_lis))
+row_lis <- make_row("min_lis",   "min_lis",
+                    paste0("vs min_lis  [evalue=", ref_ev_num, ", num_seeds=", ref_ns, "]"),
+                    fix_ev = ref_ev_num, fix_ns = as.integer(ref_ns))
+row_ev  <- make_row("evalue_num", "e-value",
+                    paste0("vs e-value  [num_seeds=", ref_ns, ", min_lis=", ref_lis, "]"),
+                    fix_ns = as.integer(ref_ns), fix_lis = as.integer(ref_lis))
 
 combined <- (row_ns / row_lis / row_ev) +
   plot_annotation(title = "rRNA family breakdown (left: rRNA reads, right: non-rRNA reads)")
