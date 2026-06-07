@@ -36,9 +36,11 @@ sweep <- read.delim(sweep_tsv, stringsAsFactors = FALSE) %>%
     evalue      = factor(evalue, levels = sort(unique(evalue)))
   )
 
-# Use 1e-5 x-axis range for all panels so they are comparable
+# Use the most permissive e-value panel (largest numeric e-value = widest x-range)
+# for the shared x-axis limits so all panels are comparable.
+max_ev <- max(as.numeric(levels(sweep$evalue)))
 x_limits <- sweep %>%
-  filter(evalue == "1e-5") %>%
+  filter(abs(as.numeric(as.character(evalue)) - max_ev) < max_ev * 1e-6) %>%
   summarise(lo = min(selectivity) - 0.02, hi = max(selectivity) + 0.02)
 
 p_roc <- ggplot(sweep, aes(x = selectivity, y = sensitivity)) +

@@ -24,6 +24,9 @@ dependencies:
   - r-base>=4.0
   - r-ggplot2
   - r-tidyverse
+  - r-ggrepel
+  - r-patchwork
+  - r-cowplot
 
   # Simulation tools (for benchmarking phase)
   # insilicoseq installed via pip (conda only has 1.3.5; 2.x requires pip)
