@@ -749,7 +749,7 @@ The recommended operating point for PacBio metatranscriptomic data is `-e 1e-10 
 
 ### Database Statistics
 - Sequence count reduction per clustering level
-- Size reduction (GB → MB)
+- Size reduction (GB -> MB)
 - Taxonomic coverage analysis
 - Representative sequence distribution
 
