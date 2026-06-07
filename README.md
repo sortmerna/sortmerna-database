@@ -9,7 +9,7 @@ A benchmarking framework for building and evaluating rRNA databases for SortMeRN
 
 ## Table of Contents
 
-- [Latest databases](#latest-databases-silva-1382--rfam-151)
+- [Latest databases](#latest-databases)
 - [Overview](#overview)
 - [Installation](#installation)
 - [Phase 1: Database Construction](#phase-1-database-construction-1)
@@ -30,7 +30,7 @@ A benchmarking framework for building and evaluating rRNA databases for SortMeRN
 - [AWS Instances](#aws-instances)
 - [References](#references)
 
-Latest databases (SILVA 138.2 + Rfam 15.1):
+## Latest databases
 
 | Database | Sequences | Index size | Clustering | Recommended for | Link |
 |---|---|---|---|---|---|
@@ -41,7 +41,7 @@ Latest databases (SILVA 138.2 + Rfam 15.1):
 > [!NOTE]
 > Full build report: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
 
-These databases can be used with any SortMeRNA version. For SortMeRNA v6.0.0 and later we recommend `-e 1e-5` (for Illumina/454 data) instead of the previous default of `-e 1`. Version v6.0.0 switched the hash index from CMPH to BBHash and alignment from SSW to Parasail, and latest benchmarks show a minor improvement in selectivity at this threshold with no impact on sensitivity or runtime.
+These databases can be used with any SortMeRNA version. For SortMeRNA v6.0.0 and later we recommend `-e 1e-5` (for Illumina/454 data) instead of the previous default of `-e 1`. Version `v6.0.0` switched the hash index from CMPH to BBHash and alignment from SSW to Parasail, and latest benchmarks show a minor improvement in selectivity at this threshold with no impact on sensitivity or runtime.
 
 **Step 1 - Build the index (once per database):**
 ```bash
@@ -110,14 +110,14 @@ This repository contains code and workflows to:
 
 ## Installation
 
-### Requirements
-
-**AWS Instances**
+### AWS Instances
 
 Benchmarking was run on AWS EC2:
 - **c6i.xlarge** - 4 vCPUs, 8 GB RAM (compute-intensive runs)
 - **r6i.xlarge** - 4 vCPUs, 32 GB RAM (memory-intensive runs)
 - **r6i.16xlarge** - 64 vCPUs, 512 GB RAM (compute + memory-intensive runs)
+
+### Requirements
 
 **Core tools:**
 - [SortMeRNA](https://github.com/sortmerna/sortmerna) v6.0.2 - rRNA filtering (installed from source, see Quick Start)
