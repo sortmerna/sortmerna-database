@@ -290,17 +290,14 @@ html = f"""<!DOCTYPE html>
 Every read is a guaranteed true positive by PCR amplification with 27F/2490R primers.</p>
 <p><strong>Non-rRNA reads (specificity test):</strong>
 253,089 PacBio HiFi reads simulated with PBSIM3 from the rRNA-masked human T2T genome (CHM13v2.0),
-mean length ~4,500 bp to match the Karst dataset.</p>
+mean length ~4,500 bp.</p>
 </div>
 
 <h2>ROC Curve (sensitivity vs selectivity)</h2>
 <div class="plot">{embed_png(f"{plots_dir}/roc.png")}</div>
 
-<h2>rRNA reads: aligned by subunit vs num_seeds</h2>
-<div class="plot">{embed_png(f"{plots_dir}/bar_rrna.png")}</div>
-
-<h2>Non-rRNA reads (FP): aligned by subunit vs num_seeds</h2>
-<div class="plot">{embed_png(f"{plots_dir}/bar_nonrrna.png")}</div>
+<h2>rRNA family breakdown (left: rRNA reads, right: non-rRNA reads)</h2>
+<div class="plot">{embed_png(f"{plots_dir}/bar_combined.png")}</div>
 
 <h2>Results table</h2>
 <table><thead><tr>
