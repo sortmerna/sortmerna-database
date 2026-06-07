@@ -157,12 +157,12 @@ for passes in "${PASSES_LIST[@]}"; do
             echo "passes=${passes}  evalue=${evalue}  num_seeds=${num_seeds}  min_lis=${min_lis}"
             echo "--------------------------------------------"
 
-            wall_rrna=NA rss_rrna=NA wall_nonrrna=NA rss_nonrrna=NA
+            wall_rrna=0 rss_rrna=0 wall_nonrrna=0 rss_nonrrna=0
 
             if [[ -f "${rrna_log}" ]]; then
                 echo "  rRNA run already exists - skipping"
-                wall_rrna=$(cat "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"    2>/dev/null || echo NA)
-                rss_rrna=$( cat "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt" 2>/dev/null || echo NA)
+                wall_rrna=$(cat "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"    2>/dev/null || echo 0)
+                rss_rrna=$( cat "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt" 2>/dev/null || echo 0)
             else
                 mkdir -p "${SWEEP_DIR}/${label}/rrna"
                 echo "  Running rRNA..."
@@ -176,8 +176,8 @@ for passes in "${PASSES_LIST[@]}"; do
 
             if [[ -f "${nonrrna_log}" ]]; then
                 echo "  Non-rRNA run already exists - skipping"
-                wall_nonrrna=$(cat "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"    2>/dev/null || echo NA)
-                rss_nonrrna=$( cat "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt" 2>/dev/null || echo NA)
+                wall_nonrrna=$(cat "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"    2>/dev/null || echo 0)
+                rss_nonrrna=$( cat "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt" 2>/dev/null || echo 0)
             else
                 mkdir -p "${SWEEP_DIR}/${label}/nonrrna"
                 echo "  Running non-rRNA..."
