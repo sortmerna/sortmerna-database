@@ -79,7 +79,7 @@ build_config() {
   local masking_tsv="${db_dir}/masking_stats.tsv"
   rm -f "${masking_tsv}"
   local dust_flag=()
-  command -v dustmasker &>/dev/null && dust_flag=(--run-dustmasker)
+  command -v RepeatMasker &>/dev/null && dust_flag=(--run-repeatmasker)
   for f in "${files[@]}"; do
     [[ -f "${f}" ]] || continue
     local subunit domain base
@@ -292,10 +292,10 @@ def masking_table(configs, col_key, col_label):
     )
 
 configs = [f"{smr_prefix}_sensitive_db", f"{smr_prefix}_default_db", f"{smr_prefix}_fast_db"]
-silva_table_html  = masking_table(configs, "silva", "SILVA soft masking")
-dust_table_html   = masking_table(configs, "dust",  "dustmasker")
-has_dust = any(
-    load_masking(c) and any(r.get('dust_masked', 'NA') != 'NA' for r in load_masking(c))
+silva_table_html = masking_table(configs, "silva", "SILVA soft masking")
+rm_table_html    = masking_table(configs, "rm",    "RepeatMasker")
+has_rm = any(
+    load_masking(c) and any(r.get('rm_masked', 'NA') != 'NA' for r in load_masking(c))
     for c in configs
 )
 
@@ -317,13 +317,13 @@ masking_section = (
     "</div>\n"
     "<h3>Table 1: SILVA soft masking (sequences with at least one lowercase base)</h3>\n"
     f"<div class=\"table-wrap\">{silva_table_html}</div>\n"
-    "<h3>Table 2: Independent dustmasker low-complexity masking</h3>\n"
-    "<div class=\"description\"><p>dustmasker is run independently of SILVA to provide a "
-    "second estimate and guard against SILVA changing or disabling its masking in future "
-    "releases.</p></div>\n"
-    + (f"<div class=\"table-wrap\">{dust_table_html}</div>\n"
-       if has_dust else
-       "<p><em>dustmasker not available during this build.</em></p>\n")
+    "<h3>Table 2: Independent RepeatMasker low-complexity masking</h3>\n"
+    "<div class=\"description\"><p>RepeatMasker (-noint -xsmall -norna: simple/low-complexity only, rRNA genes not masked) is run independently of SILVA "
+    "to provide a second estimate and guard against SILVA changing or disabling its masking "
+    "in future releases.</p></div>\n"
+    + (f"<div class=\"table-wrap\">{rm_table_html}</div>\n"
+       if has_rm else
+       "<p><em>RepeatMasker not available during this build.</em></p>\n")
 )
 
 section = (
