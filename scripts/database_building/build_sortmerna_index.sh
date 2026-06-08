@@ -263,7 +263,9 @@ def load_masking(config_name):
         return list(csv.DictReader(f, delimiter='\t'))
 
 def masking_table(configs, col_key, col_label):
-    """Build an HTML table styled like 'Recommended Database Configurations'."""
+    """Build an HTML table styled like 'Recommended Database Configurations'.
+    Rows = database configurations, Columns = subunit/domain combinations + Total.
+    """
     rows_by_sd = {}
     for cfg in configs:
         for row in load_masking(cfg):
@@ -276,60 +278,62 @@ def masking_table(configs, col_key, col_label):
     masked_key = f"{col_key}_masked"
     pct_key    = f"{col_key}_pct"
 
-    # Shorten config names for headers
-    short = lambda c: c.replace("smr_v", "v").replace("_db", "")
-    cfg_headers = "".join(f"<th>{short(c)}</th>" for c in configs)
-    thead = (
-        f"<tr><th rowspan='2' style='text-align:left'>Subunit</th>"
-        f"<th rowspan='2' style='text-align:left'>Domain</th>{cfg_headers}</tr>"
-    )
+    # Ordered subunit/domain columns
+    sd_keys = sorted(rows_by_sd.keys())
 
-    # Per-subunit/domain rows
+    # Header: subunit row (grouped), domain row beneath
+    subunit_groups = {}
+    for (su, dom) in sd_keys:
+        subunit_groups.setdefault(su, []).append(dom)
+
+    su_header = "<tr><th></th>"
+    for su, domains in subunit_groups.items():
+        su_header += f"<th colspan='{len(domains)}'>{su}</th>"
+    su_header += "<th rowspan='2'>Total</th></tr>"
+
+    dom_header = "<tr><th style='text-align:left'>Configuration</th>"
+    for su, domains in subunit_groups.items():
+        for dom in domains:
+            dom_header += f"<th style='font-size:0.85em'>{dom}</th>"
+    dom_header += "</tr>"
+
+    thead = su_header + dom_header
+
+    # Short config name
+    short = lambda c: c.replace("smr_v", "v").replace("_db", "")
+
     tbody = ""
-    totals = {cfg: {'masked': 0, 'total': 0} for cfg in configs}
-    for (subunit, domain), by_cfg in sorted(rows_by_sd.items()):
+    for cfg in configs:
         cells = ""
-        for cfg in configs:
-            r = by_cfg.get(cfg, {})
+        total_m = total_t = 0
+        for (su, dom) in sd_keys:
+            r = rows_by_sd.get((su, dom), {}).get(cfg, {})
             if r:
-                m  = r.get(masked_key, 'NA')
-                p  = r.get(pct_key, 'NA')
-                t  = r.get('total_seqs', '')
+                m = r.get(masked_key, 'NA')
+                p = r.get(pct_key, 'NA')
+                t = r.get('total_seqs', '')
                 cells += (
                     f"<td style='text-align:right'>"
-                    f"{p}%<br><span style='font-size:0.8em;color:#666'>{m}/{t}</span>"
+                    f"<span style='font-size:0.8em;color:#666'>{p}%</span><br>{m}/{t}"
                     f"</td>"
                 )
                 try:
-                    totals[cfg]['masked'] += int(m)
-                    totals[cfg]['total']  += int(t)
+                    total_m += int(m)
+                    total_t += int(t)
                 except (ValueError, TypeError):
                     pass
             else:
                 cells += "<td>-</td>"
-        tbody += (
-            f"<tr>"
-            f"<td style='text-align:left'>{subunit}</td>"
-            f"<td style='text-align:left'>{domain}</td>"
-            f"{cells}</tr>\n"
-        )
-
-    # Summary totals row
-    total_cells = ""
-    for cfg in configs:
-        m = totals[cfg]['masked']
-        t = totals[cfg]['total']
-        p = f"{m/t*100:.2f}" if t else "0.00"
-        total_cells += (
+        total_p = f"{total_m/total_t*100:.2f}" if total_t else "0.00"
+        total_cell = (
             f"<td style='text-align:right;font-weight:600'>"
-            f"{p}%<br><span style='font-size:0.8em;color:#666'>{m:,}/{t:,}</span>"
+            f"<span style='font-size:0.8em;color:#666'>{total_p}%</span><br>{total_m:,}/{total_t:,}"
             f"</td>"
         )
-    tbody += (
-        f"<tr style='background:#dce6f5;font-weight:600'>"
-        f"<td style='text-align:left' colspan='2'><b>Total</b></td>"
-        f"{total_cells}</tr>\n"
-    )
+        tbody += (
+            f"<tr><td style='text-align:left'><b>{short(cfg)}</b></td>"
+            f"{cells}{total_cell}</tr>\n"
+        )
 
     return f"<table><thead>{thead}</thead><tbody>{tbody}</tbody></table>"
 

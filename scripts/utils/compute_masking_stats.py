@@ -58,13 +58,22 @@ def count_repeatmasker_softmasked(fasta_path: str, rm_bin: str, threads: int = 4
     import tempfile, shutil
     tmpdir = tempfile.mkdtemp()
     try:
+        # RepeatMasker doesn't support gzipped input - decompress first
+        if fasta_path.endswith(".gz"):
+            unzipped = Path(tmpdir) / Path(fasta_path).stem  # removes .gz
+            with gzip.open(fasta_path, "rb") as gz_in, open(unzipped, "wb") as out:
+                shutil.copyfileobj(gz_in, out)
+            rm_input = str(unzipped)
+        else:
+            rm_input = fasta_path
+
         subprocess.run(
             [rm_bin, "-noint", "-xsmall", "-norna", "-pa", str(threads),
-             "-dir", tmpdir, fasta_path],
+             "-dir", tmpdir, rm_input],
             capture_output=True, check=True
         )
         # RepeatMasker writes <basename>.masked with soft-masked output
-        masked_file = Path(tmpdir) / (Path(fasta_path).name + ".masked")
+        masked_file = Path(tmpdir) / (Path(rm_input).name + ".masked")
         if not masked_file.exists():
             # No repeats found - all sequences unmasked
             return 0
