@@ -79,8 +79,13 @@ def count_repeatmasker_softmasked(fasta_path: str, rm_bin: str, threads: int = 4
             return 0
         _, rm_masked = count_silva_softmasked(str(masked_file))
         return rm_masked
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+    except subprocess.CalledProcessError as e:
         print(f"WARNING: RepeatMasker failed: {e}", file=sys.stderr)
+        if e.stderr:
+            print(f"  stderr: {e.stderr[:500]}", file=sys.stderr)
+        return -1
+    except FileNotFoundError as e:
+        print(f"WARNING: RepeatMasker not found: {e}", file=sys.stderr)
         return -1
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
