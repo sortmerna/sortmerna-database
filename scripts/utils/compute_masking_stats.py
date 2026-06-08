@@ -67,8 +67,15 @@ def count_repeatmasker_softmasked(fasta_path: str, rm_bin: str, threads: int = 4
         else:
             rm_input = fasta_path
 
+        # Use an empty custom lib to bypass FamDB species check.
+        # With -noint, RepeatMasker only runs TRF (tandem repeats) and
+        # DUST-equivalent (low complexity) - neither needs FamDB.
+        empty_lib = Path(tmpdir) / "empty.fa"
+        empty_lib.write_text(">empty\nN\n")
         subprocess.run(
-            [rm_bin, "-noint", "-xsmall", "-norna", "-pa", str(threads),
+            [rm_bin, "-noint", "-xsmall", "-norna",
+             "-lib", str(empty_lib),
+             "-pa", str(threads),
              "-dir", tmpdir, rm_input],
             capture_output=True, check=True
         )
