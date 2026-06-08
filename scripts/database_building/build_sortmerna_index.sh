@@ -75,11 +75,17 @@ build_config() {
   echo "Configuration: ${name}"
   echo "============================================"
 
-  # Always recompute masking stats (fast, no index rebuild needed)
+  # Compute masking stats once; skip if already present (RepeatMasker is slow).
+  # Use --force to recompute.
   local masking_tsv="${db_dir}/masking_stats.tsv"
-  rm -f "${masking_tsv}"
   local dust_flag=()
   command -v RepeatMasker &>/dev/null && dust_flag=(--run-repeatmasker)
+  if [[ -f "${masking_tsv}" ]] && [[ "${FORCE}" == false ]]; then
+    echo "  Masking stats already exist - skipping (use --force to recompute)"
+  else
+    rm -f "${masking_tsv}"
+  fi
+  if [[ ! -f "${masking_tsv}" ]]; then
   for f in "${files[@]}"; do
     # Accept .fasta or .fasta.gz
     local fasta_path=""
@@ -96,6 +102,7 @@ build_config() {
       --fasta "${fasta_path}" --subunit "${subunit}" --domain "${domain}" \
       --out "${masking_tsv}" "${dust_flag[@]}"
   done
+  fi  # masking_tsv missing
 
   if [[ "${FORCE}" == false ]] && [[ -f "${stats_file}" ]]; then
     echo "  Index already exists - skipping (use --force to rebuild)"
@@ -365,8 +372,7 @@ masking_section = (
     f"<div class=\"table-wrap\">{silva_table_html}</div>\n"
     "<h3>Table 2: Independent RepeatMasker low-complexity masking</h3>\n"
     "<div class=\"description\"><p>RepeatMasker (-noint -xsmall -norna: simple/low-complexity only, rRNA genes not masked) is run independently of SILVA "
-    "to provide a second estimate and guard against SILVA changing or disabling its masking "
-    "in future releases.</p></div>\n"
+    "to provide an independent estimate of low-complexity content in the reference sequences.</p></div>\n"
     + (f"<div class=\"table-wrap\">{rm_table_html}</div>\n"
        if has_rm else
        "<p><em>RepeatMasker not available during this build.</em></p>\n")
