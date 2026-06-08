@@ -83,7 +83,7 @@ echo ""
 mkdir -p "${SWEEP_DIR}"
 RESULTS="${SWEEP_DIR}/sweep_results.tsv"
 FAMILY_COUNTS="${SWEEP_DIR}/family_counts.tsv"
-printf 'passes\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${RESULTS}"
+printf 'passes\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec_rrna\twall_sec_nonrrna\tpeak_rss_mb\n' > "${RESULTS}"
 rm -f "${FAMILY_COUNTS}"
 
 _tree_rss_kb() {
@@ -193,7 +193,6 @@ for passes in "${PASSES_LIST[@]}"; do
                 echo "  Non-rRNA done: ${wall_nonrrna}s peak RSS ${rss_nonrrna} MB"
             fi
 
-            wall=$(( wall_rrna + wall_nonrrna ))
             peak_rss=$(( rss_rrna > rss_nonrrna ? rss_rrna : rss_nonrrna ))
 
             rrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${rrna_log}")
@@ -201,14 +200,14 @@ for passes in "${PASSES_LIST[@]}"; do
             sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA} }")
             fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA} }")
 
-            printf '%s\t%s\t%d\t%d\t%s\t%s\t%s\t%s\t%d\t%d\n' \
+            printf '%s\t%s\t%d\t%d\t%s\t%s\t%s\t%s\t%d\t%d\t%d\n' \
                 "${passes}" "${evalue}" "${num_seeds}" "${min_lis}" \
                 "${rrna_aligned}" "${sens}" \
                 "${nonrrna_aligned}" "${fpr}" \
-                "${wall}" "${peak_rss}" \
+                "${wall_rrna}" "${wall_nonrrna}" "${peak_rss}" \
                 >> "${RESULTS}"
 
-            echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA})  time=${wall}s  peak_rss=${peak_rss}MB"
+            echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA})  rrna_time=${wall_rrna}s  nonrrna_time=${wall_nonrrna}s  peak_rss=${peak_rss}MB"
 
             # Family breakdown from BLAST outputs
             if [[ -n "${FAMILY_MAP}" && -f "${FAMILY_MAP}" ]]; then
@@ -233,7 +232,7 @@ column -t -s $'\t' "${RESULTS}"
 echo ""
 echo "=== Full-dataset validation (${TOTAL_RRNA_FULL} rRNA / ${TOTAL_NONRRNA_FULL} non-rRNA reads) ==="
 VALID_RESULTS="${SWEEP_DIR}/validation_results.tsv"
-printf 'passes\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${VALID_RESULTS}"
+printf 'passes\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec_rrna\twall_sec_nonrrna\tpeak_rss_mb\n' > "${VALID_RESULTS}"
 
 for pair in "1e-10 2 4" "1e-10 2 5" "1e-20 2 4" "1e-20 2 5"; do
     ev=$(echo "$pair" | cut -d' ' -f1)
@@ -287,14 +286,14 @@ for pair in "1e-10 2 4" "1e-10 2 5" "1e-20 2 4" "1e-20 2 5"; do
     sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA_FULL} }")
     fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA_FULL} }")
 
-    printf '18,9,3\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\n' \
+    printf '18,9,3\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\n' \
         "${ev}" "${ns}" "${ml}" \
         "${rrna_aligned}" "${sens}" \
         "${nonrrna_aligned}" "${fpr}" \
-        "${wall}" "${peak_rss}" \
+        "${wall_rrna}" "${wall_nonrrna}" "${peak_rss}" \
         >> "${VALID_RESULTS}"
 
-    echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA_FULL})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA_FULL})  time=${wall}s"
+    echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA_FULL})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA_FULL})  rrna_time=${wall_rrna}s  nonrrna_time=${wall_nonrrna}s"
 done
 
 echo ""
@@ -334,7 +333,7 @@ def make_table_rows(tsv_path):
         f"<tr><td>{r['passes']}</td><td>{r['evalue']}</td><td>{r['num_seeds']}</td><td>{r['min_lis']}</td>"
         f"<td>{r['rrna_aligned']}</td><td>{float(r['sensitivity'])*100:.2f}%</td>"
         f"<td>{r['nonrrna_aligned']}</td><td>{float(r['fpr'])*100:.2f}%</td>"
-        f"<td>{r['wall_sec']}</td><td>{r['peak_rss_mb']}</td></tr>"
+        f"<td>{r['wall_sec_rrna']}</td><td>{r['wall_sec_nonrrna']}</td><td>{r['peak_rss_mb']}</td></tr>"
         for r in rows
     )
 
@@ -390,7 +389,7 @@ mean length ~4,500 bp.</p>
   <th>passes</th><th>evalue</th><th>num_seeds</th><th>min_lis</th>
   <th>rRNA aligned</th><th>Sensitivity</th>
   <th>Non-rRNA aligned</th><th>FPR</th>
-  <th>Wall time (s)</th><th>Peak RSS (MB)</th>
+  <th>Wall time rRNA (s)</th><th>Wall time non-rRNA (s)</th><th>Peak RSS (MB)</th>
 </tr></thead><tbody>{table_rows}</tbody></table>
 
 <h2>Recommended operating points (full dataset: 253,089 reads)</h2>
@@ -400,7 +399,7 @@ mean length ~4,500 bp.</p>
   <th>passes</th><th>evalue</th><th>num_seeds</th><th>min_lis</th>
   <th>rRNA aligned</th><th>Sensitivity</th>
   <th>Non-rRNA aligned</th><th>FPR</th>
-  <th>Wall time (s)</th><th>Peak RSS (MB)</th>
+  <th>Wall time rRNA (s)</th><th>Wall time non-rRNA (s)</th><th>Peak RSS (MB)</th>
 </tr></thead><tbody>{valid_table_rows}</tbody></table>
 
 <p class="footer">Generated by run_pacbio_sweep.sh</p>
