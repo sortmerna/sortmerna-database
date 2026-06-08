@@ -81,7 +81,11 @@ build_config() {
   local dust_flag=()
   command -v RepeatMasker &>/dev/null && dust_flag=(--run-repeatmasker)
   for f in "${files[@]}"; do
-    [[ -f "${f}" ]] || continue
+    # Accept .fasta or .fasta.gz
+    local fasta_path=""
+    [[ -f "${f}" ]]     && fasta_path="${f}"
+    [[ -f "${f}.gz" ]]  && fasta_path="${f}.gz"
+    [[ -z "${fasta_path}" ]] && continue
     local subunit domain base
     base=$(basename "${f}" | sed 's/_[0-9]*\.fasta$//')
     subunit=$(echo "${base}" | sed 's/silva_\(ssu\|lsu\)_.*/\1/' | tr '[:lower:]' '[:upper:]')
@@ -89,7 +93,7 @@ build_config() {
     [[ "${base}" == rfam_5_8s* ]] && subunit="Rfam 5.8S" && domain="all"
     [[ "${base}" == rfam_5s*    ]] && subunit="Rfam 5S"   && domain="all"
     python3 "${UTILS_DIR}/compute_masking_stats.py" \
-      --fasta "${f}" --subunit "${subunit}" --domain "${domain}" \
+      --fasta "${fasta_path}" --subunit "${subunit}" --domain "${domain}" \
       --out "${masking_tsv}" "${dust_flag[@]}"
   done
 
