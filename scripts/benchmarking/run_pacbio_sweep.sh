@@ -235,7 +235,7 @@ echo "=== Full-dataset validation (${TOTAL_RRNA_FULL} rRNA / ${TOTAL_NONRRNA_FUL
 VALID_RESULTS="${SWEEP_DIR}/validation_results.tsv"
 printf 'passes\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec\tpeak_rss_mb\n' > "${VALID_RESULTS}"
 
-for pair in "1e-10 2 4" "1e-10 2 5"; do
+for pair in "1e-10 2 4" "1e-10 2 5" "1e-20 2 4" "1e-20 2 5"; do
     ev=$(echo "$pair" | cut -d' ' -f1)
     ns=$(echo "$pair" | cut -d' ' -f2)
     ml=$(echo "$pair" | cut -d' ' -f3)
