@@ -380,8 +380,8 @@ mean length ~4,500 bp.</p>
 <p><strong>Left (rRNA reads):</strong> All bars at 10,000, pure 23S - full-operon reads maintain 100% sensitivity across all parameter values. The 23S region always generates enough co-linear seeds to trigger alignment.</p>
 <p><strong>Right (non-rRNA reads - FPR):</strong>
 <em>vs num_seeds:</em> modest FPR reduction (2->6); num_seeds is a weak lever. &nbsp;
-<em>vs min_lis:</em> progressive step-down as min_lis increases 2->10; min_lis is the primary specificity lever, blocking pseudogene fragments by requiring longer co-linear seed chains. &nbsp;
-<em>vs e-value:</em> largest single effect - FPR from ~2,240 (1e-5) to ~54 (1e-20); dominant FP family is 18S throughout, indicating unmasked 18S pseudogenes in the T2T genome as the main false-positive source.</p>
+<em>vs min_lis:</em> progressive step-down as min_lis increases 2->10; min_lis is the primary specificity lever, blocking tandem repeat artifacts or short rRNA pseudogenes by requiring longer co-linear seed chains on a single reference. &nbsp;
+<em>vs e-value:</em> largest single effect - FPR from ~2,240 (1e-5) to ~54 (1e-20); dominant FP family is 18S throughout; pairwise alignment inspection confirms these are tandem repeat artifacts (AT-microsatellites, AGAGAG repeats) matching repeat-rich regions within rRNA database sequences, not genuine rRNA signal.</p>
 </div>
 
 <h2>Results table</h2>
