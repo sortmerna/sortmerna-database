@@ -75,6 +75,24 @@ build_config() {
   echo "Configuration: ${name}"
   echo "============================================"
 
+  # Always recompute masking stats (fast, no index rebuild needed)
+  local masking_tsv="${db_dir}/masking_stats.tsv"
+  rm -f "${masking_tsv}"
+  local dust_flag=()
+  command -v dustmasker &>/dev/null && dust_flag=(--run-dustmasker)
+  for f in "${files[@]}"; do
+    [[ -f "${f}" ]] || continue
+    local subunit domain base
+    base=$(basename "${f}" | sed 's/_[0-9]*\.fasta$//')
+    subunit=$(echo "${base}" | sed 's/silva_\(ssu\|lsu\)_.*/\1/' | tr '[:lower:]' '[:upper:]')
+    domain=$(echo "${base}"  | sed 's/silva_\(ssu\|lsu\)_//' | sed 's/rfam_.*/rfam/')
+    [[ "${base}" == rfam_5_8s* ]] && subunit="Rfam 5.8S" && domain="all"
+    [[ "${base}" == rfam_5s*    ]] && subunit="Rfam 5S"   && domain="all"
+    python3 "${UTILS_DIR}/compute_masking_stats.py" \
+      --fasta "${f}" --subunit "${subunit}" --domain "${domain}" \
+      --out "${masking_tsv}" "${dust_flag[@]}"
+  done
+
   if [[ "${FORCE}" == false ]] && [[ -f "${stats_file}" ]]; then
     echo "  Index already exists - skipping (use --force to rebuild)"
     return 0
@@ -223,10 +241,90 @@ for name in "${SMR_PREFIX}_sensitive_db" "${SMR_PREFIX}_default_db" "${SMR_PREFI
   rows="${rows}      <tr><td>${name}</td><td>${s_seqs}</td><td>${s_secs}</td><td>${s_size}</td><td>${s_cpu}</td><td>${s_rss}</td><td>${s_date}</td></tr>\n"
 done
 
-CLUSTER_HTML="${CLUSTER_HTML}" INDEX_HTML="${INDEX_HTML}" python3 - "${rows}" <<'PYEOF'
-import sys, os
+CLUSTER_HTML="${CLUSTER_HTML}" INDEX_HTML="${INDEX_HTML}" \
+OUTPUT_DIR="${OUTPUT_DIR}" SMR_PREFIX="${SMR_PREFIX}" \
+python3 - "${rows}" <<'PYEOF'
+import sys, os, csv
+from pathlib import Path
 
 rows_raw = sys.argv[1]
+output_dir = os.environ['OUTPUT_DIR']
+smr_prefix = os.environ['SMR_PREFIX']
+
+def load_masking(config_name):
+    p = Path(output_dir) / config_name / "masking_stats.tsv"
+    if not p.exists():
+        return []
+    with open(p) as f:
+        return list(csv.DictReader(f, delimiter='\t'))
+
+def masking_table(configs, col_key, col_label):
+    """Build an HTML table for one masking source (silva or dust)."""
+    # collect all subunit/domain combos
+    rows_by_sd = {}
+    for cfg in configs:
+        for row in load_masking(cfg):
+            k = (row['subunit'], row['domain'])
+            rows_by_sd.setdefault(k, {})[cfg] = row
+
+    if not rows_by_sd:
+        return "<p><em>Masking stats not available.</em></p>"
+
+    masked_key = f"{col_key}_masked"
+    pct_key    = f"{col_key}_pct"
+    cfg_headers = "".join(f"<th>{c}</th>" for c in configs)
+    thead = f"<tr><th>Subunit</th><th>Domain</th>{cfg_headers}</tr>"
+    tbody = ""
+    for (subunit, domain), by_cfg in sorted(rows_by_sd.items()):
+        cells = ""
+        for cfg in configs:
+            r = by_cfg.get(cfg, {})
+            if r:
+                m, p = r.get(masked_key, 'NA'), r.get(pct_key, 'NA')
+                t = r.get('total_seqs', '')
+                cells += f"<td>{m}/{t} ({p}%)</td>"
+            else:
+                cells += "<td>-</td>"
+        tbody += f"<tr><td>{subunit}</td><td>{domain}</td>{cells}</tr>\n"
+
+    return (
+        f"<table><thead>{thead}</thead><tbody>{tbody}</tbody></table>"
+    )
+
+configs = [f"{smr_prefix}_sensitive_db", f"{smr_prefix}_default_db", f"{smr_prefix}_fast_db"]
+silva_table_html  = masking_table(configs, "silva", "SILVA soft masking")
+dust_table_html   = masking_table(configs, "dust",  "dustmasker")
+has_dust = any(
+    load_masking(c) and any(r.get('dust_masked', 'NA') != 'NA' for r in load_masking(c))
+    for c in configs
+)
+
+masking_section = (
+    "<h2>Soft-masking in SortMeRNA Reference Sequences</h2>\n"
+    "<div class=\"description\">\n"
+    "<p>SILVA sequences carry soft-masked (lowercase) bases marking low-complexity regions "
+    "such as tandem repeats. SortMeRNA's indexer does not distinguish case, so these regions "
+    "are indexed identically to unmasked bases. To prevent tandem-repeat artifacts from "
+    "generating spurious seed matches, soft-masked bases are converted to hard-masked N before "
+    "indexing. N bases cannot participate in 18-mer seeds, so masked regions produce no hits.</p>\n"
+    "<p><strong>Practical consequence:</strong> sequences with N's in the reference generate "
+    "fewer seed hits than they should (only matching reads that happen to have the same N at "
+    "those positions), but any alignment that does form is scored correctly against the "
+    "unmasked positions. For rRNA databases this is generally fine since reference sequences "
+    "are high quality with very few masked bases. For reads with many N's (e.g. low-quality "
+    "regions of PacBio reads pre-CCS), the seed stage may miss some true matches that "
+    "Smith-Waterman would have accepted.</p>\n"
+    "</div>\n"
+    "<h3>Table 1: SILVA soft masking (sequences with at least one lowercase base)</h3>\n"
+    f"<div class=\"table-wrap\">{silva_table_html}</div>\n"
+    "<h3>Table 2: Independent dustmasker low-complexity masking</h3>\n"
+    "<div class=\"description\"><p>dustmasker is run independently of SILVA to provide a "
+    "second estimate and guard against SILVA changing or disabling its masking in future "
+    "releases.</p></div>\n"
+    + (f"<div class=\"table-wrap\">{dust_table_html}</div>\n"
+       if has_dust else
+       "<p><em>dustmasker not available during this build.</em></p>\n")
+)
 
 section = (
     "<h2>SortMeRNA Index Build Summary</h2>\n"
@@ -263,7 +361,7 @@ else:
     if insert_at == -1:
         insert_at = len(html)
 
-html = html[:insert_at] + '\n<section>\n' + section + '\n</section>\n' + html[insert_at:]
+html = html[:insert_at] + '\n<section>\n' + masking_section + '\n</section>\n<section>\n' + section + '\n</section>\n' + html[insert_at:]
 open(index_html, 'w').write(html)
 PYEOF
 
