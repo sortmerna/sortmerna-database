@@ -96,7 +96,11 @@ build_config() {
     n=$(seqkit stats -T "${f}" | tail -1 | cut -f4)
     family_label=$(basename "${f}" | sed 's/_[0-9]*\.fasta$//' | sed 's/_/ /g')
     echo "  + $(basename "${f}"): ${n} sequences"
-    cat "${f}" >> "${combined}"
+    if [[ "${f}" == *.gz ]]; then
+      gzip -dc "${f}" >> "${combined}"
+    else
+      cat "${f}" >> "${combined}"
+    fi
     fam_args+=("${f}:${family_label}")
     total=$((total + n))
   done
