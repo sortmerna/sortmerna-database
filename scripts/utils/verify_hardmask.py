@@ -10,15 +10,28 @@ Usage:
 """
 
 import argparse
+import gzip
 import sys
-
-import skbio
+from pathlib import Path
 
 
 def iter_records(path: str):
-    """Yield (id, sequence_str) from a FASTA file (plain or .gz)."""
-    for seq in skbio.io.read(path, format="fasta", constructor=skbio.DNA, lowercase=True):
-        yield str(seq.metadata["id"]), str(seq)
+    """Yield (id, sequence_str) from a FASTA file (plain or .gz), preserving case."""
+    opener = gzip.open if Path(path).suffix == ".gz" else open
+    header = None
+    parts = []
+    with opener(path, "rt") as f:
+        for line in f:
+            line = line.rstrip("\r\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header.split()[0][1:], "".join(parts)
+                header = line
+                parts = []
+            elif line:
+                parts.append(line)
+    if header is not None:
+        yield header.split()[0][1:], "".join(parts)
 
 
 def check(soft_path: str, hard_path: str) -> int:
