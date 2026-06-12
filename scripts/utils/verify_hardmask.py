@@ -40,8 +40,20 @@ def check(soft_path: str, hard_path: str) -> int:
     hard_iter = iter_records(hard_path)
 
     i = 0
-    for (sid, ss), (hid, hs) in zip(soft_iter, hard_iter):
+    while True:
+        s_rec = next(soft_iter, None)
+        h_rec = next(hard_iter, None)
+        if s_rec is None and h_rec is None:
+            break
+        if s_rec is None or h_rec is None:
+            print(f"ERROR: sequence count mismatch (soft exhausted={s_rec is None}, hard exhausted={h_rec is None})")
+            errors += 1
+            break
+
         i += 1
+        sid, ss = s_rec
+        hid, hs = h_rec
+
         if sid != hid:
             print(f"ERROR seq {i}: id mismatch (soft='{sid}', hard='{hid}')")
             errors += 1
@@ -61,13 +73,6 @@ def check(soft_path: str, hard_path: str) -> int:
                 if s != h:
                     print(f"ERROR >{sid} pos {pos}: soft '{s}' != hard '{h}' (no masking expected)")
                     errors += 1
-
-    # Check both iterators are exhausted
-    soft_remaining = sum(1 for _ in soft_iter)
-    hard_remaining = sum(1 for _ in hard_iter)
-    if soft_remaining or hard_remaining:
-        print(f"ERROR: sequence count mismatch (extra soft={soft_remaining}, extra hard={hard_remaining})")
-        errors += 1
 
     return errors
 
