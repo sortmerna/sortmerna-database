@@ -35,11 +35,17 @@ A benchmarking framework for building and evaluating rRNA databases for SortMeRN
 | Database | Sequences | Index size | Clustering | Recommended for | Link |
 |---|---|---|---|---|---|
 | `smr_v6.0.2_sensitive_db` | 515,371 | 3.8 GB | 97% all | Maximum sensitivity | coming soon
-| `smr_v6.0.2_default_db` | 240,397 | 2.0 GB | 90-95% SILVA, seed Rfam | General use (recommended) | coming soon
-| `smr_v6.0.2_fast_db` | 137,179 | 1.1 GB | 85-90% SILVA, seed Rfam | Speed-critical workflows | coming soon
+| `smr_v6.0.2_default_db` | 240,397 | 2.0 GB | 90-95% SILVA, 90% Rfam | General use (recommended) | coming soon
+| `smr_v6.0.2_fast_db` | 137,179 | 1.1 GB | 85-90% SILVA, 85% Rfam | Speed-critical workflows | coming soon
 
 > [!NOTE]
 > Full build report: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/index/index_build_summary.html" target="_blank">index_build_summary.html</a>
+
+These databases differ from the raw SILVA/Rfam releases in three ways:
+
+- **Trimmed to cmsearch coordinates** - flanking non-rRNA sequence is removed before indexing. SortMeRNA indexes every nucleotide in each reference, so untrimmed flanks would increase the false-positive rate.
+- **Clustered with VSEARCH** - redundant sequences are merged at identity thresholds of 85-97%, reducing database size and index memory without meaningful sensitivity loss.
+- **Hard-masked low-complexity regions** - VSEARCH DUST soft-masking (lowercase) is converted to Ns before indexing, preventing low-complexity kmers from contributing to spurious alignments.
 
 These databases can be used with any SortMeRNA version. For SortMeRNA v6.0.0 and later we recommend `-e 1e-5` (for Illumina/454 data) instead of the previous default of `-e 1`. Version `v6.0.0` switched the hash index from CMPH to BBHash and alignment from SSW to Parasail, and latest benchmarks show a minor improvement in selectivity at this threshold with no impact on sensitivity or runtime.
 
