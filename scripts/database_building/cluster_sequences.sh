@@ -68,6 +68,10 @@ mkdir -p "${CLUSTERED_DIR}"
 RESULTS_TSV="${CLUSTERED_DIR}/clustering_results_2.tsv"
 rm -f "${RESULTS_TSV}"
 
+# TSV accumulating masking stats per clustered file (written by compute_masking_stats.py)
+MASKING_TSV="${CLUSTERED_DIR}/masking_stats.tsv"
+rm -f "${MASKING_TSV}"
+
 # Function to get sequence stats
 get_seq_stats() {
   local fasta="$1"
@@ -141,6 +145,13 @@ cluster_sequences() {
     --quiet
   fi
 
+  # Always produce a hard-masked copy of the centroids (soft-masked lowercase -> N)
+  local masked_output="${output%.fasta}_masked.fasta"
+  echo "  Hard-masking centroids: $(basename "${masked_output}.gz")"
+  vsearch --fastx_mask "${output}" --hardmask --fastaout "${masked_output}" --quiet
+  gzip -f "${masked_output}"
+  python3 "${UTILS_DIR}/verify_hardmask.py" --soft "${output}" --hard "${masked_output}.gz"
+
   # Parse .uc file: extract member IDs and cluster mapping in one pass
   local member_ids="${output%.fasta}_member_ids.tmp"
   python3 "${UTILS_DIR}/parse_uc.py" "${uc_file}" \
@@ -184,6 +195,9 @@ for domain in bacteria archaea eukaryota; do
     num_seqs=$(echo "${stats}" | cut -f1)
     total_nt=$(echo "${stats}" | cut -f2)
     add_result "SILVA ${SILVA_SSU_VERSION}" "SSU Ref NR 99" "${domain}" "${threshold}%" "${num_seqs}" "${total_nt}"
+    python3 "${UTILS_DIR}/compute_masking_stats.py" \
+      --fasta "${output}" --subunit "SSU" --domain "${domain}" \
+      --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
   python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
   done
@@ -211,6 +225,9 @@ for domain in bacteria archaea eukaryota; do
     num_seqs=$(echo "${stats}" | cut -f1)
     total_nt=$(echo "${stats}" | cut -f2)
     add_result "SILVA ${SILVA_LSU_VERSION}" "LSU Ref NR 99" "${domain}" "${threshold}%" "${num_seqs}" "${total_nt}"
+    python3 "${UTILS_DIR}/compute_masking_stats.py" \
+      --fasta "${output}" --subunit "LSU" --domain "${domain}" \
+      --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
   python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
   done
@@ -248,6 +265,9 @@ if [[ -n "${RFAM_5S_FULL}" ]]; then
     num_seqs=$(echo "${stats}" | cut -f1)
     total_nt=$(echo "${stats}" | cut -f2)
     add_result "Rfam ${RFAM_VERSION}" "5S" "root" "${threshold}%" "${num_seqs}" "${total_nt}"
+    python3 "${UTILS_DIR}/compute_masking_stats.py" \
+      --fasta "${output}" --subunit "5S" --domain "all" \
+      --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
   python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
   done
@@ -285,6 +305,9 @@ if [[ -n "${RFAM_5_8S_FULL}" ]]; then
     num_seqs=$(echo "${stats}" | cut -f1)
     total_nt=$(echo "${stats}" | cut -f2)
     add_result "Rfam ${RFAM_VERSION}" "5.8S" "eukaryota" "${threshold}%" "${num_seqs}" "${total_nt}"
+    python3 "${UTILS_DIR}/compute_masking_stats.py" \
+      --fasta "${output}" --subunit "5.8S" --domain "all" \
+      --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
   python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
   done
@@ -299,7 +322,7 @@ echo "============================================"
 TABLE_FILE="${CLUSTERED_DIR}/clustering_summary.html"
 smr_ver_arg=()
 [[ -n "${SMR_VERSION:-}" ]] && smr_ver_arg=(--smr-version "${SMR_VERSION}")
-python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}" --silva-version "${SILVA_SSU_VERSION}" --rfam-version "${RFAM_VERSION}" "${smr_ver_arg[@]}"
+python3 "${UTILS_DIR}/generate_summary.py" "${RESULTS_TSV}" --output "${TABLE_FILE}" --thresholds "${THRESHOLDS[@]}" --silva-version "${SILVA_SSU_VERSION}" --rfam-version "${RFAM_VERSION}" --masking-tsv "${MASKING_TSV}" "${smr_ver_arg[@]}"
 
 echo ""
 echo "Summary table written to: ${TABLE_FILE}"

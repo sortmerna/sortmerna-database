@@ -75,35 +75,6 @@ build_config() {
   echo "Configuration: ${name}"
   echo "============================================"
 
-  # Compute masking stats once; skip if already present (RepeatMasker is slow).
-  # Use --force to recompute.
-  local masking_tsv="${db_dir}/masking_stats.tsv"
-  local dust_flag=()
-  command -v RepeatMasker &>/dev/null && dust_flag=(--run-repeatmasker)
-  if [[ -f "${masking_tsv}" ]] && [[ "${FORCE}" == false ]]; then
-    echo "  Masking stats already exist - skipping (use --force to recompute)"
-  else
-    rm -f "${masking_tsv}"
-  fi
-  if [[ ! -f "${masking_tsv}" ]]; then
-  for f in "${files[@]}"; do
-    # Accept .fasta or .fasta.gz
-    local fasta_path=""
-    [[ -f "${f}" ]]     && fasta_path="${f}"
-    [[ -f "${f}.gz" ]]  && fasta_path="${f}.gz"
-    [[ -z "${fasta_path}" ]] && continue
-    local subunit domain base
-    base=$(basename "${f}" | sed 's/_[0-9]*\.fasta$//')
-    subunit=$(echo "${base}" | sed 's/silva_\(ssu\|lsu\)_.*/\1/' | tr '[:lower:]' '[:upper:]')
-    domain=$(echo "${base}"  | sed 's/silva_\(ssu\|lsu\)_//' | sed 's/rfam_.*/rfam/')
-    [[ "${base}" == rfam_5_8s* ]] && subunit="Rfam 5.8S" && domain="all"
-    [[ "${base}" == rfam_5s*    ]] && subunit="Rfam 5S"   && domain="all"
-    python3 "${UTILS_DIR}/compute_masking_stats.py" \
-      --fasta "${fasta_path}" --subunit "${subunit}" --domain "${domain}" \
-      --out "${masking_tsv}" "${dust_flag[@]}"
-  done
-  fi  # masking_tsv missing
-
   if [[ "${FORCE}" == false ]] && [[ -f "${stats_file}" ]]; then
     echo "  Index already exists - skipping (use --force to rebuild)"
     return 0
@@ -253,130 +224,11 @@ for name in "${SMR_PREFIX}_sensitive_db" "${SMR_PREFIX}_default_db" "${SMR_PREFI
 done
 
 CLUSTER_HTML="${CLUSTER_HTML}" INDEX_HTML="${INDEX_HTML}" \
-OUTPUT_DIR="${OUTPUT_DIR}" SMR_PREFIX="${SMR_PREFIX}" \
 python3 - "${rows}" <<'PYEOF'
-import sys, os, csv
-from pathlib import Path
+
+import sys, os
 
 rows_raw = sys.argv[1]
-output_dir = os.environ['OUTPUT_DIR']
-smr_prefix = os.environ['SMR_PREFIX']
-
-def load_masking(config_name):
-    p = Path(output_dir) / config_name / "masking_stats.tsv"
-    if not p.exists():
-        return []
-    with open(p) as f:
-        return list(csv.DictReader(f, delimiter='\t'))
-
-def masking_table(configs, col_key, col_label):
-    """Build an HTML table styled like 'Recommended Database Configurations'.
-    Rows = database configurations, Columns = subunit/domain combinations + Total.
-    """
-    rows_by_sd = {}
-    for cfg in configs:
-        for row in load_masking(cfg):
-            k = (row['subunit'], row['domain'])
-            rows_by_sd.setdefault(k, {})[cfg] = row
-
-    if not rows_by_sd:
-        return "<p><em>Masking stats not available.</em></p>"
-
-    masked_key = f"{col_key}_masked"
-    pct_key    = f"{col_key}_pct"
-
-    # Ordered subunit/domain columns
-    sd_keys = sorted(rows_by_sd.keys())
-
-    # Header: subunit row (grouped), domain row beneath
-    subunit_groups = {}
-    for (su, dom) in sd_keys:
-        subunit_groups.setdefault(su, []).append(dom)
-
-    su_header = "<tr><th></th>"
-    for su, domains in subunit_groups.items():
-        su_header += f"<th colspan='{len(domains)}'>{su}</th>"
-    su_header += "<th rowspan='2'>Total</th></tr>"
-
-    dom_header = "<tr><th style='text-align:left'>Configuration</th>"
-    for su, domains in subunit_groups.items():
-        for dom in domains:
-            dom_header += f"<th style='font-size:0.85em'>{dom}</th>"
-    dom_header += "</tr>"
-
-    thead = su_header + dom_header
-
-    # Short config name
-    short = lambda c: c.replace("smr_v", "v").replace("_db", "")
-
-    tbody = ""
-    for cfg in configs:
-        cells = ""
-        total_m = total_t = 0
-        for (su, dom) in sd_keys:
-            r = rows_by_sd.get((su, dom), {}).get(cfg, {})
-            if r:
-                m = r.get(masked_key, 'NA')
-                p = r.get(pct_key, 'NA')
-                t = r.get('total_seqs', '')
-                cells += (
-                    f"<td style='text-align:right'>"
-                    f"<span style='font-size:0.8em;color:#666'>{p}%</span><br>{m}/{t}"
-                    f"</td>"
-                )
-                try:
-                    total_m += int(m)
-                    total_t += int(t)
-                except (ValueError, TypeError):
-                    pass
-            else:
-                cells += "<td>-</td>"
-        total_p = f"{total_m/total_t*100:.2f}" if total_t else "0.00"
-        total_cell = (
-            f"<td style='text-align:right;font-weight:600'>"
-            f"<span style='font-size:0.8em;color:#666'>{total_p}%</span><br>{total_m:,}/{total_t:,}"
-            f"</td>"
-        )
-        tbody += (
-            f"<tr><td style='text-align:left'><b>{short(cfg)}</b></td>"
-            f"{cells}{total_cell}</tr>\n"
-        )
-
-    return f"<table><thead>{thead}</thead><tbody>{tbody}</tbody></table>"
-
-configs = [f"{smr_prefix}_sensitive_db", f"{smr_prefix}_default_db", f"{smr_prefix}_fast_db"]
-silva_table_html = masking_table(configs, "silva", "SILVA soft masking")
-rm_table_html    = masking_table(configs, "rm",    "RepeatMasker")
-has_rm = any(
-    load_masking(c) and any(r.get('rm_masked', 'NA') != 'NA' for r in load_masking(c))
-    for c in configs
-)
-
-masking_section = (
-    "<h2>Soft-masking in SortMeRNA Reference Sequences</h2>\n"
-    "<div class=\"description\">\n"
-    "<p>SILVA sequences carry soft-masked (lowercase) bases marking low-complexity regions "
-    "such as tandem repeats. SortMeRNA's indexer does not distinguish case, so these regions "
-    "are indexed identically to unmasked bases. To prevent tandem-repeat artifacts from "
-    "generating spurious seed matches, soft-masked bases are converted to hard-masked N before "
-    "indexing. N bases cannot participate in 18-mer seeds, so masked regions produce no hits.</p>\n"
-    "<p><strong>Practical consequence:</strong> sequences with N's in the reference generate "
-    "fewer seed hits than they should (only matching reads that happen to have the same N at "
-    "those positions), but any alignment that does form is scored correctly against the "
-    "unmasked positions. For rRNA databases this is generally fine since reference sequences "
-    "are high quality with very few masked bases. For reads with many N's (e.g. low-quality "
-    "regions of PacBio reads pre-CCS), the seed stage may miss some true matches that "
-    "Smith-Waterman would have accepted.</p>\n"
-    "</div>\n"
-    "<h3>Table 1: SILVA soft masking (sequences with at least one lowercase base)</h3>\n"
-    f"<div class=\"table-wrap\">{silva_table_html}</div>\n"
-    "<h3>Table 2: Independent RepeatMasker low-complexity masking</h3>\n"
-    "<div class=\"description\"><p>RepeatMasker (-noint -xsmall -norna: simple/low-complexity only, rRNA genes not masked) is run independently of SILVA "
-    "to provide an independent estimate of low-complexity content in the reference sequences.</p></div>\n"
-    + (f"<div class=\"table-wrap\">{rm_table_html}</div>\n"
-       if has_rm else
-       "<p><em>RepeatMasker not available during this build.</em></p>\n")
-)
 
 section = (
     "<h2>SortMeRNA Index Build Summary</h2>\n"
@@ -403,17 +255,11 @@ index_html   = os.environ['INDEX_HTML']
 
 html = open(cluster_html).read() if os.path.isfile(cluster_html) else '<html><body></body></html>'
 
-marker = 'Recommended Database Configurations'
-pos = html.find(marker)
-if pos != -1:
-    close = html.find('</section>', pos)
-    insert_at = close + len('</section>') if close != -1 else len(html)
-else:
-    insert_at = html.find('</body>')
-    if insert_at == -1:
-        insert_at = len(html)
+insert_at = html.find('</body>')
+if insert_at == -1:
+    insert_at = len(html)
 
-html = html[:insert_at] + '\n<section>\n' + masking_section + '\n</section>\n<section>\n' + section + '\n</section>\n' + html[insert_at:]
+html = html[:insert_at] + '\n<section>\n' + section + '\n</section>\n' + html[insert_at:]
 open(index_html, 'w').write(html)
 PYEOF
 

@@ -9,7 +9,6 @@ dependencies:
   - seqkit>=2.5
   - barrnap>=0.9
   - infernal>=1.1.4
-  - bioconda::repeatmasker  # low-complexity and repeat masking
 
   # Python and libraries
   - python>=3.8

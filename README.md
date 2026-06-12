@@ -354,16 +354,19 @@ bash $SMR_DB_ROOT_DIR/scripts/database_building/cluster_sequences.sh \
     4
 ```
 
-For each database and clustering threshold, the script outputs four files:
+For each database and clustering threshold, the script outputs five files:
 
 | File | Description |
 |------|-------------|
-| `*_XX.fasta` | Centroid/seed sequences - the clustered rRNA database used by SortMeRNA |
+| `*_XX.fasta` | Centroid/seed sequences with VSEARCH DUST soft masking (lowercase) |
+| `*_XX_masked.fasta.gz` | Hard-masked copy of centroids - lowercase bases converted to N |
 | `*_XX.uc` | VSEARCH cluster membership file |
 | `*_XX_test_members.fasta` | Non-seed cluster members - used as source sequences for simulating test reads |
 | `*_XX_cluster_mapping.txt` | Tab-delimited mapping of each member sequence ID to its seed sequence ID |
 
-The centroid sequences (`*_XX.fasta`) become the SortMeRNA reference databases. The non-seed members (`*_XX_test_members.fasta`) are sequences that were clustered away at each threshold, providing a natural source of reads for benchmarking - since they are real rRNA sequences not present in the database, they test whether SortMeRNA can still identify similar but non-identical rRNA.
+During clustering, VSEARCH applies DUST low-complexity masking (`--qmask dust`, the default), which lowercases low-complexity regions (e.g. tandem repeats such as AT-microsatellites) in the centroid output. A hard-masked copy (`*_XX_masked.fasta.gz`) is immediately produced by converting all lowercase bases to N using `vsearch --fastx_mask --hardmask`, and verified against the soft-masked file. The hard-masked file is what gets indexed by SortMeRNA.
+
+The centroid sequences (`*_XX_masked.fasta`) become the SortMeRNA reference databases. The non-seed members (`*_XX_test_members.fasta`) are sequences that were clustered away at each threshold, providing a natural source of reads for benchmarking - since they are real rRNA sequences not present in the database, they test whether SortMeRNA can still identify similar but non-identical rRNA.
 
 > [!NOTE]
 > Summary of total sequences per clustering threshold and SortMeRNA reference databases: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/clustered/clustering_summary.html" target="_blank">clustering_summary.html</a>
