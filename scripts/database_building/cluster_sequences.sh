@@ -107,35 +107,38 @@ add_result() {
 
 # Function to cluster sequences
 # Outputs:
-#   <output>.fasta          - centroid/seed sequences (the clustered database)
-#   <output>.uc             - VSEARCH cluster membership file
+#   <output>.fasta.gz        - centroid/seed sequences (the clustered database)
+#   <output>.uc              - VSEARCH cluster membership file
+#   <output>_masked.fasta.gz - hard-masked copy of centroids (lowercase -> N)
 #   <output>_test_members.fasta   - non-seed cluster members (for simulating test reads)
 #   <output>_cluster_mapping.txt  - mapping of member sequence IDs to their seed IDs
 cluster_sequences() {
   local input="$1"
   local threshold="$2"
-  local output="$3"
+  local output="$3"   # expected to end in .fasta.gz
 
   if [[ ! -f "${input}" ]] || [[ ! -s "${input}" ]]; then
   return 1
   fi
 
+  local base="${output%.fasta.gz}"
+  local fasta_plain="${base}.fasta"
   local identity=$(echo "scale=2; ${threshold}/100" | bc)
-  local uc_file="${output%.fasta}.uc"
-  local test_members="${output%.fasta}_test_members.fasta"
-  local cluster_mapping="${output%.fasta}_cluster_mapping.txt"
+  local uc_file="${base}.uc"
+  local test_members="${base}_test_members.fasta"
+  local cluster_mapping="${base}_cluster_mapping.txt"
 
-  if [[ -f "${uc_file}" ]] && [[ -s "${output}" ]] && [[ "${FORCE}" != "true" ]]; then
-  echo "  .uc and .fasta exist, skipping vsearch: $(basename "${uc_file}")"
+  if [[ -f "${uc_file}" ]] && [[ -f "${output}" ]] && [[ "${FORCE}" != "true" ]]; then
+  echo "  .uc and .fasta.gz exist, skipping vsearch: $(basename "${uc_file}")"
   else
-  local log_file="${output%.fasta}.log"
+  local log_file="${base}.log"
   echo "  Clustering at ${threshold}%: $(basename "${output}")"
-  echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${output} --uc ${uc_file} --log ${log_file} --threads ${THREADS} --strand both --notrunclabels --sizeout --quiet"
+  echo "  vsearch --cluster_fast ${input} --id ${identity} --centroids ${fasta_plain} --uc ${uc_file} --log ${log_file} --threads ${THREADS} --strand both --notrunclabels --sizeout --quiet"
 
   vsearch \
     --cluster_fast "${input}" \
     --id "${identity}" \
-    --centroids "${output}" \
+    --centroids "${fasta_plain}" \
     --uc "${uc_file}" \
     --log "${log_file}" \
     --threads "${THREADS}" \
@@ -143,17 +146,17 @@ cluster_sequences() {
     --notrunclabels \
     --sizeout \
     --quiet
+  gzip -f "${fasta_plain}"
   fi
 
   # Always produce a hard-masked copy of the centroids (soft-masked lowercase -> N)
-  local masked_output="${output%.fasta}_masked.fasta"
-  echo "  Hard-masking centroids: $(basename "${masked_output}.gz")"
+  local masked_output="${base}_masked.fasta.gz"
+  echo "  Hard-masking centroids: $(basename "${masked_output}")"
   vsearch --fastx_mask "${output}" --hardmask --fastaout "${masked_output}" --quiet
-  gzip -f "${masked_output}"
-  python3 "${UTILS_DIR}/verify_hardmask.py" --soft "${output}" --hard "${masked_output}.gz"
+  python3 "${UTILS_DIR}/verify_hardmask.py" --soft "${output}" --hard "${masked_output}"
 
   # Parse .uc file: extract member IDs and cluster mapping in one pass
-  local member_ids="${output%.fasta}_member_ids.tmp"
+  local member_ids="${base}_member_ids.tmp"
   python3 "${UTILS_DIR}/parse_uc.py" "${uc_file}" \
   --member-ids "${member_ids}" \
   --mapping "${cluster_mapping}"
@@ -189,7 +192,7 @@ for domain in bacteria archaea eukaryota; do
   add_result "SILVA ${SILVA_SSU_VERSION}" "SSU Ref NR 99" "${domain}" "verified" "${num_seqs}" "${total_nt}"
 
   for threshold in "${THRESHOLDS[@]}"; do
-  output="${CLUSTERED_DIR}/silva_ssu_${domain}_${threshold}.fasta"
+  output="${CLUSTERED_DIR}/silva_ssu_${domain}_${threshold}.fasta.gz"
   if cluster_sequences "${kingdom_file}" "${threshold}" "${output}"; then
     stats=$(get_seq_stats "${output}")
     num_seqs=$(echo "${stats}" | cut -f1)
@@ -199,7 +202,7 @@ for domain in bacteria archaea eukaryota; do
       --fasta "${output}" --subunit "SSU" --domain "${domain}" \
       --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
-  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
+  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta"
   done
 done
 
@@ -219,7 +222,7 @@ for domain in bacteria archaea eukaryota; do
   add_result "SILVA ${SILVA_LSU_VERSION}" "LSU Ref NR 99" "${domain}" "verified" "${num_seqs}" "${total_nt}"
 
   for threshold in "${THRESHOLDS[@]}"; do
-  output="${CLUSTERED_DIR}/silva_lsu_${domain}_${threshold}.fasta"
+  output="${CLUSTERED_DIR}/silva_lsu_${domain}_${threshold}.fasta.gz"
   if cluster_sequences "${kingdom_file}" "${threshold}" "${output}"; then
     stats=$(get_seq_stats "${output}")
     num_seqs=$(echo "${stats}" | cut -f1)
@@ -229,7 +232,7 @@ for domain in bacteria archaea eukaryota; do
       --fasta "${output}" --subunit "LSU" --domain "${domain}" \
       --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
-  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
+  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta"
   done
 done
 
@@ -259,7 +262,7 @@ if [[ -n "${RFAM_5S_FULL}" ]]; then
 
   # Cluster at each threshold
   for threshold in "${THRESHOLDS[@]}"; do
-  output="${CLUSTERED_DIR}/rfam_5s_${threshold}.fasta"
+  output="${CLUSTERED_DIR}/rfam_5s_${threshold}.fasta.gz"
   if cluster_sequences "${RFAM_5S_FULL}" "${threshold}" "${output}"; then
     stats=$(get_seq_stats "${output}")
     num_seqs=$(echo "${stats}" | cut -f1)
@@ -269,7 +272,7 @@ if [[ -n "${RFAM_5S_FULL}" ]]; then
       --fasta "${output}" --subunit "5S" --domain "all" \
       --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
-  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
+  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta"
   done
 fi
 
@@ -299,7 +302,7 @@ if [[ -n "${RFAM_5_8S_FULL}" ]]; then
 
   # Cluster at each threshold
   for threshold in "${THRESHOLDS[@]}"; do
-  output="${CLUSTERED_DIR}/rfam_5_8s_${threshold}.fasta"
+  output="${CLUSTERED_DIR}/rfam_5_8s_${threshold}.fasta.gz"
   if cluster_sequences "${RFAM_5_8S_FULL}" "${threshold}" "${output}"; then
     stats=$(get_seq_stats "${output}")
     num_seqs=$(echo "${stats}" | cut -f1)
@@ -309,7 +312,7 @@ if [[ -n "${RFAM_5_8S_FULL}" ]]; then
       --fasta "${output}" --subunit "5.8S" --domain "all" \
       --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
-  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta}_test_members.fasta"
+  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta"
   done
 fi
 
