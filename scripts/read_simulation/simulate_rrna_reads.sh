@@ -419,7 +419,7 @@ for type_name in rfam_5_8s rfam_5s; do
     n_ref=$(seqkit stats -T "${ref}" | tail -1 | cut -f4)
 
     type_tmp="${scalability_dir}/${type_name}_direct.fasta"
-    local type_cleaned="${scalability_dir}/${type_name}_cleaned.fasta"
+    type_cleaned="${scalability_dir}/${type_name}_cleaned.fasta"
     seqkit seq -g -w 0 "${src}" \
         | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
         | seqkit seq -w 0 \
