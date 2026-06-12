@@ -17,7 +17,7 @@ import skbio
 
 def iter_records(path: str):
     """Yield (id, sequence_str) from a FASTA file (plain or .gz)."""
-    for seq in skbio.io.read(path, format="fasta", constructor=skbio.DNA):
+    for seq in skbio.io.read(path, format="fasta", constructor=skbio.DNA, lowercase=True):
         yield str(seq.metadata["id"]), str(seq)
 
 
