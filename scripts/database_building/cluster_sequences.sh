@@ -152,7 +152,7 @@ cluster_sequences() {
   # Always produce a hard-masked copy of the centroids (soft-masked lowercase -> N)
   local masked_output="${base}_masked.fasta.gz"
   echo "  Hard-masking centroids: $(basename "${masked_output}")"
-  vsearch --fastx_mask "${output}" --hardmask --fastaout "${masked_output}" --quiet
+  vsearch --fastx_mask "${output}" --qmask soft --hardmask --fastaout "${masked_output}" --quiet
   python3 "${UTILS_DIR}/verify_hardmask.py" --soft "${output}" --hard "${masked_output}"
 
   # Parse .uc file: extract member IDs and cluster mapping in one pass

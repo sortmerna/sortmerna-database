@@ -153,8 +153,9 @@ def make_stats(tmp_path):
         d.mkdir()
         blast_rows = [(95.0 + j % 5, 1e-10) for j in range(20)]
         stats.append({
-            'n':       n,
-            'runtime': 10 * (i + 1),
+            'n':        n,
+            'runtime':  10 * (i + 1),
+            'peak_rss': 500 + i * 100,
             'log': {
                 'total_reads': n,
                 'aligned':     n // 100,
