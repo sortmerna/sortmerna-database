@@ -56,6 +56,16 @@ rm -f "${STATS_TSV}"
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+# Return path to base or base.gz, whichever exists; empty string if neither
+find_rfam_fasta() {
+  local base="$1"
+  if [[ -f "${base}" ]]; then
+    echo "${base}"
+  elif [[ -f "${base}.gz" ]]; then
+    echo "${base}.gz"
+  fi
+}
+
 convert_u_to_t() {
   local input="$1" output="$2"
   if [[ ! -f "${output}" ]]; then
@@ -120,8 +130,10 @@ echo "============================================"
 RF5S_FULL_DNA="${OUTPUT_DIR}/rfam_5s_full_dna.fasta"
 RF5S_SEED_DNA="${OUTPUT_DIR}/rfam_5s_seed_dna.fasta"
 
-convert_u_to_t "${RFAM_DIR}/RF00001_5S_rRNA_full.fa"  "${RF5S_FULL_DNA}"
-convert_u_to_t "${RFAM_DIR}/RF00001_5S_rRNA_seed.fa"  "${RF5S_SEED_DNA}"
+RF5S_FULL_SRC=$(find_rfam_fasta "${RFAM_DIR}/RF00001_5S_rRNA_full.fa")
+RF5S_SEED_SRC=$(find_rfam_fasta "${RFAM_DIR}/RF00001_5S_rRNA_seed.fa")
+[[ -n "${RF5S_FULL_SRC}" ]] && convert_u_to_t "${RF5S_FULL_SRC}" "${RF5S_FULL_DNA}" || echo "  Skipping 5S full: file not found in ${RFAM_DIR}"
+[[ -n "${RF5S_SEED_SRC}" ]] && convert_u_to_t "${RF5S_SEED_SRC}" "${RF5S_SEED_DNA}" || echo "  Skipping 5S seed: file not found in ${RFAM_DIR}"
 
 verify_family "5s" "full" "${RF5S_FULL_DNA}" "${CMS_DIR}/RF00001.cm"
 verify_family "5s" "seed" "${RF5S_SEED_DNA}" "${CMS_DIR}/RF00001.cm"
@@ -136,8 +148,10 @@ echo "============================================"
 RF58S_FULL_DNA="${OUTPUT_DIR}/rfam_58s_full_dna.fasta"
 RF58S_SEED_DNA="${OUTPUT_DIR}/rfam_58s_seed_dna.fasta"
 
-convert_u_to_t "${RFAM_DIR}/RF00002_5_8S_rRNA_full.fa" "${RF58S_FULL_DNA}"
-convert_u_to_t "${RFAM_DIR}/RF00002_5_8S_rRNA_seed.fa" "${RF58S_SEED_DNA}"
+RF58S_FULL_SRC=$(find_rfam_fasta "${RFAM_DIR}/RF00002_5_8S_rRNA_full.fa")
+RF58S_SEED_SRC=$(find_rfam_fasta "${RFAM_DIR}/RF00002_5_8S_rRNA_seed.fa")
+[[ -n "${RF58S_FULL_SRC}" ]] && convert_u_to_t "${RF58S_FULL_SRC}" "${RF58S_FULL_DNA}" || echo "  Skipping 5.8S full: file not found in ${RFAM_DIR}"
+[[ -n "${RF58S_SEED_SRC}" ]] && convert_u_to_t "${RF58S_SEED_SRC}" "${RF58S_SEED_DNA}" || echo "  Skipping 5.8S seed: file not found in ${RFAM_DIR}"
 
 verify_family "5.8s" "full" "${RF58S_FULL_DNA}" "${CMS_DIR}/RF00002.cm"
 verify_family "5.8s" "seed" "${RF58S_SEED_DNA}" "${CMS_DIR}/RF00002.cm"

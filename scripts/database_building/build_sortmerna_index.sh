@@ -153,36 +153,36 @@ EOF
 
 # sensitive: all SILVA at 97%, Rfam full at 97%
 build_config "${SMR_PREFIX}_sensitive_db" \
-  "${CLUSTERED_DIR}/silva_ssu_bacteria_97.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_ssu_archaea_97.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_ssu_eukaryota_97.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_lsu_bacteria_97.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_lsu_archaea_97.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_lsu_eukaryota_97.fasta.gz" \
-  "${CLUSTERED_DIR}/rfam_5s_97.fasta.gz" \
-  "${CLUSTERED_DIR}/rfam_5_8s_97.fasta.gz"
+  "${CLUSTERED_DIR}/silva_ssu_bacteria_97_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_ssu_archaea_97_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_ssu_eukaryota_97_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_lsu_bacteria_97_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_lsu_archaea_97_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_lsu_eukaryota_97_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/rfam_5s_97_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/rfam_5_8s_97_masked.fasta.gz"
 
 # default: SILVA at 95% (bacteria SSU at 90%), Rfam full at 90%
 build_config "${SMR_PREFIX}_default_db" \
-  "${CLUSTERED_DIR}/silva_ssu_bacteria_90.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_ssu_archaea_95.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_ssu_eukaryota_95.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_lsu_bacteria_95.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_lsu_archaea_95.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_lsu_eukaryota_95.fasta.gz" \
-  "${CLUSTERED_DIR}/rfam_5s_90.fasta.gz" \
-  "${CLUSTERED_DIR}/rfam_5_8s_90.fasta.gz"
+  "${CLUSTERED_DIR}/silva_ssu_bacteria_90_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_ssu_archaea_95_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_ssu_eukaryota_95_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_lsu_bacteria_95_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_lsu_archaea_95_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_lsu_eukaryota_95_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/rfam_5s_90_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/rfam_5_8s_90_masked.fasta.gz"
 
 # fast: SILVA at 90% (bacteria SSU at 85%), Rfam full at 85%
 build_config "${SMR_PREFIX}_fast_db" \
-  "${CLUSTERED_DIR}/silva_ssu_bacteria_85.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_ssu_archaea_90.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_ssu_eukaryota_90.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_lsu_bacteria_90.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_lsu_archaea_90.fasta.gz" \
-  "${CLUSTERED_DIR}/silva_lsu_eukaryota_90.fasta.gz" \
-  "${CLUSTERED_DIR}/rfam_5s_85.fasta.gz" \
-  "${CLUSTERED_DIR}/rfam_5_8s_85.fasta.gz"
+  "${CLUSTERED_DIR}/silva_ssu_bacteria_85_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_ssu_archaea_90_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_ssu_eukaryota_90_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_lsu_bacteria_90_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_lsu_archaea_90_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/silva_lsu_eukaryota_90_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/rfam_5s_85_masked.fasta.gz" \
+  "${CLUSTERED_DIR}/rfam_5_8s_85_masked.fasta.gz"
 
 echo ""
 echo "============================================"
