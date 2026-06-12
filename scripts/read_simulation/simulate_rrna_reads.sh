@@ -241,18 +241,18 @@ simulate_type() {
         # Too few long sequences - use source sequences as-is (no ISS), capped at
         # target so the fallback does not produce far more reads than intended.
         echo "  WARNING: only ${n_long}/${n_source} ${type_name} members >= ${MIN_SEQ_LEN} bp - using sequences as-is (no ISS)" >&2
+        local cleaned_fa="${out_fasta%.fasta}_cleaned.fasta"
+        seqkit seq -g -w 0 "${source}" \
+            | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
+            | seqkit seq -w 0 \
+            > "${cleaned_fa}"
         if (( n_source > target )); then
-            seqkit seq -g -w 0 "${source}" \
-                | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
-                | seqkit sample -2 -n "${target}" --rand-seed "${RAND_SEED}" \
-                | seqkit seq -w 0 \
+            seqkit sample -2 -n "${target}" --rand-seed "${RAND_SEED}" "${cleaned_fa}" \
                 > "${out_fasta}"
         else
-            seqkit seq -g -w 0 "${source}" \
-                | seqkit replace -s -p "[^ACGTUNacgtun]" -r "N" \
-                | seqkit seq -w 0 \
-                > "${out_fasta}"
+            mv "${cleaned_fa}" "${out_fasta}"
         fi
+        rm -f "${cleaned_fa}"
     fi
     rm -f "${long_fa}"
 
