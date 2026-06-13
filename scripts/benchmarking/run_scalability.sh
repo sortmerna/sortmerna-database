@@ -66,7 +66,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "${INDEX_DIR_OPT}" ]] && INDEX_DIR="${INDEX_DIR_OPT}"
-[[ -z "${LABEL}" ]] && LABEL="$(basename "${READS}" .fasta)"
+if [[ ! -f "${READS}" ]] && [[ -f "${READS}.gz" ]]; then READS="${READS}.gz"; fi
+[[ -z "${LABEL}" ]] && LABEL="$(basename "${READS}" | sed 's/\.fasta\.gz$//; s/\.fasta$//')"
 
 : "${SMR_BIN:?SMR_BIN env var not set}"
 : "${INDEX_DIR:?INDEX_DIR not set - pass --index-dir or export INDEX_DIR}"

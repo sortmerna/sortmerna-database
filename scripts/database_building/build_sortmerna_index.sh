@@ -269,5 +269,14 @@ PYEOF
 
 echo "  Done - ${INDEX_HTML}"
 
+TAXONOMY_HTML="${OUTPUT_DIR}/taxonomy_explorer.html"
+echo ""
+echo "Writing taxonomy explorer: ${TAXONOMY_HTML}"
+python3 "${UTILS_DIR}/build_taxonomy_explorer.py" \
+  "${OUTPUT_DIR}/${SMR_PREFIX}_sensitive_db/family_map.tsv:${SMR_PREFIX}_sensitive_db" \
+  "${OUTPUT_DIR}/${SMR_PREFIX}_default_db/family_map.tsv:${SMR_PREFIX}_default_db" \
+  "${OUTPUT_DIR}/${SMR_PREFIX}_fast_db/family_map.tsv:${SMR_PREFIX}_fast_db" \
+  --output "${TAXONOMY_HTML}"
+
 echo ""
 echo "Next step: Run bash $SMR_DB_ROOT_DIR/scripts/read_simulation/simulate_rrna_reads.sh"
