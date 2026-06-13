@@ -153,7 +153,7 @@ cluster_sequences() {
   local masked_fasta="${base}_masked.fasta"
   local masked_output="${masked_fasta}.gz"
   echo "  Hard-masking centroids: $(basename "${masked_output}")"
-  vsearch --fastx_mask "${output}" --qmask soft --hardmask --fastaout "${masked_fasta}" --quiet
+  vsearch --fastx_mask "${output}" --qmask soft --hardmask --fastaout "${masked_fasta}" --notrunclabels --quiet
   gzip -f "${masked_fasta}"
   python3 "${UTILS_DIR}/verify_hardmask.py" --soft "${output}" --hard "${masked_output}"
 

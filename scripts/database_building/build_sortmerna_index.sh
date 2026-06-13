@@ -94,7 +94,7 @@ build_config() {
     fi
     local n family_label
     n=$(seqkit stats -T "${f}" | tail -1 | cut -f4)
-    family_label=$(basename "${f}" | sed 's/_[0-9]*\.fasta$//' | sed 's/_/ /g')
+    family_label=$(basename "${f}" | sed 's/_[0-9]*_masked\.fasta\.gz$//' | sed 's/_[0-9]*\.fasta\.gz$//' | sed 's/_[0-9]*\.fasta$//' | sed 's/_/ /g')
     echo "  + $(basename "${f}"): ${n} sequences"
     if [[ "${f}" == *.gz ]]; then
       gzip -dc "${f}" >> "${combined}"

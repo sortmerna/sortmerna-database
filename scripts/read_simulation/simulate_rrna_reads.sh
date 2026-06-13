@@ -18,7 +18,7 @@
 #   set<N>/<type>/iss_R1.fastq   - InSilicoSeq R1 output
 #   set<N>/<type>/iss_R2.fastq   - InSilicoSeq R2 output
 #   set<N>/<type>/reads.fasta    - per-type simulated reads (FASTA, R1+R2 concatenated)
-#   set<N>_rrna_reads.fasta      - pooled reads across all rRNA types for Set N
+#   set<N>_rrna_reads.fasta.gz   - pooled reads across all rRNA types for Set N
 #   rrna_simulation_summary.html - HTML summary report
 #
 # Usage: bash simulate_rrna_reads.sh [output_dir [threads]] [OPTIONS]
@@ -267,7 +267,8 @@ simulate_type() {
 process_set() {
     local set_num="$1"
     local set_dir="${OUTPUT_DIR}/set${set_num}"
-    local pooled="${OUTPUT_DIR}/set${set_num}_rrna_reads.fasta"
+    local pooled_plain="${OUTPUT_DIR}/set${set_num}_rrna_reads.fasta"
+    local pooled="${OUTPUT_DIR}/set${set_num}_rrna_reads.fasta.gz"
 
     echo ""
     echo "============================================"
@@ -275,7 +276,7 @@ process_set() {
     echo "============================================"
 
     mkdir -p "${set_dir}"
-    > "${pooled}"
+    > "${pooled_plain}"
 
     local html_rows=""
     local total_reads=0
@@ -297,7 +298,7 @@ process_set() {
 
         local type_fasta="${set_dir}/${type_name}/reads.fasta"
         if [[ -f "${type_fasta}" ]] && [[ -s "${type_fasta}" ]]; then
-            cat "${type_fasta}" >> "${pooled}"
+            cat "${type_fasta}" >> "${pooled_plain}"
         fi
 
         total_reads=$(( total_reads + n_reads ))
@@ -322,15 +323,16 @@ process_set() {
 
     local rfam5s_fasta="${set_dir}/rfam_5s/reads.fasta"
     if [[ -f "${rfam5s_fasta}" ]] && [[ -s "${rfam5s_fasta}" ]]; then
-        cat "${rfam5s_fasta}" >> "${pooled}"
+        cat "${rfam5s_fasta}" >> "${pooled_plain}"
     fi
 
     total_reads=$(( total_reads + rfam5s_n_reads ))
     html_rows="${html_rows}      <tr><td>rfam 5s</td><td>${rfam5s_n_source}</td><td>$(basename "${rfam5s_source}")</td><td>${rfam5s_n_reads}</td></tr>\n"
 
     local n_pooled
-    n_pooled=$(seqkit stats -T "${pooled}" | tail -1 | cut -f4)
-    echo "  Pooled: set${set_num}_rrna_reads.fasta (${n_pooled} reads total)"
+    n_pooled=$(seqkit stats -T "${pooled_plain}" | tail -1 | cut -f4)
+    gzip -f "${pooled_plain}"
+    echo "  Pooled: set${set_num}_rrna_reads.fasta.gz (${n_pooled} reads total)"
 
     # Save per-set data for HTML report
     printf "%s" "${html_rows}" > "${set_dir}/.html_rows.tmp"
@@ -364,7 +366,7 @@ silva_unsorted="${scalability_dir}/silva_combined_unsorted.fasta"
 silva_fa="${scalability_dir}/silva_combined.fasta"
 rfam_direct="${scalability_dir}/rfam_direct.fasta"
 iss_prefix="${scalability_dir}/iss"
-scalability_out="${OUTPUT_DIR}/rRNA_test_10M.fasta"
+scalability_out="${OUTPUT_DIR}/rRNA_test_10M.fasta.gz"
 
 # SILVA types: strip gaps and fix IUPAC codes before ISS
 echo "  Collecting Set 2 SILVA sources..."
@@ -463,19 +465,23 @@ printf "%s" "${scalability_html_rows}" > "${scalability_dir}/.html_rows.tmp"
 printf "%s" "${n_combined}"            > "${scalability_dir}/.n_combined.tmp"
 printf "%s" "${n_rfam}"                > "${scalability_dir}/.n_rfam.tmp"
 
+silva_n_reads=$(( SCALABILITY_N_READS - n_rfam ))
 if [[ -f "${scalability_out}" ]] && [[ "${FORCE}" == false ]]; then
-    echo "  Already exists: rRNA_test_10M.fasta - skipping ISS (use --force to re-run)"
+    echo "  Already exists: rRNA_test_10M.fasta.gz - skipping (use --force to re-run)"
     n_out=$(seqkit stats -T "${scalability_out}" | tail -1 | cut -f4)
 else
-    silva_n_reads=$(( SCALABILITY_N_READS - n_rfam ))
-    echo "  Running ISS: ${silva_n_reads} reads from ${n_silva} SILVA sequences..."
-    iss generate \
-        --genomes  "${silva_fa}" \
-        --model    "${ISS_MODEL}" \
-        --n_reads  "${silva_n_reads}" \
-        --cpus     "${THREADS}" \
-        --seed     "${RAND_SEED}" \
-        --output   "${iss_prefix}"
+    if [[ -f "${iss_prefix}_R1.fastq" ]] && [[ -f "${iss_prefix}_R2.fastq" ]] && [[ "${FORCE}" == false ]]; then
+        echo "  ISS output already exists - skipping ISS, combining only..."
+    else
+        echo "  Running ISS: ${silva_n_reads} reads from ${n_silva} SILVA sequences..."
+        iss generate \
+            --genomes  "${silva_fa}" \
+            --model    "${ISS_MODEL}" \
+            --n_reads  "${silva_n_reads}" \
+            --cpus     "${THREADS}" \
+            --seed     "${RAND_SEED}" \
+            --output   "${iss_prefix}"
+    fi
     echo "  Combining ISS output with Rfam direct sequences and shuffling final pool..."
     cat <(cat "${iss_prefix}_R1.fastq" "${iss_prefix}_R2.fastq" \
               | seqkit fq2fa \
@@ -484,9 +490,10 @@ else
         "${rfam_direct}" \
         | seqkit shuffle -s "${RAND_SEED}" \
         | seqkit seq -w 0 \
+        | gzip \
         > "${scalability_out}"
     n_out=$(seqkit stats -T "${scalability_out}" | tail -1 | cut -f4)
-    echo "  Saved: rRNA_test_10M.fasta (${n_out} reads)"
+    echo "  Saved: rRNA_test_10M.fasta.gz (${n_out} reads)"
 fi
 printf "%s" "${n_out}" > "${scalability_dir}/.n_reads.tmp"
 
@@ -568,7 +575,7 @@ Sequences shorter than the ISS read length are pre-filtered; types with too few 
 {rows}    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td></td><td>{total}</td></tr>
   </tbody>
 </table></div>
-<p>Output: <code>set{sn}_rrna_reads.fasta</code></p>
+<p>Output: <code>set{sn}_rrna_reads.fasta.gz</code></p>
 </section>
 """
 
@@ -601,7 +608,7 @@ ISS generates {scalability_n} - n_rfam reads so the final combined pool is exact
 {sc_rows}    <tr style="font-weight:bold; border-top: 2px solid #2c3e50;"><td>Total</td><td></td><td>{sc_n_comb}</td><td>100%</td><td></td></tr>
   </tbody>
 </table></div>
-<p>Output: <code>rRNA_test_10M.fasta</code> ({sc_n_reads} reads)</p>
+<p>Output: <code>rRNA_test_10M.fasta.gz</code> ({sc_n_reads} reads)</p>
 </section>
 """
 
@@ -648,16 +655,16 @@ echo "============================================"
 echo ""
 echo "Outputs:"
 for sn in 1 2 3; do
-    f="${OUTPUT_DIR}/set${sn}_rrna_reads.fasta"
+    f="${OUTPUT_DIR}/set${sn}_rrna_reads.fasta.gz"
     [[ -f "${f}" ]] && echo "  Set ${sn}: ${f}"
 done
-echo "  Scalability pool: ${OUTPUT_DIR}/rRNA_test_10M.fasta"
+echo "  Scalability pool: ${OUTPUT_DIR}/rRNA_test_10M.fasta.gz"
 echo "  HTML summary: ${OUTPUT_DIR}/rrna_simulation_summary.html"
 echo ""
 echo "Next steps:"
 echo "  Experiment 1 - scalability (rRNA sensitivity at scale):"
 echo "    bash \$SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \\"
-echo "        ${OUTPUT_DIR}/rRNA_test_10M.fasta \\"
+echo "        ${OUTPUT_DIR}/rRNA_test_10M.fasta.gz \\"
 echo "        ${OUTPUT_DIR}/scalability_rrna \\"
 echo "        ${THREADS} \\"
 echo "        --index-dir \$INDEX_DIR"
