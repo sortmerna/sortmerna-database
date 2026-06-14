@@ -542,13 +542,13 @@ Run for T2T non-rRNA reads + Rfam non-rRNA reads (false positive rate at scale) 
 Subsample reads once, then reuse those reads for the remaining thresholds with `--reads-dir`:
 
 ```bash
-for ev in 1 0.1 0.05 0.01 0.001 0.0001 0.00001; do
+for ev in 1 0.1 0.05 0.01 0.001 0.0001 1e-5 1e-10 1e-20; do
     reads_dir_t2t=$( [[ "${ev}" == "1" ]] && echo "" || echo "--reads-dir $SCALABILITY_DIR/scalability_t2t_ev1" )
     reads_dir_rfam=$( [[ "${ev}" == "1" ]] && echo "" || echo "--reads-dir $SCALABILITY_DIR/scalability_rfam_ev1" )
     reads_dir_rrna=$( [[ "${ev}" == "1" ]] && echo "" || echo "--reads-dir $SCALABILITY_DIR/scalability_rrna_ev1" )
 
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
-        $NON_RRNA_DIR/non_rRNA_test_10M_T2T.fasta \
+        $NON_RRNA_DIR/non_rRNA_test_10M_T2T.fasta.gz \
         $SCALABILITY_DIR/scalability_t2t_ev${ev} \
         4 \
         --index-dir $INDEX_DIR \
@@ -556,7 +556,7 @@ for ev in 1 0.1 0.05 0.01 0.001 0.0001 0.00001; do
         --evalue ${ev} ${reads_dir_t2t}
 
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
-        $NON_RRNA_DIR/non_rRNA_test_Rfam.fasta \
+        $NON_RRNA_DIR/non_rRNA_test_Rfam.fasta.gz \
         $SCALABILITY_DIR/scalability_rfam_ev${ev} \
         4 \
         --index-dir $INDEX_DIR \
@@ -565,7 +565,7 @@ for ev in 1 0.1 0.05 0.01 0.001 0.0001 0.00001; do
         --evalue ${ev} ${reads_dir_rfam}
 
     bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_scalability.sh \
-        $RRNA_SIM_DIR/rRNA_test_10M.fasta \
+        $RRNA_SIM_DIR/rRNA_test_10M.fasta.gz \
         $SCALABILITY_DIR/scalability_rrna_ev${ev} \
         4 \
         --index-dir $INDEX_DIR \
@@ -580,7 +580,7 @@ Generate the ROC plot once all E-value runs are complete. Each point on the curv
 python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
     --output-dir $SCALABILITY_DIR/plots \
     --label scalability_benchmark \
-    --evalues 1 0.1 0.05 0.01 0.001 0.0001 0.00001 \
+    --evalues 1 0.1 0.05 0.01 0.001 0.0001 1e-5 1e-10 1e-20 \
     --rrna-dirs \
         $SCALABILITY_DIR/scalability_rrna_ev1 \
         $SCALABILITY_DIR/scalability_rrna_ev0.1 \

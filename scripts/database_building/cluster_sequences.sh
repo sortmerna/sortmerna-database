@@ -8,7 +8,7 @@
 # For each clustering threshold, outputs:
 #   clustered_XX.fasta              - centroid/seed sequences (the database)
 #   clustered_XX.uc                 - VSEARCH cluster membership
-#   clustered_XX_test_members.fasta - non-seed members (for simulating test reads)
+#   clustered_XX_test_members.fasta.gz - non-seed members (for simulating test reads)
 #   clustered_XX_cluster_mapping.txt - member-to-seed mapping
 
 set -euo pipefail
@@ -110,7 +110,7 @@ add_result() {
 #   <output>.fasta.gz        - centroid/seed sequences (the clustered database)
 #   <output>.uc              - VSEARCH cluster membership file
 #   <output>_masked.fasta.gz - hard-masked copy of centroids (lowercase -> N)
-#   <output>_test_members.fasta   - non-seed cluster members (for simulating test reads)
+#   <output>_test_members.fasta.gz - non-seed cluster members (for simulating test reads)
 #   <output>_cluster_mapping.txt  - mapping of member sequence IDs to their seed IDs
 cluster_sequences() {
   local input="$1"
@@ -125,7 +125,7 @@ cluster_sequences() {
   local fasta_plain="${base}.fasta"
   local identity=$(echo "scale=2; ${threshold}/100" | bc)
   local uc_file="${base}.uc"
-  local test_members="${base}_test_members.fasta"
+  local test_members="${base}_test_members.fasta.gz"
   local cluster_mapping="${base}_cluster_mapping.txt"
 
   if [[ -f "${uc_file}" ]] && [[ -f "${output}" ]] && [[ "${FORCE}" != "true" ]]; then
@@ -204,7 +204,7 @@ for domain in bacteria archaea eukaryota; do
       --fasta "${output}" --subunit "SSU" --domain "${domain}" \
       --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
-  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta"
+  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta.gz"
   done
 done
 
@@ -234,7 +234,7 @@ for domain in bacteria archaea eukaryota; do
       --fasta "${output}" --subunit "LSU" --domain "${domain}" \
       --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
-  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta"
+  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta.gz"
   done
 done
 
@@ -274,7 +274,7 @@ if [[ -n "${RFAM_5S_FULL}" ]]; then
       --fasta "${output}" --subunit "5S" --domain "all" \
       --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
-  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta"
+  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta.gz"
   done
 fi
 
@@ -314,7 +314,7 @@ if [[ -n "${RFAM_5_8S_FULL}" ]]; then
       --fasta "${output}" --subunit "5.8S" --domain "all" \
       --threshold "${threshold}" --out "${MASKING_TSV}"
   fi
-  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta"
+  python3 "${UTILS_DIR}/check_leakage.py" "${output}" "${output%.fasta.gz}_test_members.fasta.gz"
   done
 fi
 

@@ -39,13 +39,13 @@
 #                         as non-rRNA Rfam sequences). Rfam 5S (avg 117 bp) always falls into
 #                         this case.
 #   --seed INT            Random seed (default: 42)
-#   --clustered-dir DIR   Directory containing *_test_members.fasta files
+#   --clustered-dir DIR   Directory containing *_test_members.fasta.gz files
 #                         (overrides CLUSTERED_DIR env var)
 #   --force               Re-run InSilicoSeq even if output already exists
 #   -h, --help            Show this help
 #
 # Required env vars (can be overridden with options above):
-#   CLUSTERED_DIR    Directory with *_test_members.fasta files from cluster_sequences.sh
+#   CLUSTERED_DIR    Directory with *_test_members.fasta.gz files from cluster_sequences.sh
 #
 # Environment variables (optional):
 #   RRNA_SIM_DIR     Default output directory (overridden by positional arg)
@@ -139,32 +139,32 @@ set_source() {
     local C="${CLUSTERED_DIR}"
     case "${set_num}_${type}" in
         # Set 1 - sensitive (97% for all SILVA and Rfam)
-        1_silva_ssu_bacteria)  echo "${C}/silva_ssu_bacteria_97_test_members.fasta" ;;
-        1_silva_ssu_archaea)   echo "${C}/silva_ssu_archaea_97_test_members.fasta"  ;;
-        1_silva_ssu_eukaryota) echo "${C}/silva_ssu_eukaryota_97_test_members.fasta" ;;
-        1_silva_lsu_bacteria)  echo "${C}/silva_lsu_bacteria_97_test_members.fasta" ;;
-        1_silva_lsu_archaea)   echo "${C}/silva_lsu_archaea_97_test_members.fasta"  ;;
-        1_silva_lsu_eukaryota) echo "${C}/silva_lsu_eukaryota_97_test_members.fasta" ;;
-        1_rfam_5s)             echo "${C}/rfam_5s_97_test_members.fasta"    ;;
-        1_rfam_5_8s)           echo "${C}/rfam_5_8s_97_test_members.fasta"  ;;
+        1_silva_ssu_bacteria)  echo "${C}/silva_ssu_bacteria_97_test_members.fasta.gz" ;;
+        1_silva_ssu_archaea)   echo "${C}/silva_ssu_archaea_97_test_members.fasta.gz"  ;;
+        1_silva_ssu_eukaryota) echo "${C}/silva_ssu_eukaryota_97_test_members.fasta.gz" ;;
+        1_silva_lsu_bacteria)  echo "${C}/silva_lsu_bacteria_97_test_members.fasta.gz" ;;
+        1_silva_lsu_archaea)   echo "${C}/silva_lsu_archaea_97_test_members.fasta.gz"  ;;
+        1_silva_lsu_eukaryota) echo "${C}/silva_lsu_eukaryota_97_test_members.fasta.gz" ;;
+        1_rfam_5s)             echo "${C}/rfam_5s_97_test_members.fasta.gz"    ;;
+        1_rfam_5_8s)           echo "${C}/rfam_5_8s_97_test_members.fasta.gz"  ;;
         # Set 2 - default (bacteria SSU at 90%, others at 95%, Rfam at 90%)
-        2_silva_ssu_bacteria)  echo "${C}/silva_ssu_bacteria_90_test_members.fasta" ;;
-        2_silva_ssu_archaea)   echo "${C}/silva_ssu_archaea_95_test_members.fasta"  ;;
-        2_silva_ssu_eukaryota) echo "${C}/silva_ssu_eukaryota_95_test_members.fasta" ;;
-        2_silva_lsu_bacteria)  echo "${C}/silva_lsu_bacteria_95_test_members.fasta" ;;
-        2_silva_lsu_archaea)   echo "${C}/silva_lsu_archaea_95_test_members.fasta"  ;;
-        2_silva_lsu_eukaryota) echo "${C}/silva_lsu_eukaryota_95_test_members.fasta" ;;
-        2_rfam_5s)             echo "${C}/rfam_5s_90_test_members.fasta"    ;;
-        2_rfam_5_8s)           echo "${C}/rfam_5_8s_90_test_members.fasta"  ;;
+        2_silva_ssu_bacteria)  echo "${C}/silva_ssu_bacteria_90_test_members.fasta.gz" ;;
+        2_silva_ssu_archaea)   echo "${C}/silva_ssu_archaea_95_test_members.fasta.gz"  ;;
+        2_silva_ssu_eukaryota) echo "${C}/silva_ssu_eukaryota_95_test_members.fasta.gz" ;;
+        2_silva_lsu_bacteria)  echo "${C}/silva_lsu_bacteria_95_test_members.fasta.gz" ;;
+        2_silva_lsu_archaea)   echo "${C}/silva_lsu_archaea_95_test_members.fasta.gz"  ;;
+        2_silva_lsu_eukaryota) echo "${C}/silva_lsu_eukaryota_95_test_members.fasta.gz" ;;
+        2_rfam_5s)             echo "${C}/rfam_5s_90_test_members.fasta.gz"    ;;
+        2_rfam_5_8s)           echo "${C}/rfam_5_8s_90_test_members.fasta.gz"  ;;
         # Set 3 - fast (bacteria SSU at 85%, others at 90%, Rfam at 85%)
-        3_silva_ssu_bacteria)  echo "${C}/silva_ssu_bacteria_85_test_members.fasta" ;;
-        3_silva_ssu_archaea)   echo "${C}/silva_ssu_archaea_90_test_members.fasta"  ;;
-        3_silva_ssu_eukaryota) echo "${C}/silva_ssu_eukaryota_90_test_members.fasta" ;;
-        3_silva_lsu_bacteria)  echo "${C}/silva_lsu_bacteria_90_test_members.fasta" ;;
-        3_silva_lsu_archaea)   echo "${C}/silva_lsu_archaea_90_test_members.fasta"  ;;
-        3_silva_lsu_eukaryota) echo "${C}/silva_lsu_eukaryota_90_test_members.fasta" ;;
-        3_rfam_5s)             echo "${C}/rfam_5s_85_test_members.fasta"    ;;
-        3_rfam_5_8s)           echo "${C}/rfam_5_8s_85_test_members.fasta"  ;;
+        3_silva_ssu_bacteria)  echo "${C}/silva_ssu_bacteria_85_test_members.fasta.gz" ;;
+        3_silva_ssu_archaea)   echo "${C}/silva_ssu_archaea_90_test_members.fasta.gz"  ;;
+        3_silva_ssu_eukaryota) echo "${C}/silva_ssu_eukaryota_90_test_members.fasta.gz" ;;
+        3_silva_lsu_bacteria)  echo "${C}/silva_lsu_bacteria_90_test_members.fasta.gz" ;;
+        3_silva_lsu_archaea)   echo "${C}/silva_lsu_archaea_90_test_members.fasta.gz"  ;;
+        3_silva_lsu_eukaryota) echo "${C}/silva_lsu_eukaryota_90_test_members.fasta.gz" ;;
+        3_rfam_5s)             echo "${C}/rfam_5s_85_test_members.fasta.gz"    ;;
+        3_rfam_5_8s)           echo "${C}/rfam_5_8s_85_test_members.fasta.gz"  ;;
         *) echo "" ;;
     esac
 }
@@ -411,10 +411,10 @@ for type_name in rfam_5_8s rfam_5s; do
     # Use 90% Rfam members (matching Set 2 threshold) subsampled to the 97% count
     # so pool composition stays stable across runs.
     case "${type_name}" in
-        rfam_5_8s) src="${CLUSTERED_DIR}/rfam_5_8s_90_test_members.fasta"
-                   ref="${CLUSTERED_DIR}/rfam_5_8s_97_test_members.fasta" ;;
-        rfam_5s)   src="${CLUSTERED_DIR}/rfam_5s_90_test_members.fasta"
-                   ref="${CLUSTERED_DIR}/rfam_5s_97_test_members.fasta"   ;;
+        rfam_5_8s) src="${CLUSTERED_DIR}/rfam_5_8s_90_test_members.fasta.gz"
+                   ref="${CLUSTERED_DIR}/rfam_5_8s_97_test_members.fasta.gz" ;;
+        rfam_5s)   src="${CLUSTERED_DIR}/rfam_5s_90_test_members.fasta.gz"
+                   ref="${CLUSTERED_DIR}/rfam_5s_97_test_members.fasta.gz"   ;;
     esac
     [[ -n "${src}" ]] && [[ -f "${src}" ]] || continue
 
@@ -507,7 +507,7 @@ echo "  Writing family mapping to $(basename "${family_tsv}")..."
     for type_name in "${RRNA_TYPES[@]}"; do
         src=$(set_source 2 "${type_name}")
         [[ -z "${src}" ]] || [[ ! -f "${src}" ]] && continue
-        grep '^>' "${src}" | sed 's/^>//;s/ .*//' | while IFS= read -r seq_id; do
+        gzip -dc "${src}" | grep '^>' | sed 's/^>//;s/ .*//' | while IFS= read -r seq_id; do
             printf "%s\t%s\n" "${seq_id}" "${type_name}"
         done
     done
