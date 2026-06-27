@@ -300,8 +300,10 @@ def load_stats(dirs, n_reads_override, output_dir, label):
     """Load log/blast/runtime data from a list of scale-point directories."""
     stats = []
     for i, d in enumerate(dirs):
-        log_path   = d / 'smr_out' / 'out' / 'aligned.log'
-        blast_path = d / 'smr_out' / 'out' / 'aligned.blast.gz'
+        out_dir    = d / 'smr_out' / 'out'
+        log_path   = out_dir / 'aligned.log'
+        blast_gz   = out_dir / 'aligned.blast.gz'
+        blast_path = blast_gz if blast_gz.exists() else out_dir / 'aligned.blast'
         rt_path    = d / 'runtime_seconds.txt'
 
         if not log_path.exists():
