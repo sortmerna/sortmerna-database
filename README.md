@@ -588,7 +588,9 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
         $SCALABILITY_DIR/scalability_rrna_ev0.01 \
         $SCALABILITY_DIR/scalability_rrna_ev0.001 \
         $SCALABILITY_DIR/scalability_rrna_ev0.0001 \
-        $SCALABILITY_DIR/scalability_rrna_ev0.00001 \
+        $SCALABILITY_DIR/scalability_rrna_ev1e-5 \
+        $SCALABILITY_DIR/scalability_rrna_ev1e-10 \
+        $SCALABILITY_DIR/scalability_rrna_ev1e-20 \
     --nonrrna-dirs \
         $SCALABILITY_DIR/scalability_t2t_ev1 \
         $SCALABILITY_DIR/scalability_t2t_ev0.1 \
@@ -596,7 +598,9 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
         $SCALABILITY_DIR/scalability_t2t_ev0.01 \
         $SCALABILITY_DIR/scalability_t2t_ev0.001 \
         $SCALABILITY_DIR/scalability_t2t_ev0.0001 \
-        $SCALABILITY_DIR/scalability_t2t_ev0.00001 \
+        $SCALABILITY_DIR/scalability_t2t_ev1e-5 \
+        $SCALABILITY_DIR/scalability_t2t_ev1e-10 \
+        $SCALABILITY_DIR/scalability_t2t_ev1e-20 \
     --series-labels "T2T non-rRNA" \
     --rrna-dirs \
         $SCALABILITY_DIR/scalability_rrna_ev1 \
@@ -605,7 +609,9 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
         $SCALABILITY_DIR/scalability_rrna_ev0.01 \
         $SCALABILITY_DIR/scalability_rrna_ev0.001 \
         $SCALABILITY_DIR/scalability_rrna_ev0.0001 \
-        $SCALABILITY_DIR/scalability_rrna_ev0.00001 \
+        $SCALABILITY_DIR/scalability_rrna_ev1e-5 \
+        $SCALABILITY_DIR/scalability_rrna_ev1e-10 \
+        $SCALABILITY_DIR/scalability_rrna_ev1e-20 \
     --nonrrna-dirs \
         $SCALABILITY_DIR/scalability_rfam_ev1 \
         $SCALABILITY_DIR/scalability_rfam_ev0.1 \
@@ -613,7 +619,9 @@ python3 $SMR_DB_ROOT_DIR/scripts/utils/plot_roc_evalue.py \
         $SCALABILITY_DIR/scalability_rfam_ev0.01 \
         $SCALABILITY_DIR/scalability_rfam_ev0.001 \
         $SCALABILITY_DIR/scalability_rfam_ev0.0001 \
-        $SCALABILITY_DIR/scalability_rfam_ev0.00001 \
+        $SCALABILITY_DIR/scalability_rfam_ev1e-5 \
+        $SCALABILITY_DIR/scalability_rfam_ev1e-10 \
+        $SCALABILITY_DIR/scalability_rfam_ev1e-20 \
     --series-labels "Rfam non-rRNA" \
     --rrna-family-tsv $RRNA_SIM_DIR/rRNA_test_10M_family.tsv \
     --silva-version $SILVA_SSU_VERSION \

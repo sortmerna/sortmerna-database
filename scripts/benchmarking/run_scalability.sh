@@ -30,7 +30,7 @@
 # Outputs (all under <output_dir>):
 #   scale_<N>/reads_<N>.fasta           Subsampled reads
 #   scale_<N>/smr_out/out/aligned.log   SortMeRNA summary log
-#   scale_<N>/smr_out/out/aligned.blast BLAST-format alignments (--blast 1)
+#   scale_<N>/smr_out/out/aligned.blast.gz BLAST-format alignments (--blast 1 --zip-out)
 #   scale_<N>/runtime_seconds.txt       Wall-clock runtime in seconds
 #   scale_<N>/peak_rss_mb.txt          Peak resident set size in MB
 #   plots/                              Generated figures (PNG)
@@ -139,7 +139,7 @@ for n in "${SCALE_POINTS[@]}"; do
             --reads   "${subset_fa}"
             --idx-dir "${DB_IDX}"
             --workdir "${smr_workdir}"
-            --fastx --blast 1
+            --fastx --blast 1 --zip-out
             --threads "${THREADS}"
         )
         [[ "${SCORE_SPLIT}" == true ]] && smr_args+=(--score_split)
@@ -154,6 +154,7 @@ for n in "${SCALE_POINTS[@]}"; do
             sleep 5
         done
         wait "${smr_pid}" || { echo "  ERROR: sortmerna failed"; exit 1; }
+        gzip -f "${smr_workdir}/out/aligned.blast"
         end=$(date +%s)
         runtime=$(( end - start ))
         echo "${runtime}" > "${scale_dir}/runtime_seconds.txt"

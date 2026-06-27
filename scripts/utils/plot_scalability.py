@@ -301,7 +301,7 @@ def load_stats(dirs, n_reads_override, output_dir, label):
     stats = []
     for i, d in enumerate(dirs):
         log_path   = d / 'smr_out' / 'out' / 'aligned.log'
-        blast_path = d / 'smr_out' / 'out' / 'aligned.blast'
+        blast_path = d / 'smr_out' / 'out' / 'aligned.blast.gz'
         rt_path    = d / 'runtime_seconds.txt'
 
         if not log_path.exists():
