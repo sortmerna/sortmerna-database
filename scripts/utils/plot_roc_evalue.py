@@ -36,6 +36,30 @@ import matplotlib.pyplot as plt
 
 _COLORS = ['#2c7bb6', '#d7191c', '#1a9641', '#7b2d8b', '#f07d00']
 
+# E-value highlighted with per-run plots in the summary page (the new default).
+DEFAULT_EVALUE = 1e-5
+
+
+def _is_default_ev(ev):
+    return abs(ev - DEFAULT_EVALUE) <= DEFAULT_EVALUE * 1e-9
+
+
+def _run_plots_html(top_dir):
+    """Stacked <img> tags for the per-run plots (evalue_dist, summary,
+    identity_coverage) in <top_dir>/plots, or '' if none are present."""
+    plots_dir = Path(top_dir) / 'plots'
+    parts = []
+    for suffix in ('evalue_dist', 'summary', 'identity_coverage'):
+        matches = sorted(plots_dir.glob(f'*_{suffix}.png'))
+        if matches:
+            b64 = base64.b64encode(matches[0].read_bytes()).decode()
+            parts.append(
+                f'      <div style="margin:1em 0">'
+                f'<img src="data:image/png;base64,{b64}" '
+                f'style="max-width:100%;height:auto"></div>'
+            )
+    return '\n'.join(parts)
+
 _FAMILY_ORDER = [
     'silva_ssu_bacteria', 'silva_ssu_archaea', 'silva_ssu_eukaryota',
     'silva_lsu_bacteria', 'silva_lsu_archaea', 'silva_lsu_eukaryota',
@@ -341,7 +365,8 @@ def _make_perf_plots(perf_data, evalues, series_labels):
 def render_family_html(tables, evalues, label, output_dir,
                        roc_b64=None, runtime_b64=None, ram_b64=None,
                        series_labels=None, nonrrna_tables=None,
-                       silva_version='', rfam_version='', smr_db_label=''):
+                       silva_version='', rfam_version='', smr_db_label='',
+                       nonrrna_plot_dirs=None, rrna_plot_dir=None):
     """Write <label>_summary.html - scalability benchmark summary page."""
 
     def _img_tag(b64):
@@ -380,13 +405,18 @@ def render_family_html(tables, evalues, label, output_dir,
                     )
             if not rows:
                 continue
-            nonrrna_blocks.append(
+            block = (
                 f'      <h3>{slabel} reads</h3>\n'
                 f'      <div class="table-wrap"><table>\n'
                 f'        <thead><tr><th>E-value</th><th># reads</th>'
                 f'<th>Reads assigned to rRNA</th><th>%</th></tr></thead>\n'
                 f'        <tbody>\n' + '\n'.join(rows) + '\n        </tbody>\n      </table></div>'
             )
+            if nonrrna_plot_dirs and si < len(nonrrna_plot_dirs) and nonrrna_plot_dirs[si]:
+                plots = _run_plots_html(nonrrna_plot_dirs[si])
+                if plots:
+                    block += '\n' + plots
+            nonrrna_blocks.append(block)
 
     # --- SILVA rRNA tables (per-family breakdown by e-value and scale) ---
     rrna_ev_blocks = []
@@ -426,17 +456,27 @@ def render_family_html(tables, evalues, label, output_dir,
             )
         if scale_blocks:
             rrna_ev_blocks.append(
-                f'      <h4>E-value = {ev:g}</h4>\n' + '\n'.join(scale_blocks)
+                (ev, f'      <h4>E-value = {ev:g}</h4>\n' + '\n'.join(scale_blocks))
             )
 
     rrna_block = ''
     if rrna_ev_blocks:
+        # Show the default E-value block first, with its per-run plots right
+        # after it, so the table + plots are visible before the rest.
+        ordered = sorted(rrna_ev_blocks, key=lambda kv: 0 if _is_default_ev(kv[0]) else 1)
+        pieces = []
+        for ev, block in ordered:
+            pieces.append(block)
+            if rrna_plot_dir and _is_default_ev(ev):
+                plots = _run_plots_html(rrna_plot_dir)
+                if plots:
+                    pieces.append(plots)
         rrna_block = (
             '      <h3>SILVA rRNA reads</h3>\n'
             '      <p>Per-family sensitivity. Reads assigned = reads in '
             '<code>aligned.blast</code>; totals derived from subsampled reads and '
             '<code>rRNA_test_10M_family.tsv</code>.</p>\n'
-            + '\n'.join(rrna_ev_blocks)
+            + '\n'.join(pieces)
         )
 
     # --- Metadata line ---
@@ -552,12 +592,22 @@ def main():
     runtime_b64, ram_b64 = _make_perf_plots(perf_data, args.evalues, series_labels)
     print('\nCollecting non-rRNA alignment counts...')
     nonrrna_tables = _read_nonrrna_tables(args.nonrrna_dirs, args.evalues)
+
+    # Per-run plot directories for the default E-value (one per non-rRNA series
+    # plus the shared rRNA series), embedded under their tables in the summary.
+    default_idx = next((i for i, e in enumerate(args.evalues) if _is_default_ev(e)), None)
+    nonrrna_plot_dirs = ([series[default_idx] for series in args.nonrrna_dirs]
+                         if default_idx is not None else None)
+    rrna_plot_dir = args.rrna_dirs[0][default_idx] if default_idx is not None else None
+
     render_family_html(tables, args.evalues, args.label, args.output_dir,
                        roc_b64=roc_b64, runtime_b64=runtime_b64, ram_b64=ram_b64,
                        series_labels=series_labels, nonrrna_tables=nonrrna_tables,
                        silva_version=args.silva_version,
                        rfam_version=args.rfam_version,
-                       smr_db_label=args.smr_db_label)
+                       smr_db_label=args.smr_db_label,
+                       nonrrna_plot_dirs=nonrrna_plot_dirs,
+                       rrna_plot_dir=rrna_plot_dir)
 
 
 if __name__ == '__main__':
