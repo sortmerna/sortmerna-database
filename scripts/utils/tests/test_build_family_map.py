@@ -10,8 +10,9 @@ from build_family_map import parse_header, write_family_map, N_TAX_LEVELS
 class TestParseHeader:
     def test_full_silva_header(self):
         line = ">KU725478.45631.48554 Bacteria;Pseudomonadota;Alphaproteobacteria;Rickettsiales;Mitochondria;Incertae Sedis;Sphagnum angustifolium;size=5"
-        seq_id, levels = parse_header(line)
+        seq_id, original, levels = parse_header(line)
         assert seq_id == "KU725478.45631.48554"
+        assert original == "KU725478.45631.48554 Bacteria;Pseudomonadota;Alphaproteobacteria;Rickettsiales;Mitochondria;Incertae Sedis;Sphagnum angustifolium;size=5"
         assert levels[0] == "Bacteria"
         assert levels[1] == "Pseudomonadota"
         assert levels[2] == "Alphaproteobacteria"
@@ -23,20 +24,22 @@ class TestParseHeader:
 
     def test_size_tag_stripped(self):
         line = ">AB123.1.500 Bacteria;Firmicutes;size=10"
-        seq_id, levels = parse_header(line)
+        seq_id, original, levels = parse_header(line)
+        assert original == "AB123.1.500 Bacteria;Firmicutes;size=10"
         assert levels[0] == "Bacteria"
         assert levels[1] == "Firmicutes"
         assert levels[2] == ""
 
     def test_bare_header_no_taxonomy(self):
         line = ">RF00001.1"
-        seq_id, levels = parse_header(line)
+        seq_id, original, levels = parse_header(line)
         assert seq_id == "RF00001.1"
+        assert original == "RF00001.1"
         assert levels == [""] * N_TAX_LEVELS
 
     def test_partial_taxonomy_padded(self):
         line = ">SEQ1 Archaea;Euryarchaeota"
-        seq_id, levels = parse_header(line)
+        seq_id, _, levels = parse_header(line)
         assert levels[0] == "Archaea"
         assert levels[1] == "Euryarchaeota"
         assert levels[2:] == [""] * (N_TAX_LEVELS - 2)
@@ -44,7 +47,7 @@ class TestParseHeader:
 
     def test_leading_gt_stripped(self):
         line = ">SEQ1 Bacteria;Firmicutes;size=1"
-        seq_id, _ = parse_header(line)
+        seq_id, _, _ = parse_header(line)
         assert not seq_id.startswith(">")
 
 
@@ -61,16 +64,17 @@ class TestWriteFamilyMap:
         total = write_family_map(str(out), [(str(fasta), "SSU Bacteria (16S)")])
         assert total == 2
         lines = out.read_text().splitlines()
-        assert lines[0] == "seq_id\trna_family\tdomain\tphylum\tclass\torder\ttax_family\tgenus\tspecies"
+        assert lines[0] == "seq_id\toriginal\trna_family\tdomain\tphylum\tclass\torder\ttax_family\tgenus\tspecies"
         row1 = lines[1].split("\t")
         assert row1[0] == "SEQ1"
-        assert row1[1] == "SSU Bacteria (16S)"
-        assert row1[2] == "Bacteria"
-        assert row1[6] == "Lactobacillaceae"
+        assert row1[1] == "SEQ1 Bacteria;Firmicutes;Bacilli;Lactobacillales;Lactobacillaceae;Lactobacillus;L. acidophilus;size=2"
+        assert row1[2] == "SSU Bacteria (16S)"
+        assert row1[3] == "Bacteria"
+        assert row1[7] == "Lactobacillaceae"
         row2 = lines[2].split("\t")
         assert row2[0] == "SEQ2"
-        assert row2[2] == "Archaea"
-        assert row2[4] == ""  # class empty
+        assert row2[3] == "Archaea"
+        assert row2[5] == ""  # class empty
 
     def test_multiple_fasta_files(self, tmp_path):
         f1 = tmp_path / "ssu.fasta"
@@ -84,8 +88,8 @@ class TestWriteFamilyMap:
         ])
         assert total == 2
         lines = out.read_text().splitlines()
-        assert lines[1].split("\t")[1] == "SSU Bacteria (16S)"
-        assert lines[2].split("\t")[1] == "LSU Bacteria (23S)"
+        assert lines[1].split("\t")[2] == "SSU Bacteria (16S)"
+        assert lines[2].split("\t")[2] == "LSU Bacteria (23S)"
 
     def test_non_header_lines_skipped(self, tmp_path):
         fasta = tmp_path / "test.fasta"

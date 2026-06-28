@@ -9,7 +9,7 @@ Usage (called from build_sortmerna_index.sh):
     python3 build_family_map.py <output.tsv> <fasta1:rna_family1> [<fasta2:rna_family2> ...]
 
 Columns written:
-    seq_id, rna_family, domain, phylum, class, order, tax_family, genus, species
+    seq_id, original, rna_family, domain, phylum, class, order, tax_family, genus, species
 """
 
 import gzip
@@ -17,24 +17,27 @@ import re
 import sys
 from pathlib import Path
 
-HEADER = ["seq_id", "rna_family", "domain", "phylum", "class", "order", "tax_family", "genus", "species"]
-N_TAX_LEVELS = len(HEADER) - 2  # 7
+HEADER = ["seq_id", "original", "rna_family", "domain", "phylum", "class", "order", "tax_family", "genus", "species"]
+N_TAX_LEVELS = len(HEADER) - 3  # 7
 
 
-def parse_header(line: str) -> tuple[str, list[str]]:
-    """Parse a FASTA header line into (seq_id, taxonomy_levels).
+def parse_header(line: str) -> tuple[str, str, list[str]]:
+    """Parse a FASTA header line into (seq_id, original, taxonomy_levels).
 
     Handles SILVA format: '>ID taxonomy;levels;here;size=N'
     and bare headers:      '>ID'
+
+    'original' is the full header line (without the leading '>') preserved as-is.
     """
     line = line.lstrip(">").rstrip()
+    original = line
     parts = line.split(" ", 1)
     seq_id = parts[0]
     tax_str = parts[1] if len(parts) > 1 else ""
     tax_str = re.sub(r";size=\d+$", "", tax_str)
     levels = tax_str.split(";") if tax_str else []
     levels += [""] * (N_TAX_LEVELS - len(levels))
-    return seq_id, levels[:N_TAX_LEVELS]
+    return seq_id, original, levels[:N_TAX_LEVELS]
 
 
 def write_family_map(output_path: str, fasta_family_pairs: list[tuple[str, str]]) -> int:
@@ -51,8 +54,8 @@ def write_family_map(output_path: str, fasta_family_pairs: list[tuple[str, str]]
                 for line in f:
                     if not line.startswith(">"):
                         continue
-                    seq_id, levels = parse_header(line)
-                    out.write("\t".join([seq_id, rna_family] + levels) + "\n")
+                    seq_id, original, levels = parse_header(line)
+                    out.write("\t".join([seq_id, original, rna_family] + levels) + "\n")
                     total += 1
     return total
 
