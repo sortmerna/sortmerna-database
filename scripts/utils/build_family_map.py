@@ -16,6 +16,10 @@ Columns written:
 The 7 taxonomy columns are populated only for SILVA sequences (rrna_family starting
 with "silva"); for Rfam sequences they are left empty, since Rfam headers are
 free-text descriptions rather than a ';'-delimited SILVA lineage.
+
+SILVA lineages have variable depth, so the columns are filled as: domain = first
+token, species = last token, and the 5 middle ranks (phylum..genus) only when the
+lineage has exactly 7 tokens (otherwise they stay empty). See map_taxonomy().
 """
 
 import argparse
@@ -27,6 +31,27 @@ from pathlib import Path
 HEADER = ["seq_id", "rrna_family", "database_version", "seq_length", "original",
           "domain", "phylum", "class", "order", "tax_family", "genus", "species"]
 N_TAX_LEVELS = 7  # domain, phylum, class, order, tax_family, genus, species
+
+
+def map_taxonomy(tokens: list[str]) -> list[str]:
+    """Map a variable-depth SILVA lineage onto the 7 fixed rank columns.
+
+    SILVA taxonomy is not a fixed 7-rank hierarchy: the first token is the
+    domain and the last is the organism (species), with a variable number of
+    intermediate ranks. Only when the depth is exactly 7 do the tokens line up
+    with domain..species, so the 5 middle columns are filled only in that case;
+    otherwise just domain (first) and species (last) are populated.
+    """
+    levels = [""] * N_TAX_LEVELS
+    n = len(tokens)
+    if n == N_TAX_LEVELS:
+        return list(tokens)
+    if n >= 2:
+        levels[0] = tokens[0]     # domain
+        levels[-1] = tokens[-1]   # species
+    elif n == 1:
+        levels[0] = tokens[0]     # domain only
+    return levels
 
 
 def parse_header(line: str, parse_tax: bool = True) -> tuple[str, str, list[str]]:
@@ -47,9 +72,8 @@ def parse_header(line: str, parse_tax: bool = True) -> tuple[str, str, list[str]
         return seq_id, original, [""] * N_TAX_LEVELS
     tax_str = parts[1] if len(parts) > 1 else ""
     tax_str = re.sub(r";size=\d+$", "", tax_str)
-    levels = tax_str.split(";") if tax_str else []
-    levels += [""] * (N_TAX_LEVELS - len(levels))
-    return seq_id, original, levels[:N_TAX_LEVELS]
+    tokens = tax_str.split(";") if tax_str else []
+    return seq_id, original, map_taxonomy(tokens)
 
 
 def resolve_db_version(rna_family: str, silva_ssu_version: str,

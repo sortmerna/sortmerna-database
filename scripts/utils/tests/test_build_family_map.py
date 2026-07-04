@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from build_family_map import parse_header, write_family_map, resolve_db_version, N_TAX_LEVELS
+from build_family_map import parse_header, write_family_map, resolve_db_version, map_taxonomy, N_TAX_LEVELS
 
 
 class TestParseHeader:
@@ -23,12 +23,13 @@ class TestParseHeader:
         assert len(levels) == N_TAX_LEVELS
 
     def test_size_tag_stripped(self):
+        # 2 tokens: domain=first, species=last, middle empty
         line = ">AB123.1.500 Bacteria;Firmicutes;size=10"
         seq_id, original, levels = parse_header(line)
         assert original == "AB123.1.500 Bacteria;Firmicutes;size=10"
-        assert levels[0] == "Bacteria"
-        assert levels[1] == "Firmicutes"
-        assert levels[2] == ""
+        assert levels[0] == "Bacteria"   # domain
+        assert levels[6] == "Firmicutes"  # species
+        assert levels[1:6] == [""] * 5
 
     def test_bare_header_no_taxonomy(self):
         line = ">RF00001.1"
@@ -37,13 +38,31 @@ class TestParseHeader:
         assert original == "RF00001.1"
         assert levels == [""] * N_TAX_LEVELS
 
-    def test_partial_taxonomy_padded(self):
+    def test_partial_taxonomy_first_and_last_only(self):
+        # <7 tokens: only domain (first) and species (last) filled
         line = ">SEQ1 Archaea;Euryarchaeota"
         seq_id, _, levels = parse_header(line)
-        assert levels[0] == "Archaea"
-        assert levels[1] == "Euryarchaeota"
-        assert levels[2:] == [""] * (N_TAX_LEVELS - 2)
+        assert levels[0] == "Archaea"        # domain
+        assert levels[6] == "Euryarchaeota"  # species
+        assert levels[1:6] == [""] * 5
         assert len(levels) == N_TAX_LEVELS
+
+    def test_deep_lineage_first_and_last_only(self):
+        # >7 tokens (8 here): real species preserved as last, middle empty
+        line = (">AF106036.1.3725 Eukaryota;Discoba;Discicristata;Euglenozoa;"
+                "Euglenida;Aphagea;Distigma;Distigma proteus;size=1")
+        seq_id, _, levels = parse_header(line)
+        assert levels[0] == "Eukaryota"          # domain
+        assert levels[6] == "Distigma proteus"   # species (last token, not truncated)
+        assert levels[1:6] == [""] * 5
+
+    def test_single_token_domain_only(self):
+        assert map_taxonomy(["Eukaryota"]) == ["Eukaryota"] + [""] * 6
+
+    def test_exactly_seven_fills_all(self):
+        toks = ["Bacteria", "Pseudomonadota", "Alphaproteobacteria",
+                "Rickettsiales", "Mitochondria", "Incertae Sedis", "Sphagnum angustifolium"]
+        assert map_taxonomy(toks) == toks
 
     def test_leading_gt_stripped(self):
         line = ">SEQ1 Bacteria;Firmicutes;size=1"
