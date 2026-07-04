@@ -154,6 +154,8 @@ for set_num in 1 2 3; do
         echo "  Done: ${runtime}s - peak RSS: ${peak_rss_mb} MB"
     fi
 
+    # SortMeRNA mirrors input compression: gzipped reads produce aligned.fa.gz.
+    [[ ! -f "${aligned_fa}" ]] && [[ -f "${aligned_fa}.gz" ]] && aligned_fa="${aligned_fa}.gz"
     n_detected=$(seqkit stats -T "${aligned_fa}" | tail -1 | cut -f4)
     sensitivity=$(awk "BEGIN {printf \"%.4f\", ${n_detected}/${n_total}}")
     echo "${sensitivity}" > "${sensitivity_file}"
