@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from build_family_map import parse_header, write_family_map, N_TAX_LEVELS
+from build_family_map import parse_header, write_family_map, resolve_db_version, N_TAX_LEVELS
 
 
 class TestParseHeader:
@@ -58,7 +58,25 @@ class TestParseHeader:
         assert levels == [""] * N_TAX_LEVELS
 
 
+class TestResolveDbVersion:
+    def test_silva_ssu(self):
+        assert resolve_db_version("silva ssu bacteria", "138.2", "138.2", "15.1") == "SILVA 138.2"
+
+    def test_silva_lsu_uses_lsu_version(self):
+        assert resolve_db_version("silva lsu archaea", "138.2", "138.1", "15.1") == "SILVA 138.1"
+
+    def test_rfam(self):
+        assert resolve_db_version("rfam 5s", "138.2", "138.2", "15.1") == "Rfam 15.1"
+
+    def test_missing_version_empty(self):
+        assert resolve_db_version("silva ssu bacteria", "", "", "") == ""
+        assert resolve_db_version("rfam 5s", "138.2", "138.2", "") == ""
+
+
 class TestWriteFamilyMap:
+    HEADER = ("seq_id\trrna_family\tdatabase_version\tseq_length\toriginal\t"
+              "domain\tphylum\tclass\torder\ttax_family\tgenus\tspecies")
+
     def test_output_columns(self, tmp_path):
         fasta = tmp_path / "test.fasta"
         fasta.write_text(
@@ -68,20 +86,32 @@ class TestWriteFamilyMap:
             "TTTT\n"
         )
         out = tmp_path / "family_map.tsv"
-        total = write_family_map(str(out), [(str(fasta), "silva ssu bacteria")])
+        total = write_family_map(str(out), [(str(fasta), "silva ssu bacteria")],
+                                 silva_ssu_version="138.2")
         assert total == 2
         lines = out.read_text().splitlines()
-        assert lines[0] == "seq_id\toriginal\trna_family\tdomain\tphylum\tclass\torder\ttax_family\tgenus\tspecies"
+        assert lines[0] == self.HEADER
         row1 = lines[1].split("\t")
         assert row1[0] == "SEQ1"
-        assert row1[1] == "SEQ1 Bacteria;Firmicutes;Bacilli;Lactobacillales;Lactobacillaceae;Lactobacillus;L. acidophilus;size=2"
-        assert row1[2] == "silva ssu bacteria"
-        assert row1[3] == "Bacteria"
-        assert row1[7] == "Lactobacillaceae"
+        assert row1[1] == "silva ssu bacteria"
+        assert row1[2] == "SILVA 138.2"
+        assert row1[3] == "4"  # ACGT
+        assert row1[4] == "SEQ1 Bacteria;Firmicutes;Bacilli;Lactobacillales;Lactobacillaceae;Lactobacillus;L. acidophilus;size=2"
+        assert row1[5] == "Bacteria"          # domain
+        assert row1[9] == "Lactobacillaceae"  # tax_family
         row2 = lines[2].split("\t")
         assert row2[0] == "SEQ2"
-        assert row2[3] == "Archaea"
-        assert row2[5] == ""  # class empty
+        assert row2[5] == "Archaea"  # domain
+        assert row2[7] == ""         # class empty
+
+    def test_seq_length_multiline(self, tmp_path):
+        fasta = tmp_path / "test.fasta"
+        fasta.write_text(">SEQ1 Bacteria;Firmicutes\nACGTACGT\nACG\n>SEQ2 Archaea\nAC\n")
+        out = tmp_path / "map.tsv"
+        write_family_map(str(out), [(str(fasta), "silva ssu bacteria")], silva_ssu_version="138.2")
+        lines = out.read_text().splitlines()
+        assert lines[1].split("\t")[3] == "11"  # 8 + 3
+        assert lines[2].split("\t")[3] == "2"
 
     def test_multiple_fasta_files(self, tmp_path):
         f1 = tmp_path / "ssu.fasta"
@@ -95,8 +125,8 @@ class TestWriteFamilyMap:
         ])
         assert total == 2
         lines = out.read_text().splitlines()
-        assert lines[1].split("\t")[2] == "silva ssu bacteria"
-        assert lines[2].split("\t")[2] == "silva lsu bacteria"
+        assert lines[1].split("\t")[1] == "silva ssu bacteria"
+        assert lines[2].split("\t")[1] == "silva lsu bacteria"
 
     def test_rfam_taxonomy_columns_empty(self, tmp_path):
         fasta = tmp_path / "rfam.fasta"
@@ -105,12 +135,14 @@ class TestWriteFamilyMap:
             "ACGT\n"
         )
         out = tmp_path / "map.tsv"
-        write_family_map(str(out), [(str(fasta), "rfam 5s")])
+        write_family_map(str(out), [(str(fasta), "rfam 5s")], rfam_version="15.1")
         row = out.read_text().splitlines()[1].split("\t")
         assert row[0] == "QKKF02033054.1/1-100"
-        assert row[1] == "QKKF02033054.1/1-100 Laodelphax striatellus, whole genome shotgun sequence;size=1"
-        assert row[2] == "rfam 5s"
-        assert row[3:] == [""] * N_TAX_LEVELS  # all 7 taxonomy columns empty
+        assert row[1] == "rfam 5s"
+        assert row[2] == "Rfam 15.1"
+        assert row[3] == "4"
+        assert row[4] == "QKKF02033054.1/1-100 Laodelphax striatellus, whole genome shotgun sequence;size=1"
+        assert row[5:] == [""] * N_TAX_LEVELS  # all 7 taxonomy columns empty
 
     def test_non_header_lines_skipped(self, tmp_path):
         fasta = tmp_path / "test.fasta"

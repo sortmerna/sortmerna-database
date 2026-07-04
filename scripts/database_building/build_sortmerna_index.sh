@@ -105,7 +105,10 @@ build_config() {
     total=$((total + n))
   done
 
-  python3 "${UTILS_DIR}/build_family_map.py" "${family_map}" "${fam_args[@]}"
+  python3 "${UTILS_DIR}/build_family_map.py" "${family_map}" "${fam_args[@]}" \
+    --silva-ssu-version "${SILVA_SSU_VERSION:-}" \
+    --silva-lsu-version "${SILVA_LSU_VERSION:-}" \
+    --rfam-version "${RFAM_VERSION:-}"
   echo "  Total: ${total} sequences"
 
   # Build index
