@@ -103,8 +103,12 @@ for set_num in 1 2 3; do
     echo "${label}"
     echo "--------------------------------------------"
 
+    # Reads may be gzipped; seqkit and SortMeRNA both read .gz transparently.
+    if [[ ! -f "${reads}" ]] && [[ -f "${reads}.gz" ]]; then
+        reads="${reads}.gz"
+    fi
     if [[ ! -f "${reads}" ]]; then
-        echo "  ERROR: reads file not found: ${reads}" >&2; exit 1
+        echo "  ERROR: reads file not found: ${reads}[.gz]" >&2; exit 1
     fi
 
     db_fasta="${INDEX_DIR}/${db_config}/${db_config}.fasta"
