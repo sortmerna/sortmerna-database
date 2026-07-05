@@ -661,7 +661,7 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_sensitivity.sh \
 
 #### Experiment 3: Benchmark on Deng et al. 2022 datasets
 
-**Goal:** Evaluate SortMeRNA (default db, `-e 1e-5`) on the benchmark datasets published in [Deng et al. 2022 (*Nucleic Acids Research*)](https://doi.org/10.1093/nar/gkac112), using the 6 of the 8 datasets available for download (source from manuscript: [Zenodo](https://zenodo.org/records/5547691)). Note both `RiboDetector_benchmark_datasets.tar.gz` and `RiboDetector_metaT_dataset.tar.gz` were downloaded and `RiboDetector_metaT_dataset`/* reads moved into `RiboDetector_benchmark_datasets` for benchmarking.
+**Goal:** Evaluate SortMeRNA (default db, `-e 1e-5`) on the benchmark datasets published in [Deng et al. 2022 (*Nucleic Acids Research*)](https://doi.org/10.1093/nar/gkac112), using all 8 datasets (source from manuscript: [Zenodo](https://zenodo.org/records/5547691)). Note both `RiboDetector_benchmark_datasets.tar.gz` and `RiboDetector_metaT_dataset.tar.gz` were downloaded and `RiboDetector_metaT_dataset`/* reads moved into `RiboDetector_benchmark_datasets` for benchmarking; in addition `oma_silva` and `homd_fp` were provided directly by the authors.
 
 Most datasets were simulated with ART_Illumina v2.3.7 (`-p -l 100 -ss HS25 -m 150 -s 10`, paired-end 100 bp HiSeq 2500 model). FN datasets (rRNA input) measure sensitivity; FP datasets (non-rRNA input) measure specificity; MetaT (mixed) is reported as NA since true labels are unknown at the read level.
 
@@ -669,6 +669,8 @@ Most datasets were simulated with ART_Illumina v2.3.7 (`-p -l 100 -ss HS25 -m 15
 |---|---|---|---|
 | SILVA_rRNA | FN | 20,000,000 | SILVA SSU+LSU rRNA sequences |
 | OMA_CDS | FP | 20,000,000 | prokaryotic and eukaryotic mRNA |
+| oma_silva | FP | 1,027,675 | OMA mRNA CDSs with &ge;70% identity to rRNA genes; estimates FPR on rRNA-similar mRNA |
+| homd_fp | FP | 100,558 | HOMD oral-microbe mRNA CDSs with &ge;70% identity to high-FPR (&ge;0.5) rRNA hits in OMA_CDS |
 | ENA_virus | FP | 27,206,792 | Viral gene sequences from ENA |
 | Amplicon_16S | FN | 7,917,920 | Real 16S V1-V2 amplicon reads (oral microbiome study) |
 | Human_ncRNA | FP | 6,330,381 | Human non-coding RNA |

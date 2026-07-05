@@ -16,6 +16,10 @@
 # -----------   -----  -------------  -----------------------------------------
 # SILVA_rRNA    FN     20,000,000     SILVA SSU+LSU rRNA sequences
 # OMA_CDS       FP     20,000,000     prokaryotic and eukaryotic mRNA
+# oma_silva     FP     1,027,675      OMA mRNA CDSs with >=70% identity to rRNA genes;
+#                                     estimates FPR on rRNA-similar mRNA
+# homd_fp       FP     100,558        HOMD oral-microbe mRNA CDSs with >=70% identity to
+#                                     high-FPR (>=0.5) rRNA hits in OMA_CDS
 # ENA_virus     FP     27,206,792     Viral gene sequences from ENA
 # Amplicon_16S  FN     7,917,920      Real 16S V1-V2 amplicon reads (oral microbiome study)
 # Human_ncRNA   FP     6,330,381      Human non-coding RNA
@@ -78,10 +82,11 @@ DB_CONFIG="smr_v${SMR_VERSION}_default_db"
 DB_FASTA="${INDEX_DIR}/${DB_CONFIG}/${DB_CONFIG}.fasta"
 DB_IDX="${INDEX_DIR}/${DB_CONFIG}/idx"
 
-DATASET_NAMES=(OMA_CDS SILVA_rRNA Amplicon_16S Human_ncRNA MetaT ENA_virus)
+DATASET_NAMES=(oma_silva homd_fp OMA_CDS SILVA_rRNA Amplicon_16S Human_ncRNA MetaT ENA_virus)
 declare -A DATASET_CLASS=(
     [SILVA_rRNA]=rrna     [OMA_CDS]=nonrrna    [ENA_virus]=nonrrna
     [Amplicon_16S]=rrna   [Human_ncRNA]=nonrrna [MetaT]=mixed
+    [oma_silva]=nonrrna   [homd_fp]=nonrrna
 )
 declare -A DATASET_FILE=(
     [MetaT]=oral_metat.prokar_human_virus_mrna.rrna
@@ -300,6 +305,8 @@ FN = rRNA input (measures sensitivity); FP = non-rRNA input (measures specificit
 <tbody>
 <tr><td>SILVA_rRNA</td><td>FN</td><td>20,000,000</td><td>SILVA SSU+LSU rRNA sequences</td></tr>
 <tr><td>OMA_CDS</td><td>FP</td><td>20,000,000</td><td>Prokaryotic and eukaryotic mRNA</td></tr>
+<tr><td>oma_silva</td><td>FP</td><td>1,027,675</td><td>OMA mRNA CDSs with &ge;70% identity to rRNA genes; FPR on rRNA-similar mRNA</td></tr>
+<tr><td>homd_fp</td><td>FP</td><td>100,558</td><td>HOMD oral-microbe mRNA CDSs with &ge;70% identity to high-FPR rRNA hits in OMA_CDS</td></tr>
 <tr><td>ENA_virus</td><td>FP</td><td>27,206,792</td><td>Viral gene sequences from ENA</td></tr>
 <tr><td>Amplicon_16S</td><td>FN</td><td>7,917,920</td><td>Real 16S V1-V2 amplicon reads (oral microbiome)</td></tr>
 <tr><td>Human_ncRNA</td><td>FP</td><td>6,330,381</td><td>Human non-coding RNA</td></tr>
