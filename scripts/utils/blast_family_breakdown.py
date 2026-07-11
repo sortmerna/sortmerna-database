@@ -28,12 +28,12 @@ def open_file(path: str):
 
 
 def load_family_map(map_path: str) -> dict:
-    """Return {seq_id: rna_family} from family_map.tsv."""
+    """Return {seq_id: rrna_family} from family_map.tsv."""
     family_map = {}
     with open(map_path) as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
-            family_map[row["seq_id"]] = row["rna_family"]
+            family_map[row["seq_id"]] = row["rrna_family"]
     return family_map
 
 
