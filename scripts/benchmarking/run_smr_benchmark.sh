@@ -40,7 +40,7 @@
 #
 # Arguments:
 #   data_dir     Directory containing paired read files named <dataset>.1.fq
-#                and <dataset>.2.fq for each dataset listed above.
+#                and <dataset>.2.fq (or .fq.gz) for each dataset listed above.
 #   output_dir   Root directory for all outputs.
 #
 # Options:
@@ -163,9 +163,12 @@ for dataset in "${DATASET_NAMES[@]}"; do
     pfx="${DATASET_FILE[${dataset}]:-${dataset}}"
     R1="${DATA_DIR}/${pfx}.1.fq"
     R2="${DATA_DIR}/${pfx}.2.fq"
+    # Reads may be gzipped; seqkit and SortMeRNA both read .gz transparently.
+    [[ ! -f "${R1}" && -f "${R1}.gz" ]] && R1="${R1}.gz"
+    [[ ! -f "${R2}" && -f "${R2}.gz" ]] && R2="${R2}.gz"
 
     if [[ ! -f "${R1}" || ! -f "${R2}" ]]; then
-        echo "WARNING: skipping ${dataset} - ${pfx}.1.fq / .2.fq not found in ${DATA_DIR}" >&2
+        echo "WARNING: skipping ${dataset} - ${pfx}.1.fq[.gz] / .2.fq[.gz] not found in ${DATA_DIR}" >&2
         continue
     fi
 

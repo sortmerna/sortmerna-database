@@ -535,7 +535,6 @@ This design is motivated by the difference in database scale. SortMeRNA's rRNA r
   - Sensitivity (rRNA runs) and false positive rate (T2T runs) at each scale point
   - S_min (score threshold) vs. read count - illustrates the E-value scaling effect
   - E-value and % identity distributions of aligned reads at each scale point
-- **`--score_split` comparison:** Re-run at each scale point with `--score_split` enabled. This option computes `S_min` from the per-thread chunk size rather than the total dataset size, making the threshold less sensitive to total read count. Comparing the two runs directly shows how much sensitivity and false positive rate shift when the E-value threshold is decoupled from dataset scale.
 
 Run for T2T non-rRNA reads + Rfam non-rRNA reads (false positive rate at scale) and rRNA reads (sensitivity at scale) across four E-value thresholds. Requires `non_rRNA_test_10M_T2T.fasta` and `non_rRNA_test_Rfam.fasta` from `simulate_non_rrna.sh` and `rRNA_test_10M.fasta` from `simulate_rrna_reads.sh`. The Rfam non-rRNA set has 500K reads so its scale points are capped at 500K:
 
@@ -752,7 +751,7 @@ The recommended operating point for PacBio metatranscriptomic data is `-e 1e-10 
 
 #### Experiment 6: PacBio Metagenomics (Minich et al. 2025)
 
-- **Source**: [Minich et al. (2025, *Cell*)](https://www.cell.com/cell/fulltext/S0092-8674%2825%2900975-4) - PacBio HiFi metagenomics from 47 fecal samples, mean read length N50 ~9,663 bp (SD += 1,868). Unlike Karst et al., reads are shotgun metagenomic - no guaranteed rRNA content per read. Raw data: [PRJNA1139951](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1139951). Metadata: [Supplementary Table S28](https://data.mendeley.com/datasets/ks5tvfzbzr/1).
+- **Source**: [Minich et al. (2025, *Cell*)](https://www.cell.com/cell/fulltext/S0092-8674%2825%2900975-4) - PacBio HiFi (gDNA fragmented (megaruptor3 speed31) SMARTBELL3.0 with 5kb size selection at end) metagenomics from 47 fecal samples, mean read length N50 ~9,663 bp (SD += 1,868). Unlike Karst et al., reads are shotgun metagenomic - no guaranteed rRNA content per read. Raw data: [PRJNA1139951](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1139951). Metadata: [Supplementary Table S28](https://data.mendeley.com/datasets/ks5tvfzbzr/1).
 - **Rationale**: Tests SortMeRNA on long-read metagenomics where rRNA reads are a small unknown fraction of a mixed community. True labels are unknown at the read level; results reported as fraction of reads classified as rRNA and family breakdown.
 
 ## Expected Outputs
