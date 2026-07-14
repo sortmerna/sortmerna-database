@@ -15,6 +15,7 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(ggrepel)
   library(patchwork)
+  library(tidyr)
 })
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -95,7 +96,11 @@ make_bar <- function(data, x_var, type_label, title, xlab) {
     mutate(
       subunit      = factor(subunit, levels = subunit_levels),
       x_val        = factor(.data[[x_var]], levels = sort(unique(.data[[x_var]])))
-    )
+    ) %>%
+    # Fill in zero-count rows for absent subunits so every panel draws the full
+    # set of legend keys - otherwise patchwork sees different guides per panel
+    # and renders a separate legend for each.
+    complete(x_val, subunit, fill = list(count = 0))
   ggplot(df, aes(x = x_val, y = count, fill = subunit)) +
     geom_bar(stat = "identity") +
     scale_fill_manual(values = palette, name = "rRNA subunit",
