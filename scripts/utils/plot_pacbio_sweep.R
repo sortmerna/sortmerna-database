@@ -112,7 +112,7 @@ make_row <- function(x_var, xlab, row_title, fix_ev = NULL, fix_ns = NULL, fix_l
   if (!is.null(fix_lis)) filtered <- filtered %>% filter(min_lis   == fix_lis)
   p1 <- make_bar(filtered, x_var, "rrna",    paste0(row_title, " - rRNA"),    xlab)
   p2 <- make_bar(filtered, x_var, "nonrrna", paste0(row_title, " - non-rRNA"), xlab)
-  p1 + p2
+  list(p1, p2)
 }
 
 # Fix reference values for non-swept parameters
@@ -131,8 +131,7 @@ row_ev  <- make_row("evalue_num", "e-value",
                     paste0("vs e-value  [num_seeds=", ref_ns, ", min_lis=", ref_lis, "]"),
                     fix_ns = as.integer(ref_ns), fix_lis = as.integer(ref_lis))
 
-combined <- (row_ns / row_lis / row_ev) +
-  plot_layout(guides = "collect") +
+combined <- wrap_plots(c(row_ns, row_lis, row_ev), ncol = 2, byrow = TRUE, guides = "collect") +
   plot_annotation(title = "rRNA family breakdown (left: rRNA reads, right: non-rRNA reads)") &
   theme(legend.position = "right")
 
