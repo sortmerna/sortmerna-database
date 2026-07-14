@@ -747,7 +747,10 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_sweep.sh \
 
 Sweeps 17 `(num_seeds, min_lis)` pairs x 3 e-values on 10K subsampled reads. Outputs `sweep_results.tsv`, ROC curve (3 panels by e-value), and family breakdown bar charts showing which rRNA subunit drives sensitivity and FPR at each parameter combination.
 
-The recommended operating point for PacBio metatranscriptomic data is `-e 1e-10 --min_lis 4` or `-e 1e-10 --min_lis 5`, achieving ~2% FPR at ~500 s runtime on 10 K reads with 4 threads and no loss of rRNA recovery.
+For PacBio reads, lower e-values such as `-e 1e-10` or better yet `-e 1e-20` give the best specificity, with `--min_lis 2-5` (default of 2 for metagenomic reads), with no loss of rRNA recovery.
+
+> [!NOTE]
+> Outputs a per-Set summary HTML: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/pacbio/sweep_report.html" target="_blank">sweep_report.html</a>.
 
 #### Experiment 6: PacBio Metagenomics (Minich et al. 2025)
 
