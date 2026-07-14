@@ -65,13 +65,13 @@ message("  Saved roc.png")
 # --- Stacked bar charts ---
 fam_raw <- read.delim(family_tsv, stringsAsFactors = FALSE) %>%
   mutate(subunit = case_when(
-    grepl("SSU.*Bacteria|SSU.*Archaea", family)   ~ "16S",
-    grepl("SSU.*Eukaryota",             family)   ~ "18S",
-    grepl("LSU.*Bacteria|LSU.*Archaea", family)   ~ "23S",
-    grepl("LSU.*Eukaryota",             family)   ~ "28S",
-    grepl("5\\.8S",                     family)   ~ "5.8S",
-    grepl("5S",                         family)   ~ "5S",
-    TRUE                                          ~ "Unknown"
+    grepl("SSU.*Bacteria|SSU.*Archaea", family, ignore.case = TRUE)   ~ "16S",
+    grepl("SSU.*Eukaryota",             family, ignore.case = TRUE)   ~ "18S",
+    grepl("LSU.*Bacteria|LSU.*Archaea", family, ignore.case = TRUE)   ~ "23S",
+    grepl("LSU.*Eukaryota",             family, ignore.case = TRUE)   ~ "28S",
+    grepl("5.8S",                       family, ignore.case = TRUE)   ~ "5.8S",
+    grepl("5S",                         family, ignore.case = TRUE)   ~ "5S",
+    TRUE                                                              ~ "Unknown"
   ))
 
 palette <- c(
