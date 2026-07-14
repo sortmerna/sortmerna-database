@@ -98,7 +98,8 @@ make_bar <- function(data, x_var, type_label, title, xlab) {
     )
   ggplot(df, aes(x = x_val, y = count, fill = subunit)) +
     geom_bar(stat = "identity") +
-    scale_fill_manual(values = palette, name = "rRNA subunit", drop = FALSE) +
+    scale_fill_manual(values = palette, name = "rRNA subunit",
+                      limits = subunit_levels, drop = FALSE) +
     labs(x = xlab, y = "Aligned reads", title = title) +
     theme_bw(base_size = 10) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
