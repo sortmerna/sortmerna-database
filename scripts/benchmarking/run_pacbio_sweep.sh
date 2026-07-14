@@ -396,8 +396,8 @@ The parameter sweep was run on 10,000 reads randomly subsampled (seed 42) from t
 </tr></thead><tbody>{table_rows}</tbody></table>
 
 <h2>Recommended operating points (full dataset: 253,089 reads)</h2>
-<p>The recommended operating point for PacBio metatranscriptomic data is <code>-e 1e-10 --min_lis 4</code> or
-<code>-e 1e-10 --min_lis 5</code>, achieving ~2% FPR with no loss of rRNA recovery.</p>
+<p>For PacBio reads, lower e-values such as <code>-e 1e-10</code> or <code>-e 1e-20</code> give the best specificity,
+with <code>--min_lis</code> 2-5 (default of 2 for metagenomic reads), with no loss of rRNA recovery.</p>
 <table><thead><tr>
   <th>passes</th><th>evalue</th><th>num_seeds</th><th>min_lis</th>
   <th>rRNA aligned</th><th>Sensitivity</th>
