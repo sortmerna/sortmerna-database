@@ -47,7 +47,7 @@ These databases differ from the raw SILVA/Rfam releases in three ways:
 - **Clustered with VSEARCH** - redundant sequences are merged at identity thresholds of 85-97%, reducing database size and index memory without meaningful sensitivity loss.
 - **Hard-masked low-complexity regions** - VSEARCH DUST soft-masking (lowercase) is converted to Ns before indexing, preventing low-complexity kmers from contributing to spurious alignments.
 
-These databases can be used with any SortMeRNA version. For SortMeRNA v6.0.0 and later we recommend `-e 1e-5` (for Illumina/454 data) instead of the previous default of `-e 1`. Version `v6.0.0` switched the hash index from CMPH to BBHash and alignment from SSW to Parasail, and latest benchmarks show a minor improvement in selectivity at this threshold with no impact on sensitivity or runtime.
+These databases can be used with any SortMeRNA version. For SortMeRNA v6.0.0 and later we recommend `-e 1e-5` for Illumina/454 data and `-e 1e-20` for PacBio instead of the previous default of `-e 1`. Version `v6.0.0` switched the hash index from CMPH to BBHash and alignment from SSW to Parasail, and latest benchmarks show a minor improvement in selectivity at this threshold with no impact on sensitivity or runtime.
 
 **Step 1 - Build the index (once per database):**
 ```bash
@@ -79,10 +79,9 @@ The default behavior (neither flag set) is per-read: each read is written to the
 
 | Scenario | `--paired_in` | `--paired_out` | Default (neither) |
 |---|---|---|---|
-| Both reads align | both → aligned | both → aligned | both → aligned |
-| Only R1 aligns | both → aligned | both → non-aligned | R1 → aligned, R2 dropped |
-| Only R2 aligns | both → aligned | both → non-aligned | R2 → aligned, R1 dropped |
-| Neither aligns | neither written | neither written | neither written |
+| Both reads align | both -> aligned | both -> aligned | both -> aligned |
+| Only R1 aligns | both -> aligned | both -> non-aligned | R1 -> aligned, R2 dropped |
+| Only R2 aligns | both -> aligned | both -> non-aligned | R2 -> aligned, R1 dropped |
 
 `--paired_in` is the conservative choice for most rRNA filtering workflows: it keeps pairs intact, which downstream tools (assemblers, quantifiers) require. Use `--paired_out` if you want the non-rRNA output to be pair-intact instead (e.g. for downstream assembly of the non-rRNA fraction).
 
@@ -750,7 +749,7 @@ Sweeps 17 `(num_seeds, min_lis)` pairs x 3 e-values on 10K subsampled reads. Out
 For PacBio reads, lower e-values such as `-e 1e-10` or better yet `-e 1e-20` give the best specificity, with `--min_lis 2-5` (default of 2 for metagenomic reads), with no loss of rRNA recovery.
 
 > [!NOTE]
-> Outputs a per-Set summary HTML: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/pacbio/sweep_report.html" target="_blank">sweep_report.html</a>.
+> PacBio Parameter Sweep results: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/pacbio/sweep_report.html" target="_blank">sweep_report.html</a>.
 
 #### Experiment 6: PacBio Metagenomics (Minich et al. 2025)
 
