@@ -756,6 +756,16 @@ For PacBio reads, lower e-values such as `-e 1e-10` or better yet `-e 1e-20` giv
 - **Source**: [Minich et al. (2025, *Cell*)](https://www.cell.com/cell/fulltext/S0092-8674%2825%2900975-4) - PacBio HiFi (gDNA fragmented (megaruptor3 speed31) SMARTBELL3.0 with 5kb size selection at end) metagenomics from 47 fecal samples, mean read length N50 ~9,663 bp (SD += 1,868). Unlike Karst et al., reads are shotgun metagenomic - no guaranteed rRNA content per read. Raw data: [PRJNA1139951](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1139951). Metadata: [Supplementary Table S28](https://data.mendeley.com/datasets/ks5tvfzbzr/1).
 - **Rationale**: Tests SortMeRNA on long-read metagenomics where rRNA reads are a small unknown fraction of a mixed community. True labels are unknown at the read level; results reported as fraction of reads classified as rRNA and family breakdown.
 
+Download the 47 per-sample PacBio HiFi runs (human reads removed, full-run `pb.concat.no_hsap` libraries; SRA accessions are read from the bundled `assets/Table_S28_15947_PB.ONT.ILMN_metadata_SRA_v2.txt`). Requires sra-tools (`prefetch`, `fasterq-dump`) and `pigz`/`gzip`:
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_pacbio_metagenomics.sh \
+    $PACBIO_DIR/pacbio_metagenomics \
+    4
+```
+
+Writes one gzipped FASTQ per run (`<SRR>.fastq.gz`) to the output directory. Positional arguments are the output directory (default `data/pacbio_metagenomics`) and thread count for `fasterq-dump` (default 4).
+
 ## Expected Outputs
 
 ### Performance Metrics
