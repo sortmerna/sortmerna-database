@@ -33,6 +33,9 @@ dependencies:
   - pbsim3>=3.0.0
   - fastp>=1.3.3
 
+  # SRA download (Experiment 6: PacBio metagenomics)
+  - sra-tools
+
   - pip
   - pip:
     - InSilicoSeq>=2.0

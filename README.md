@@ -766,6 +766,18 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_pacbio_metagenomics.sh \
 
 Writes one gzipped FASTQ per run (`<SRR>.fastq.gz`) to the output directory. Positional arguments are the output directory (default `data/pacbio_metagenomics`) and thread count for `fasterq-dump` (default 4).
 
+Run SortMeRNA and/or Infernal cmsearch on the downloaded samples. SortMeRNA is run across the PacBio operating points from the Experiment 5 sweep - e-value `{1e-10, 1e-20}` x `--min_lis {2, 3, 4, 5}` (`--num_seeds 2`), one configuration per e-value/min_lis combination. cmsearch (`--hmmonly --cut_ga`) is run once per sample against the rRNA covariance models (16S/18S/23S/28S/5S/5.8S) as an orthogonal reference - there is no read-level ground truth for shotgun metagenomes, so cmsearch serves as a second, structure-aware predictor to compare against. Select the method with `--tool sortmerna|cmsearch|both` (default `both`):
+
+```bash
+bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_metagenomics.sh \
+    --tool both \
+    $PACBIO_DIR/pacbio_metagenomics \
+    $PACBIO_DIR/metagenomics_results \
+    4
+```
+
+Both methods record reads classified as rRNA, wall time, and peak RSS. Results are written to `metagenomics_results.tsv` (SortMeRNA, one row per sample x configuration) and `cmsearch_results.tsv` (one row per sample). The SortMeRNA blast output (read + reference coordinates) and cmsearch `rrna.tblout` (read + model coordinates) are kept per sample so rRNA read coordinates can be compared between the two methods. SortMeRNA requires `SMR_BIN`, `INDEX_DIR`, `SMR_VERSION`; cmsearch requires `CMS_DIR` (pressed Rfam rRNA CMs from `download_cms.sh`) and Infernal (`cmsearch`, `cmpress`).
+
 ## Expected Outputs
 
 ### Performance Metrics
