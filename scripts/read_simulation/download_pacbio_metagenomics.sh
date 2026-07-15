@@ -34,11 +34,6 @@ OUTPUT_DIR="${1:-data/pacbio_metagenomics}"
 THREADS="${2:-4}"
 MAX_RUNS="${3:-20}"
 
-# Cap fasterq-dump scratch space (overrides its premature estimate-based abort).
-# Set below the free space on the temp volume, leaving headroom for the .sra and
-# final .fastq. Override via env, e.g. DISK_LIMIT_TMP=100G.
-DISK_LIMIT_TMP="${DISK_LIMIT_TMP:-60G}"
-
 OUTPUT_DIR="$(mkdir -p "${OUTPUT_DIR}" && cd "${OUTPUT_DIR}" && pwd)"
 
 for tool in prefetch fasterq-dump; do
@@ -75,7 +70,7 @@ for run in "${RUNS[@]}"; do
     tmp_dir="${OUTPUT_DIR}/${run}.tmp"
     mkdir -p "${tmp_dir}"
     fasterq-dump --threads "${THREADS}" --outdir "${OUTPUT_DIR}" \
-        --temp "${tmp_dir}" --disk-limit-tmp "${DISK_LIMIT_TMP}" \
+        --temp "${tmp_dir}" \
         "${OUTPUT_DIR}/${run}/${run}.sra"
     rm -rf "${tmp_dir}"
     "${GZIP}" "${OUTPUT_DIR}/${run}.fastq"
