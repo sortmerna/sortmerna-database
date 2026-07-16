@@ -746,7 +746,7 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_sweep.sh \
 
 Sweeps 17 `(num_seeds, min_lis)` pairs x 3 e-values on 10K subsampled reads. Outputs `sweep_results.tsv`, ROC curve (3 panels by e-value), and family breakdown bar charts showing which rRNA subunit drives sensitivity and FPR at each parameter combination.
 
-For PacBio reads, lower e-values such as `-e 1e-10` or better yet `-e 1e-20` give the best specificity, with `--min_lis 2-5` (default of 2 for metagenomic reads), with no loss of rRNA recovery.
+For PacBio reads, lower e-values such as `-e 1e-10` or better yet `-e 1e-20` give the best specificity, with `--min_lis 2-6`, with no loss of rRNA recovery. For metagenomic reads specifically, `--min_lis 6` (`--num_seeds 2`) is recommended.
 
 > [!NOTE]
 > PacBio Parameter Sweep results: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/pacbio/sweep_report.html" target="_blank">sweep_report.html</a>.
@@ -766,7 +766,7 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_pacbio_metagenomics.sh \
 
 Writes one gzipped FASTQ per run (`<SRR>.fastq.gz`) to the output directory. Positional arguments are the output directory (default `data/pacbio_metagenomics`) and thread count for `fasterq-dump` (default 4).
 
-Run SortMeRNA and/or Infernal cmsearch on the downloaded samples. SortMeRNA is run across the PacBio operating points from the Experiment 5 sweep - e-value `{1e-10, 1e-20}` x `--min_lis {2, 3, 4, 5}` (`--num_seeds 2`), one configuration per e-value/min_lis combination. cmsearch (`--hmmonly --cut_ga`) is run once per sample against the rRNA covariance models (16S/18S/23S/28S/5S/5.8S) as an orthogonal reference - there is no read-level ground truth for shotgun metagenomes, so cmsearch serves as a second, structure-aware predictor to compare against. Select the method with `--tool sortmerna|cmsearch|both` (default `both`):
+Run SortMeRNA and/or Infernal cmsearch on the downloaded samples. SortMeRNA is run across the PacBio operating points from the Experiment 5 sweep - e-value `{1e-10, 1e-20}` x `--min_lis {2, 3, 4, 5, 6}` (`--num_seeds 2`), one configuration per e-value/min_lis combination. cmsearch (`--hmmonly --cut_ga`) is run once per sample against the rRNA covariance models (16S/18S/23S/28S/5S/5.8S) as an orthogonal reference - there is no read-level ground truth for shotgun metagenomes, so cmsearch serves as a second, structure-aware predictor to compare against. Select the method with `--tool sortmerna|cmsearch|both` (default `both`):
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_metagenomics.sh \

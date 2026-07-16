@@ -6,6 +6,11 @@
 # PBSIM3-simulated non-rRNA reads from the masked T2T genome. Each combination
 # reports sensitivity and FPR. Run SortMeRNA with -e 1e-5 (default db).
 #
+# The full-dataset validation section runs SortMeRNA once at the recommended
+# metagenomics operating point (-e 1e-20 --num_seeds 2 --min_lis 6) alongside
+# Infernal cmsearch (--hmmonly --cut_ga) against the rRNA covariance models, as
+# an orthogonal reference.
+#
 # Usage:
 #   bash run_pacbio_sweep.sh <rrna_reads> <nonrrna_reads> <output_dir> [threads]
 #
@@ -17,12 +22,17 @@
 #   output_dir     Directory for all sweep outputs ($PACBIO_DIR/sweep)
 #   threads        Number of threads (default: 4)
 #
-# Required env vars:  SMR_BIN, INDEX_DIR, SMR_VERSION
+# Required env vars:  SMR_BIN, INDEX_DIR, SMR_VERSION, CMS_DIR (pressed Rfam
+#                     rRNA CMs from download_cms.sh)
 #
 # Outputs under <output_dir>:
 #   sweep_results.tsv               sensitivity, FPR, wall time per combination
 #   <label>/rrna/out/aligned.log    SortMeRNA log per combination
 #   <label>/nonrrna/out/aligned.log
+#   validation_results.tsv          full-dataset sensitivity/FPR/wall time - one
+#                                    row for SortMeRNA, one for cmsearch
+#   cmsearch/rrna.tblout            cmsearch hits, rRNA reads (full dataset)
+#   cmsearch/nonrrna.tblout         cmsearch hits, non-rRNA reads (full dataset)
 
 set -euo pipefail
 
@@ -36,6 +46,10 @@ THREADS="${4:-4}"
 SMR_BIN="${SMR_BIN:?Please set SMR_BIN (see README Set paths section)}"
 INDEX_DIR="${INDEX_DIR:?Please set INDEX_DIR (see README Set paths section)}"
 SMR_VERSION="${SMR_VERSION:?Please set SMR_VERSION (see README Set paths section)}"
+CMS_DIR="${CMS_DIR:?Please set CMS_DIR (see README Set paths section)}"
+for t in cmsearch cmpress; do
+    command -v "${t}" &>/dev/null || { echo "Error: Infernal (${t}) not found." >&2; exit 1; }
+done
 
 DB_NAME="smr_v${SMR_VERSION}_default_db"
 FAMILY_MAP="${INDEX_DIR}/${DB_NAME}/family_map.tsv"
@@ -130,6 +144,25 @@ run_smr_timed() {
         sleep 5
     done
     wait "${pid}" || { echo "  ERROR: sortmerna failed" >&2; exit 1; }
+    echo "WALL=$(( $(date +%s) - start )) RSS=${peak_rss_mb}"
+}
+
+# Runs cmsearch (--hmmonly --cut_ga) against the combined rRNA CM in background,
+# tracks wall time and peak RSS. Writes wall_sec and peak_rss_mb to stdout as "WALL=<n> RSS=<n>".
+run_cmsearch_timed() {
+    local fasta="$1" tblout="$2"
+    local start peak_rss_mb=0 rss_kb rss_mb
+    start=$(date +%s)
+    cmsearch --cpu "${THREADS}" --hmmonly --cut_ga --noali \
+        --tblout "${tblout}" "${COMBINED_CM}" "${fasta}" > /dev/null &
+    local pid=$!
+    while kill -0 "${pid}" 2>/dev/null; do
+        rss_kb=$(_tree_rss_kb "${pid}")
+        rss_mb=$(( (rss_kb + 0) / 1024 ))
+        (( rss_mb > peak_rss_mb )) && peak_rss_mb=${rss_mb}
+        sleep 5
+    done
+    wait "${pid}" || { echo "  ERROR: cmsearch failed" >&2; exit 1; }
     echo "WALL=$(( $(date +%s) - start )) RSS=${peak_rss_mb}"
 }
 
@@ -228,73 +261,142 @@ echo ""
 echo "=== Sweep complete ==="
 column -t -s $'\t' "${RESULTS}"
 
-# --- Full-dataset validation at recommended operating points ---
+# --- Full-dataset validation at the recommended metagenomics operating point ---
 echo ""
 echo "=== Full-dataset validation (${TOTAL_RRNA_FULL} rRNA / ${TOTAL_NONRRNA_FULL} non-rRNA reads) ==="
 VALID_RESULTS="${SWEEP_DIR}/validation_results.tsv"
-printf 'passes\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec_rrna\twall_sec_nonrrna\tpeak_rss_mb\n' > "${VALID_RESULTS}"
+printf 'method\tpasses\tevalue\tnum_seeds\tmin_lis\trrna_aligned\tsensitivity\tnonrrna_aligned\tfpr\twall_sec_rrna\twall_sec_nonrrna\tpeak_rss_mb\n' > "${VALID_RESULTS}"
 
-for pair in "1e-10 2 4" "1e-10 2 5" "1e-20 2 4" "1e-20 2 5"; do
-    ev=$(echo "$pair" | cut -d' ' -f1)
-    ns=$(echo "$pair" | cut -d' ' -f2)
-    ml=$(echo "$pair" | cut -d' ' -f3)
-    ev_label="${ev//-/m}"
-    label="full_e${ev_label}_s${ns}_lis${ml}"
-    rrna_log="${SWEEP_DIR}/${label}/rrna/out/aligned.log"
-    nonrrna_log="${SWEEP_DIR}/${label}/nonrrna/out/aligned.log"
+# --- SortMeRNA (recommended metagenomics operating point) ---
+ev="1e-20"
+ns="2"
+ml="6"
+ev_label="${ev//-/m}"
+label="full_e${ev_label}_s${ns}_lis${ml}"
+rrna_log="${SWEEP_DIR}/${label}/rrna/out/aligned.log"
+nonrrna_log="${SWEEP_DIR}/${label}/nonrrna/out/aligned.log"
 
-    echo "--------------------------------------------"
-    echo "Full dataset: evalue=${ev}  num_seeds=${ns}  min_lis=${ml}"
-    echo "--------------------------------------------"
+echo "--------------------------------------------"
+echo "Full dataset: evalue=${ev}  num_seeds=${ns}  min_lis=${ml}"
+echo "--------------------------------------------"
 
-    wall_rrna=0 rss_rrna=0 wall_nonrrna=0 rss_nonrrna=0
+wall_rrna=0 rss_rrna=0 wall_nonrrna=0 rss_nonrrna=0
 
-    if [[ -f "${rrna_log}" ]]; then
-        echo "  rRNA run already exists - skipping"
-        wall_rrna=$(cat "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"    2>/dev/null || echo 0)
-        rss_rrna=$( cat "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt" 2>/dev/null || echo 0)
-    else
-        mkdir -p "${SWEEP_DIR}/${label}/rrna"
-        echo "  Running rRNA (full dataset)..."
-        result=$(run_smr_timed "${RRNA_FULL}" "${SWEEP_DIR}/${label}/rrna" "18,9,3" "${ns}" "${ev}" "${ml}")
-        wall_rrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
-        rss_rrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
-        echo "${wall_rrna}" > "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"
-        echo "${rss_rrna}"  > "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt"
-        echo "  rRNA done: ${wall_rrna}s peak RSS ${rss_rrna} MB"
-    fi
+if [[ -f "${rrna_log}" ]]; then
+    echo "  rRNA run already exists - skipping"
+    wall_rrna=$(cat "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"    2>/dev/null || echo 0)
+    rss_rrna=$( cat "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt" 2>/dev/null || echo 0)
+else
+    mkdir -p "${SWEEP_DIR}/${label}/rrna"
+    echo "  Running rRNA (full dataset)..."
+    result=$(run_smr_timed "${RRNA_FULL}" "${SWEEP_DIR}/${label}/rrna" "18,9,3" "${ns}" "${ev}" "${ml}")
+    wall_rrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+    rss_rrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+    echo "${wall_rrna}" > "${SWEEP_DIR}/${label}/rrna/wall_sec.txt"
+    echo "${rss_rrna}"  > "${SWEEP_DIR}/${label}/rrna/peak_rss_mb.txt"
+    echo "  rRNA done: ${wall_rrna}s peak RSS ${rss_rrna} MB"
+fi
 
-    if [[ -f "${nonrrna_log}" ]]; then
-        echo "  Non-rRNA run already exists - skipping"
-        wall_nonrrna=$(cat "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"    2>/dev/null || echo 0)
-        rss_nonrrna=$( cat "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt" 2>/dev/null || echo 0)
-    else
-        mkdir -p "${SWEEP_DIR}/${label}/nonrrna"
-        echo "  Running non-rRNA (full dataset)..."
-        result=$(run_smr_timed "${NONRRNA_FULL}" "${SWEEP_DIR}/${label}/nonrrna" "18,9,3" "${ns}" "${ev}" "${ml}")
-        wall_nonrrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
-        rss_nonrrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
-        echo "${wall_nonrrna}" > "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"
-        echo "${rss_nonrrna}"  > "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt"
-        echo "  Non-rRNA done: ${wall_nonrrna}s peak RSS ${rss_nonrrna} MB"
-    fi
+if [[ -f "${nonrrna_log}" ]]; then
+    echo "  Non-rRNA run already exists - skipping"
+    wall_nonrrna=$(cat "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"    2>/dev/null || echo 0)
+    rss_nonrrna=$( cat "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt" 2>/dev/null || echo 0)
+else
+    mkdir -p "${SWEEP_DIR}/${label}/nonrrna"
+    echo "  Running non-rRNA (full dataset)..."
+    result=$(run_smr_timed "${NONRRNA_FULL}" "${SWEEP_DIR}/${label}/nonrrna" "18,9,3" "${ns}" "${ev}" "${ml}")
+    wall_nonrrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+    rss_nonrrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+    echo "${wall_nonrrna}" > "${SWEEP_DIR}/${label}/nonrrna/wall_sec.txt"
+    echo "${rss_nonrrna}"  > "${SWEEP_DIR}/${label}/nonrrna/peak_rss_mb.txt"
+    echo "  Non-rRNA done: ${wall_nonrrna}s peak RSS ${rss_nonrrna} MB"
+fi
 
-    wall=$(( wall_rrna + wall_nonrrna ))
-    peak_rss=$(( rss_rrna > rss_nonrrna ? rss_rrna : rss_nonrrna ))
-    rrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${rrna_log}")
-    nonrrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${nonrrna_log}")
-    sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA_FULL} }")
-    fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA_FULL} }")
+peak_rss=$(( rss_rrna > rss_nonrrna ? rss_rrna : rss_nonrrna ))
+rrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${rrna_log}")
+nonrrna_aligned=$(grep -oP '(?<=Total reads passing E-value threshold = )\d+' "${nonrrna_log}")
+sens=$(awk "BEGIN { printf \"%.4f\", ${rrna_aligned} / ${TOTAL_RRNA_FULL} }")
+fpr=$(awk "BEGIN { printf \"%.4f\", ${nonrrna_aligned} / ${TOTAL_NONRRNA_FULL} }")
 
-    printf '18,9,3\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\n' \
-        "${ev}" "${ns}" "${ml}" \
-        "${rrna_aligned}" "${sens}" \
-        "${nonrrna_aligned}" "${fpr}" \
-        "${wall_rrna}" "${wall_nonrrna}" "${peak_rss}" \
-        >> "${VALID_RESULTS}"
+printf 'sortmerna\t18,9,3\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\n' \
+    "${ev}" "${ns}" "${ml}" \
+    "${rrna_aligned}" "${sens}" \
+    "${nonrrna_aligned}" "${fpr}" \
+    "${wall_rrna}" "${wall_nonrrna}" "${peak_rss}" \
+    >> "${VALID_RESULTS}"
 
-    echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA_FULL})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA_FULL})  rrna_time=${wall_rrna}s  nonrrna_time=${wall_nonrrna}s"
-done
+echo "  sensitivity=${sens} (${rrna_aligned}/${TOTAL_RRNA_FULL})  fpr=${fpr} (${nonrrna_aligned}/${TOTAL_NONRRNA_FULL})  rrna_time=${wall_rrna}s  nonrrna_time=${wall_nonrrna}s"
+
+# --- cmsearch (orthogonal reference) ---
+# rRNA covariance models: bac/arc 16S, euk 18S, bac/arc 23S, euk 28S, 5S, 5.8S.
+RRNA_CMS=(RF00177 RF01959 RF01960 RF02541 RF02540 RF02543 RF00001 RF00002)
+COMBINED_CM="${SWEEP_DIR}/rrna_cms.cm"
+
+echo ""
+echo "=== cmsearch full-dataset validation (--hmmonly --cut_ga, ${#RRNA_CMS[@]} rRNA CMs) ==="
+
+if [[ ! -f "${COMBINED_CM}.i1m" ]]; then
+    echo "Building combined rRNA CM: ${COMBINED_CM}"
+    : > "${COMBINED_CM}"
+    for rf in "${RRNA_CMS[@]}"; do
+        cm="${CMS_DIR}/${rf}.cm"
+        [[ -f "${cm}" ]] || { echo "Error: CM not found: ${cm}" >&2; exit 1; }
+        cat "${cm}" >> "${COMBINED_CM}"
+    done
+    cmpress -F "${COMBINED_CM}" > /dev/null
+fi
+
+cm_dir="${SWEEP_DIR}/cmsearch"
+mkdir -p "${cm_dir}"
+rrna_fasta="${cm_dir}/rrna_full.fasta"
+nonrrna_fasta="${cm_dir}/nonrrna_full.fasta"
+rrna_tblout="${cm_dir}/rrna.tblout"
+nonrrna_tblout="${cm_dir}/nonrrna.tblout"
+
+wall_cm_rrna=0 rss_cm_rrna=0 wall_cm_nonrrna=0 rss_cm_nonrrna=0
+
+if [[ -f "${rrna_tblout}" ]]; then
+    echo "  rRNA cmsearch already exists - skipping"
+    wall_cm_rrna=$(cat "${cm_dir}/rrna_wall_sec.txt"    2>/dev/null || echo 0)
+    rss_cm_rrna=$( cat "${cm_dir}/rrna_peak_rss_mb.txt" 2>/dev/null || echo 0)
+else
+    [[ -f "${rrna_fasta}" ]] || seqkit fq2fa "${RRNA_FULL}" -o "${rrna_fasta}"
+    echo "  Running cmsearch (rRNA, full dataset)..."
+    result=$(run_cmsearch_timed "${rrna_fasta}" "${rrna_tblout}")
+    wall_cm_rrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+    rss_cm_rrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+    echo "${wall_cm_rrna}" > "${cm_dir}/rrna_wall_sec.txt"
+    echo "${rss_cm_rrna}"  > "${cm_dir}/rrna_peak_rss_mb.txt"
+    echo "  rRNA cmsearch done: ${wall_cm_rrna}s peak RSS ${rss_cm_rrna} MB"
+fi
+
+if [[ -f "${nonrrna_tblout}" ]]; then
+    echo "  Non-rRNA cmsearch already exists - skipping"
+    wall_cm_nonrrna=$(cat "${cm_dir}/nonrrna_wall_sec.txt"    2>/dev/null || echo 0)
+    rss_cm_nonrrna=$( cat "${cm_dir}/nonrrna_peak_rss_mb.txt" 2>/dev/null || echo 0)
+else
+    [[ -f "${nonrrna_fasta}" ]] || seqkit fq2fa "${NONRRNA_FULL}" -o "${nonrrna_fasta}"
+    echo "  Running cmsearch (non-rRNA, full dataset)..."
+    result=$(run_cmsearch_timed "${nonrrna_fasta}" "${nonrrna_tblout}")
+    wall_cm_nonrrna=$(echo "${result}" | grep -oP '(?<=WALL=)\d+')
+    rss_cm_nonrrna=$(echo "${result}"  | grep -oP '(?<=RSS=)\d+')
+    echo "${wall_cm_nonrrna}" > "${cm_dir}/nonrrna_wall_sec.txt"
+    echo "${rss_cm_nonrrna}"  > "${cm_dir}/nonrrna_peak_rss_mb.txt"
+    echo "  Non-rRNA cmsearch done: ${wall_cm_nonrrna}s peak RSS ${rss_cm_nonrrna} MB"
+fi
+
+cm_rrna_aligned=$(awk '!/^#/{print $1}' "${rrna_tblout}" | sort -u | wc -l | tr -d ' ')
+cm_nonrrna_aligned=$(awk '!/^#/{print $1}' "${nonrrna_tblout}" | sort -u | wc -l | tr -d ' ')
+cm_sens=$(awk "BEGIN { printf \"%.4f\", ${cm_rrna_aligned} / ${TOTAL_RRNA_FULL} }")
+cm_fpr=$(awk "BEGIN { printf \"%.4f\", ${cm_nonrrna_aligned} / ${TOTAL_NONRRNA_FULL} }")
+cm_peak_rss=$(( rss_cm_rrna > rss_cm_nonrrna ? rss_cm_rrna : rss_cm_nonrrna ))
+
+printf 'cmsearch\t-\t-\t-\t-\t%s\t%s\t%s\t%s\t%d\t%d\t%d\n' \
+    "${cm_rrna_aligned}" "${cm_sens}" "${cm_nonrrna_aligned}" "${cm_fpr}" \
+    "${wall_cm_rrna}" "${wall_cm_nonrrna}" "${cm_peak_rss}" \
+    >> "${VALID_RESULTS}"
+
+echo "  sensitivity=${cm_sens} (${cm_rrna_aligned}/${TOTAL_RRNA_FULL})  fpr=${cm_fpr} (${cm_nonrrna_aligned}/${TOTAL_NONRRNA_FULL})  rrna_time=${wall_cm_rrna}s  nonrrna_time=${wall_cm_nonrrna}s  peak_rss=${cm_peak_rss}MB"
 
 echo ""
 echo "=== Full-dataset validation results ==="
@@ -337,8 +439,20 @@ def make_table_rows(tsv_path):
         for r in rows
     )
 
+def make_valid_table_rows(tsv_path):
+    if not Path(tsv_path).exists():
+        return ""
+    rows = list(csv.DictReader(open(tsv_path), delimiter='\t'))
+    return "".join(
+        f"<tr><td>{r['method']}</td><td>{r['passes']}</td><td>{r['evalue']}</td><td>{r['num_seeds']}</td><td>{r['min_lis']}</td>"
+        f"<td>{r['rrna_aligned']}</td><td>{float(r['sensitivity'])*100:.2f}%</td>"
+        f"<td>{r['nonrrna_aligned']}</td><td>{float(r['fpr'])*100:.2f}%</td>"
+        f"<td>{r['wall_sec_rrna']}</td><td>{r['wall_sec_nonrrna']}</td><td>{r['peak_rss_mb']}</td></tr>"
+        for r in rows
+    )
+
 table_rows       = make_table_rows(results_tsv)
-valid_table_rows = make_table_rows(valid_tsv)
+valid_table_rows = make_valid_table_rows(valid_tsv)
 
 html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -397,9 +511,11 @@ The parameter sweep was run on 10,000 reads randomly subsampled (seed 42) from t
 
 <h2>Recommended operating points (full dataset: 253,089 reads)</h2>
 <p>For PacBio reads, lower e-values such as <code>-e 1e-10</code> or <code>-e 1e-20</code> give the best specificity,
-with <code>--min_lis</code> 2-5 (default of 2 for metagenomic reads), with no loss of rRNA recovery.</p>
+with <code>--min_lis</code> 2-6, with no loss of rRNA recovery. For metagenomic reads specifically,
+<code>--min_lis 6</code> (<code>--num_seeds 2</code>) is recommended, validated here against cmsearch
+(<code>--hmmonly --cut_ga</code>) as an orthogonal reference.</p>
 <table><thead><tr>
-  <th>passes</th><th>evalue</th><th>num_seeds</th><th>min_lis</th>
+  <th>Method</th><th>passes</th><th>evalue</th><th>num_seeds</th><th>min_lis</th>
   <th>rRNA aligned</th><th>Sensitivity</th>
   <th>Non-rRNA aligned</th><th>FPR</th>
   <th>Wall time rRNA (s)</th><th>Wall time non-rRNA (s)</th><th>Peak RSS (MB)</th>
