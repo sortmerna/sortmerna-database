@@ -729,9 +729,9 @@ SortMeRNA's default parameters (`--passes 18,9,3`, `--num_seeds 2`, `--min_lis 2
 
 `--passes 18,9,3`: the strides are defined relative to the seed length (L, L/2, 3), not read length, so the seed-matching mechanism is identical across read lengths. On long reads, pass 1 alone saturates the seed threshold and early-exit fires immediately, making passes 2 and 3 largely redundant in practice.
 
-**Sweep findings:** For PacBio long reads (5-15 kb), random k-mer matches and degraded pseudogene fragments accumulate enough seeds to pass default thresholds, driving FPR as high as 22.4% against human non-rRNA reads. The parameter sweep reveals:
+**Sweep findings:** For PacBio long reads (5-15 kb), random k-mer matches and degraded pseudogene fragments accumulate enough seeds to pass default thresholds, driving FPR as high as 13.05% against human non-rRNA reads. The parameter sweep reveals:
 
-- **`-e` is the dominant specificity lever** - tightening from `1e-5` to `1e-10` alone reduces FPR from 22.4% to 3.3% with no sensitivity loss
+- **`-e` is the dominant specificity lever** - tightening from `1e-5` to `1e-20` alone reduces FPR from 13.05% to 0.02% with no sensitivity loss
 - **`--min_lis` provides targeted additional filtering** - requires co-linear seed chains on a single reference, directly blocking short pseudogene fragments (~50 bp, max LIS ~3) while preserving detection of 5S (~120 bp, max LIS ~7) and larger subunits
 - **`--num_seeds` contributes modestly** and is largely subsumed by `--min_lis` at the same threshold value
 - **Sensitivity stays 100% throughout** - full-operon reads generate LIS >> 10 against 23S references regardless of parameter choice
@@ -746,7 +746,7 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_sweep.sh \
 
 Sweeps 17 `(num_seeds, min_lis)` pairs x 3 e-values on 10K subsampled reads. Outputs `sweep_results.tsv`, ROC curve (3 panels by e-value), and family breakdown bar charts showing which rRNA subunit drives sensitivity and FPR at each parameter combination.
 
-For PacBio reads, lower e-values such as `-e 1e-10` or better yet `-e 1e-20` give the best specificity, with `--min_lis 2-6`, with no loss of rRNA recovery. For metagenomic reads specifically, `--min_lis 6` (`--num_seeds 2`) is recommended.
+For PacBio reads, lower e-values such as `-e 1e-10` or better yet `-e 1e-20` give the best specificity, with `--min_lis 2-6`, with no loss of rRNA recovery. For PacBio reads 5-45 kb in length, `--min_lis 6` (`--num_seeds 2`) is recommended.
 
 > [!NOTE]
 > PacBio Parameter Sweep results: <a href="https://sortmerna.github.io/sortmerna-database/results/silva_138.2_Rfam_15.1/working/data/pacbio/sweep_report.html" target="_blank">sweep_report.html</a>.
@@ -756,7 +756,7 @@ For PacBio reads, lower e-values such as `-e 1e-10` or better yet `-e 1e-20` giv
 - **Source**: [Minich et al. (2025, *Cell*)](https://www.cell.com/cell/fulltext/S0092-8674%2825%2900975-4) - PacBio HiFi (gDNA fragmented (megaruptor3 speed31) SMARTBELL3.0 with 5kb size selection at end) metagenomics from 47 fecal samples, mean read length N50 ~9,663 bp (SD += 1,868). Unlike Karst et al., reads are shotgun metagenomic - no guaranteed rRNA content per read. Raw data: [PRJNA1139951](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1139951). Metadata: [Supplementary Table S28](https://data.mendeley.com/datasets/ks5tvfzbzr/1).
 - **Rationale**: Tests SortMeRNA on long-read metagenomics where rRNA reads are a small unknown fraction of a mixed community. True labels are unknown at the read level; results reported as fraction of reads classified as rRNA and family breakdown.
 
-Download the 47 per-sample PacBio HiFi runs (human reads removed, full-run `pb.concat.no_hsap` libraries; SRA accessions are read from the bundled `assets/Table_S28_15947_PB.ONT.ILMN_metadata_SRA_v2.txt`). Requires sra-tools (`prefetch`, `fasterq-dump`) and `pigz`/`gzip`:
+Download the first 20 of the 47 available per-sample PacBio HiFi runs, to conserve disk (human reads removed, full-run `pb.concat.no_hsap` libraries; SRA accessions are read from the bundled `assets/Table_S28_15947_PB.ONT.ILMN_metadata_SRA_v2.txt`). Requires sra-tools (`prefetch`, `fasterq-dump`) and `pigz`/`gzip`:
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_pacbio_metagenomics.sh \
@@ -764,9 +764,9 @@ bash $SMR_DB_ROOT_DIR/scripts/read_simulation/download_pacbio_metagenomics.sh \
     4
 ```
 
-Writes one gzipped FASTQ per run (`<SRR>.fastq.gz`) to the output directory. Positional arguments are the output directory (default `data/pacbio_metagenomics`) and thread count for `fasterq-dump` (default 4).
+Writes one gzipped FASTQ per run (`<SRR>.fastq.gz`) to the output directory. Positional arguments are the output directory (default `data/pacbio_metagenomics`), thread count for `fasterq-dump` (default 4), and max runs to download (default `20`; use `0` to download all 47).
 
-Run SortMeRNA and/or Infernal cmsearch on the downloaded samples. SortMeRNA is run across the PacBio operating points from the Experiment 5 sweep - e-value `{1e-10, 1e-20}` x `--min_lis {2, 3, 4, 5, 6}` (`--num_seeds 2`), one configuration per e-value/min_lis combination. cmsearch (`--hmmonly --cut_ga`) is run once per sample against the rRNA covariance models (16S/18S/23S/28S/5S/5.8S) as an orthogonal reference - there is no read-level ground truth for shotgun metagenomes, so cmsearch serves as a second, structure-aware predictor to compare against. Select the method with `--tool sortmerna|cmsearch|both` (default `both`):
+Run SortMeRNA and/or Infernal cmsearch on the downloaded samples. SortMeRNA is run once per sample, at the operating point recommended by the Experiment 5 sweep (`-e 1e-20 --num_seeds 2 --min_lis 6`). cmsearch (`--hmmonly --cut_ga`) is run once per sample against the rRNA covariance models (16S/18S/23S/28S/5S/5.8S) as an orthogonal reference - there is no read-level ground truth for shotgun metagenomes, so cmsearch serves as a second, structure-aware predictor to compare against. Select the method with `--tool sortmerna|cmsearch|both` (default `both`):
 
 ```bash
 bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_metagenomics.sh \
@@ -776,7 +776,7 @@ bash $SMR_DB_ROOT_DIR/scripts/benchmarking/run_pacbio_metagenomics.sh \
     4
 ```
 
-Both methods record reads classified as rRNA, wall time, and peak RSS. Results are written to `metagenomics_results.tsv` (SortMeRNA, one row per sample x configuration) and `cmsearch_results.tsv` (one row per sample). The SortMeRNA blast output (read + reference coordinates) and cmsearch `rrna.tblout` (read + model coordinates) are kept per sample so rRNA read coordinates can be compared between the two methods. SortMeRNA requires `SMR_BIN`, `INDEX_DIR`, `SMR_VERSION`; cmsearch requires `CMS_DIR` (pressed Rfam rRNA CMs from `download_cms.sh`) and Infernal (`cmsearch`, `cmpress`).
+Both methods record reads classified as rRNA, wall time, and peak RSS. Results are written to `metagenomics_results.tsv` (SortMeRNA, one row per sample) and `cmsearch_results.tsv` (one row per sample). The SortMeRNA blast output (read + reference coordinates) and cmsearch `rrna.tblout` (read + model coordinates) are kept per sample so rRNA read coordinates can be compared between the two methods. SortMeRNA requires `SMR_BIN`, `INDEX_DIR`, `SMR_VERSION`; cmsearch requires `CMS_DIR` (pressed Rfam rRNA CMs from `download_cms.sh`) and Infernal (`cmsearch`, `cmpress`).
 
 ## Expected Outputs
 
